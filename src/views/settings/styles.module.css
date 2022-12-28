@@ -1,0 +1,9 @@
+.certificateSection {
+  background-color: aqua;
+}
+
+.authSection {
+  width: 300;
+  height: 300;
+  background-color: "primary.dark";
+}
