@@ -21,6 +21,7 @@ import { cadastrosService } from "../../services/cadastrosService.ts";
 
 export default function DataSyncView(): React$Element<*> {
   const [authData, setAuthData] = useState([]);
+  const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [service, setService] = useState("");
   const [category, setCategory] = useState("");
   const [date, setDate] = useState(dayjs());
@@ -59,9 +60,14 @@ export default function DataSyncView(): React$Element<*> {
   };
 
   useEffect(() => {
+    //localStorage.clear();
     const data = JSON.parse(localStorage.getItem("authData"));
     if (data) {
       setAuthData(data);
+    }
+    const dataSources = JSON.parse(localStorage.getItem("DATA_SOURCE_KEYS"));
+    if (dataSources) {
+      setDataSourceKeys(dataSources);
     }
   }, []);
 
@@ -70,10 +76,12 @@ export default function DataSyncView(): React$Element<*> {
 
   const handleServiceChange = (event) => {
     setService(event.target.value);
+    //localStorage.removeItem("DATA_SOURCE_KEYS");
   };
 
   const handleCategoryChange = (event) => {
     setCategory(event.target.value);
+    console.log(event.target.value);
   };
 
   const sendRequest_ListarParticipantes = async () => {
@@ -88,17 +96,33 @@ export default function DataSyncView(): React$Element<*> {
       );
 
     console.log(totalPages);
+    const categoryName = classes.find((x) => x.id === category).name;
+    const key =
+      "participantes_" + categoryName + "_" + dayjs(date).format("MM/YY");
+
+    let keys = [];
+    if (dataSourceKeys.length === 0) {
+      keys = [key];
+    } else {
+      keys = dataSourceKeys.concat(key);
+    }
+    console.log(JSON.stringify(keys));
+    localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
+
+    let participants = [];
 
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
+      // eslint-disable-next-line no-loop-func
       setTimeout(async () => {
-        var participantes = await cadastrosService.listarParticipantesDeMercado(
-          authData,
-          currentPage,
-          dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
-          category
-        );
+        var participantesData =
+          await cadastrosService.listarParticipantesDeMercado(
+            authData,
+            currentPage,
+            dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+            category
+          );
 
-        participantes.map((x) => {
+        participantesData.map((x) => {
           const cnpj =
             x["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"] !==
             undefined
@@ -112,28 +136,34 @@ export default function DataSyncView(): React$Element<*> {
             ]._text.toString();
           const sigla = x["bov2:sigla"]._text.toString();
           const codigo = x["bov2:codigo"]._text.toString();
-          const periodoVigencia =
+          let periodoVigencia =
             x["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
+          periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
           const situacao =
             x["bov2:situacao"]["bov2:descricao"]._text.toString();
-          console.log(
-            cnpj +
-              ", " +
-              nomeEmpresarial +
-              ", " +
-              situacao +
-              ", " +
-              sigla +
-              ", " +
-              codigo +
-              ", " +
-              periodoVigencia
-          );
+
+          const participante = {
+            cnpj,
+            nomeEmpresarial,
+            situacao,
+            sigla,
+            codigo,
+            periodoVigencia,
+          };
+          if (participants.length === 0) {
+            participants = [participante];
+          } else {
+            participants = participants.concat(participante);
+          }
+          localStorage.setItem(key, JSON.stringify(participants));
+          //console.log(participants.length);
         });
       }, 5000);
-    }
 
-    handleClose();
+      if (currentPage === totalPages) {
+        handleClose();
+      }
+    }
   };
 
   const sendRequest_ListarPerfis = async () => {};
