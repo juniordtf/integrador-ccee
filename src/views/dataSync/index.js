@@ -18,12 +18,16 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 //import { makeStyles } from "@mui/material/styles";
 import styles from "./styles.module.css";
 import { cadastrosService } from "../../services/cadastrosService.ts";
+import { ativosService } from "../../services/ativosService.ts";
 
 export default function DataSyncView(): React$Element<*> {
   const [authData, setAuthData] = useState([]);
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
+  const [selectedDataSource, setSelectedDataSource] = useState("");
+  const [dataSourceItems, setDataSourceItems] = useState([]);
   const [service, setService] = useState("");
   const [category, setCategory] = useState("");
+  const [pendingRequests, setPendingRequests] = useState(0);
   const [date, setDate] = useState(dayjs());
   const [open, setOpen] = useState(false);
 
@@ -69,7 +73,13 @@ export default function DataSyncView(): React$Element<*> {
     if (dataSources) {
       setDataSourceKeys(dataSources);
     }
-  }, []);
+
+    if (pendingRequests > 0) {
+      handleOpen();
+    } else {
+      handleClose();
+    }
+  }, [pendingRequests]);
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -81,12 +91,16 @@ export default function DataSyncView(): React$Element<*> {
 
   const handleCategoryChange = (event) => {
     setCategory(event.target.value);
-    console.log(event.target.value);
+  };
+
+  const handleDataSourceChange = (event) => {
+    setSelectedDataSource(event.target.value);
+    const content = JSON.parse(localStorage.getItem(event.target.value));
+    setDataSourceItems(content);
   };
 
   const sendRequest_ListarParticipantes = async () => {
-    handleOpen();
-
+    setPendingRequests(pendingRequests + 1);
     var totalPages =
       await cadastrosService.listarParticipantesDeMercado_totalDePaginas(
         authData,
@@ -94,6 +108,7 @@ export default function DataSyncView(): React$Element<*> {
         dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
         category
       );
+    setPendingRequests(pendingRequests - 1);
 
     console.log(totalPages);
     const categoryName = classes.find((x) => x.id === category).name;
@@ -114,6 +129,8 @@ export default function DataSyncView(): React$Element<*> {
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
       // eslint-disable-next-line no-loop-func
       setTimeout(async () => {
+        setPendingRequests(pendingRequests + 1);
+
         var participantesData =
           await cadastrosService.listarParticipantesDeMercado(
             authData,
@@ -122,53 +139,224 @@ export default function DataSyncView(): React$Element<*> {
             category
           );
 
-        participantesData.map((x) => {
-          const cnpj =
-            x["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"] !==
-            undefined
-              ? x["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"][
-                  "bov2:identificacao"
-                ]["bov2:numero"]._text.toString()
-              : "";
-          const nomeEmpresarial =
-            x["bov2:parte"]["bov2:pessoaJuridica"][
-              "bov2:nomeEmpresarial"
-            ]._text.toString();
-          const sigla = x["bov2:sigla"]._text.toString();
-          const codigo = x["bov2:codigo"]._text.toString();
-          let periodoVigencia =
-            x["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
-          periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
-          const situacao =
-            x["bov2:situacao"]["bov2:descricao"]._text.toString();
+        if (participantesData !== null) {
+          participantesData.forEach((x) => {
+            const cnpj =
+              x["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"] !==
+              undefined
+                ? x["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"][
+                    "bov2:identificacao"
+                  ]["bov2:numero"]._text.toString()
+                : "";
+            const nomeEmpresarial =
+              x["bov2:parte"]["bov2:pessoaJuridica"][
+                "bov2:nomeEmpresarial"
+              ]._text.toString();
+            const sigla = x["bov2:sigla"]._text.toString();
+            const codigo = x["bov2:codigo"]._text.toString();
+            let periodoVigencia =
+              x["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
+            periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
+            const situacao =
+              x["bov2:situacao"]["bov2:descricao"]._text.toString();
 
-          const participante = {
-            cnpj,
-            nomeEmpresarial,
-            situacao,
-            sigla,
-            codigo,
-            periodoVigencia,
-          };
-          if (participants.length === 0) {
-            participants = [participante];
-          } else {
-            participants = participants.concat(participante);
-          }
-          localStorage.setItem(key, JSON.stringify(participants));
-          //console.log(participants.length);
-        });
+            const participante = {
+              cnpj,
+              nomeEmpresarial,
+              situacao,
+              sigla,
+              codigo,
+              periodoVigencia,
+            };
+            if (participants.length === 0) {
+              participants = [participante];
+            } else {
+              participants = participants.concat(participante);
+            }
+            localStorage.setItem(key, JSON.stringify(participants));
+            console.log(participants.length);
+          });
+        }
+        setPendingRequests(pendingRequests - 1);
       }, 5000);
-
-      if (currentPage === totalPages) {
-        handleClose();
-      }
     }
   };
 
-  const sendRequest_ListarPerfis = async () => {};
+  const sendRequest_ListarPerfis = async () => {
+    const key = selectedDataSource.replace("participantes", "perfis");
+    console.log(key);
+    let keys = dataSourceKeys.concat(key);
 
-  const sendRequest_ListarAtivosDeMedicao = async () => {};
+    console.log(JSON.stringify(keys));
+    localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
+    let profiles = [];
+
+    dataSourceItems.forEach((x) => {
+      setTimeout(async () => {
+        setPendingRequests(pendingRequests + 1);
+        var perfis = await cadastrosService.listarPerfis(authData, x.codigo);
+
+        if (perfis !== null) {
+          perfis.forEach((y) => {
+            const classe = y["bov2:classe"]["bov2:descricao"]._text.toString();
+            const codPerfil = y["bov2:codigo"]._text.toString();
+            var comercializadorVarejista =
+              y["bov2:comercializadorVarejista"]._text.toString();
+            const sigla = y["bov2:sigla"]._text.toString();
+            const situacao =
+              y["bov2:situacao"]["bov2:descricao"]._text.toString();
+            const submercado =
+              y["bov2:submercado"] === undefined
+                ? "Sem informação"
+                : y["bov2:submercado"]["bov2:nome"]._text.toString();
+            var perfilPrincipal = y["bov2:perfilPrincipal"]._text.toString();
+            var regimeCotas = y["bov2:regimeCotas"]._text.toString();
+            comercializadorVarejista =
+              comercializadorVarejista === "true" ? "Sim" : "Não";
+            perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
+            regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
+
+            const perfil = {
+              codAgente: x.codigo,
+              classe,
+              codPerfil,
+              comercializadorVarejista,
+              sigla,
+              situacao,
+              submercado,
+              perfilPrincipal,
+              regimeCotas,
+            };
+
+            if (profiles.length === 0) {
+              profiles = [perfil];
+            } else {
+              profiles = profiles.concat(perfil);
+            }
+            localStorage.setItem(key, JSON.stringify(profiles));
+            console.log(profiles.length);
+          });
+        }
+        setPendingRequests(pendingRequests - 1);
+      }, 5000);
+    });
+  };
+
+  const sendRequest_ListarAtivosDeMedicao = async () => {
+    var date = selectedDataSource.substring(selectedDataSource.length - 5);
+    date =
+      "20" +
+      date.substring(date.length - 2) +
+      "-" +
+      date.substring(0, 2) +
+      "-01";
+
+    const key = selectedDataSource.replace("perfis", "ativos");
+    console.log(key);
+    let keys = dataSourceKeys.concat(key);
+
+    console.log(JSON.stringify(keys));
+    localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
+    let resources = [];
+
+    dataSourceItems.forEach((x) => {
+      setTimeout(async () => {
+        setPendingRequests(pendingRequests + 1);
+        var responseData = await ativosService.listarAtivosDeMedicao(
+          authData,
+          x.codPerfil,
+          dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
+        );
+        if (responseData !== null) {
+          var totalPaginas = responseData.totalPaginas;
+          var totalPaginasNumber = parseInt(totalPaginas._text.toString());
+          if (totalPaginasNumber > 1) {
+            for (
+              let paginaCorrente = 1;
+              paginaCorrente <= totalPaginasNumber;
+              paginaCorrente++
+            ) {
+              // eslint-disable-next-line no-loop-func
+              setTimeout(async () => {
+                setPendingRequests(pendingRequests + 1);
+                var responseDataPaginated =
+                  await ativosService.listarAtivosDeMedicao(
+                    authData,
+                    x.codPerfil,
+                    dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+                    paginaCorrente
+                  );
+
+                var ativos = responseDataPaginated.ativos;
+                if (ativos !== null) {
+                  ativos.forEach((y) => {
+                    const codAtivo = y["bov2:codigo"]._text.toString();
+                    const nome = y["bov2:nome"]._text.toString();
+                    const tipo =
+                      y["bov2:tipo"]["bov2:descricao"]._text.toString();
+                    const situacao =
+                      y["bov2:situacao"]["bov2:descricao"]._text.toString();
+                    const vigencia =
+                      y["bov2:vigencia"]["bov2:inicio"]._text.toString();
+
+                    const resource = {
+                      codPerfil: x.codPerfil,
+                      codAtivo,
+                      nome,
+                      tipo,
+                      situacao,
+                      vigencia,
+                    };
+
+                    if (resources.length === 0) {
+                      resources = [resource];
+                    } else {
+                      resources = resources.concat(resource);
+                    }
+                    console.log(resource);
+                    console.log("Pagina: " + paginaCorrente);
+                    localStorage.setItem(key, JSON.stringify(resources));
+                    console.log(resources.length);
+                  });
+                }
+                setPendingRequests(pendingRequests - 1);
+              });
+            }
+          } else {
+            var ativos = responseData.ativos;
+            ativos.forEach((y) => {
+              const codAtivo = y["bov2:codigo"]._text.toString();
+              const nome = y["bov2:nome"]._text.toString();
+              const tipo = y["bov2:tipo"]["bov2:descricao"]._text.toString();
+              const situacao =
+                y["bov2:situacao"]["bov2:descricao"]._text.toString();
+              const vigencia =
+                y["bov2:vigencia"]["bov2:inicio"]._text.toString();
+
+              const resource = {
+                codPerfil: x.codPerfil,
+                codAtivo,
+                nome,
+                tipo,
+                situacao,
+                vigencia,
+              };
+
+              if (resources.length === 0) {
+                resources = [resource];
+              } else {
+                resources = resources.concat(resource);
+              }
+              console.log(resource);
+              localStorage.setItem(key, JSON.stringify(resources));
+              console.log(resources.length);
+            });
+          }
+        }
+        setPendingRequests(pendingRequests - 1);
+      }, 5000);
+    });
+  };
 
   const sendRequest_ListarParcelasDeCarga = async () => {};
 
@@ -192,25 +380,23 @@ export default function DataSyncView(): React$Element<*> {
     }
   };
 
-  return (
-    <Container className={styles.container}>
-      <Typography paragraph>Importar Dados</Typography>
+  const chooseFieldsToRender = () => {
+    const serviceId = parseInt(service);
 
-      <Stack sx={{ width: "50%" }} spacing={2}>
-        <FormControl>
-          <InputLabel id="service-select-label">Serviço</InputLabel>
-          <Select
-            labelId="service-select-label"
-            id="service-simple-select"
-            value={service}
-            label="Serviço"
-            onChange={handleServiceChange}
-          >
-            {servicos.map((x) => (
-              <MenuItem value={x.id}>{x.name}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+    if (serviceId === 1) {
+      return <div>{renderParticipantsFields()}</div>;
+    } else if (serviceId === 2 || serviceId === 3) {
+      return <div>{renderProfileOrMeasurementFields(serviceId)}</div>;
+    } else if (serviceId === 4) {
+      return <div>{renderLoadFields()}</div>;
+    } else {
+      return <div></div>;
+    }
+  };
+
+  const renderParticipantsFields = () => {
+    return (
+      <Stack spacing={2}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <DateTimePicker
             label="Data & Hora"
@@ -236,6 +422,65 @@ export default function DataSyncView(): React$Element<*> {
             ))}
           </Select>
         </FormControl>
+      </Stack>
+    );
+  };
+
+  const renderProfileOrMeasurementFields = (serviceIdx) => {
+    var sortedDataSourceKeys = [];
+    if (serviceIdx === 2) {
+      sortedDataSourceKeys = dataSourceKeys.filter((item) =>
+        item.includes("participantes")
+      );
+    } else {
+      sortedDataSourceKeys = dataSourceKeys.filter((item) =>
+        item.includes("perfis")
+      );
+    }
+    return (
+      <Stack spacing={2}>
+        <FormControl>
+          <InputLabel id="data-source-select-label">Fonte de dados</InputLabel>
+          <Select
+            labelId="data-source-select-label"
+            id="data-source-simple-select"
+            value={selectedDataSource}
+            label="Fonte de dados"
+            onChange={handleDataSourceChange}
+          >
+            {sortedDataSourceKeys.map((x) => (
+              <MenuItem value={x}>{x}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
+    );
+  };
+
+  const renderLoadFields = () => {
+    return <div></div>;
+  };
+
+  return (
+    <Container className={styles.container}>
+      <Typography paragraph>Importar Dados</Typography>
+
+      <Stack sx={{ width: "50%" }} spacing={2}>
+        <FormControl>
+          <InputLabel id="service-select-label">Serviço</InputLabel>
+          <Select
+            labelId="service-select-label"
+            id="service-simple-select"
+            value={service}
+            label="Serviço"
+            onChange={handleServiceChange}
+          >
+            {servicos.map((x) => (
+              <MenuItem value={x.id}>{x.name}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {chooseFieldsToRender()}
       </Stack>
       <Button variant="outlined" onClick={sendRequest} sx={{ marginTop: 2 }}>
         Enviar

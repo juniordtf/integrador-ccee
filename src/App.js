@@ -8,13 +8,14 @@ import CssBaseline from "@mui/material/CssBaseline";
 import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
-import InboxIcon from "@mui/icons-material/MoveToInbox";
 import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
-import MailIcon from "@mui/icons-material/Mail";
+import SettingsIcon from "@mui/icons-material/Settings";
+import FileDownload from "@mui/icons-material/FileDownload";
+import FileUpload from "@mui/icons-material/FileUpload";
 import MenuIcon from "@mui/icons-material/Menu";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
@@ -42,26 +43,35 @@ function App(props: Props) {
       <Toolbar />
       <Divider />
       <List>
-        <NavLink to="/importarDados">
+        <NavLink
+          to="/importarDados"
+          style={{ textDecoration: "none", color: "black" }}
+        >
           <ListItem button>
             <ListItemIcon>
-              <MenuIcon />
+              <FileDownload />
             </ListItemIcon>
             <ListItemText primary={"Importar Dados"} />
           </ListItem>
         </NavLink>
-        <NavLink to="/exportarDados">
+        <NavLink
+          to="/exportarDados"
+          style={{ textDecoration: "none", color: "black" }}
+        >
           <ListItem button>
             <ListItemIcon>
-              <MenuIcon />
+              <FileUpload />
             </ListItemIcon>
             <ListItemText primary={"Exportar Dados"} />
           </ListItem>
         </NavLink>
-        <NavLink to="/configuracoes">
+        <NavLink
+          to="/configuracoes"
+          style={{ textDecoration: "none", color: "black" }}
+        >
           <ListItem button>
             <ListItemIcon>
-              <MenuIcon />
+              <SettingsIcon />
             </ListItemIcon>
             <ListItemText primary={"Configurações"} />
           </ListItem>

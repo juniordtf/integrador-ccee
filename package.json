@@ -15,6 +15,7 @@
     "date-fns": "^2.29.3",
     "dayjs": "^1.11.6",
     "export-from-json": "^1.7.0",
+    "format-string-by-pattern": "^1.2.2",
     "fs": "^0.0.1-security",
     "https": "^1.0.0",
     "os": "^0.1.2",
