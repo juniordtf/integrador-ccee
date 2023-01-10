@@ -79,6 +79,8 @@ const listarParticipantesDeMercado = async (
               "bmv2:listarParticipanteMercadoResponse"
             ]["bmv2:participantesMercado"]["bov2:participanteMercado"];
           resolve(participantes);
+        } else {
+          resolve(null);
         }
       })
       .catch(function (error) {
@@ -169,6 +171,8 @@ const listarParticipantesDeMercado_totalDePaginas = async (
               "mhv2:totalPaginas"
             ]._text.toString();
           resolve(parseInt(totalPaginas));
+        } else {
+          resolve(null);
         }
       })
       .catch(function (error) {
@@ -249,6 +253,8 @@ const listarPerfis = async (authData, agenteAtual): Promise<object> => {
               "bmv2:listarPerfilParticipanteMercadoResponse"
             ]["bmv2:perfis"]["bov2:perfil"];
           resolve(perfis);
+        } else {
+          resolve(null);
         }
       })
       .catch(function (error) {

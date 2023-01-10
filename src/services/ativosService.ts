@@ -4,7 +4,7 @@ import { xml2json } from "xml-js";
 const listarAtivosDeMedicao = async (
   authData,
   perfilAtual,
-  inicioVigencia, 
+  inicioVigencia,
   paginaAtual = 1
 ): Promise<object> => {
   var options = {
@@ -75,8 +75,10 @@ const listarAtivosDeMedicao = async (
             json["soapenv:Envelope"]["soapenv:Header"]["mhv2:paginacao"][
               "mhv2:totalPaginas"
             ];
-            var responseData = {ativos, totalPaginas};
+          var responseData = { ativos, totalPaginas };
           resolve(responseData);
+        } else {
+          resolve(null);
         }
       })
       .catch(function (error) {

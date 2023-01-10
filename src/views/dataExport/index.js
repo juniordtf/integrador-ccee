@@ -277,7 +277,7 @@ export default function DataExportView(): React$Element<*> {
       </Stack>
       {selectedDataSource !== "" ? (
         <div>
-          <TableContainer sx={{ maxHeight: 440 }}>
+          <TableContainer sx={{ maxHeight: 440, marginTop: 5 }}>
             <Table stickyHeader aria-label="sticky table">
               <TableHead>
                 <TableRow>

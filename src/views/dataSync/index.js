@@ -125,12 +125,11 @@ export default function DataSyncView(): React$Element<*> {
     localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
 
     let participants = [];
+    setPendingRequests(pendingRequests + 1);
 
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
       // eslint-disable-next-line no-loop-func
       setTimeout(async () => {
-        setPendingRequests(pendingRequests + 1);
-
         var participantesData =
           await cadastrosService.listarParticipantesDeMercado(
             authData,
@@ -139,26 +138,29 @@ export default function DataSyncView(): React$Element<*> {
             category
           );
 
+        var itemsProcessed = 0;
+
         if (participantesData !== null) {
-          participantesData.forEach((x) => {
+          participantesData.forEach((item, index, array) => {
             const cnpj =
-              x["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"] !==
-              undefined
-                ? x["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"][
-                    "bov2:identificacao"
-                  ]["bov2:numero"]._text.toString()
+              item["bov2:parte"]["bov2:pessoaJuridica"][
+                "bov2:identificacoes"
+              ] !== undefined
+                ? item["bov2:parte"]["bov2:pessoaJuridica"][
+                    "bov2:identificacoes"
+                  ]["bov2:identificacao"]["bov2:numero"]._text.toString()
                 : "";
             const nomeEmpresarial =
-              x["bov2:parte"]["bov2:pessoaJuridica"][
+              item["bov2:parte"]["bov2:pessoaJuridica"][
                 "bov2:nomeEmpresarial"
               ]._text.toString();
-            const sigla = x["bov2:sigla"]._text.toString();
-            const codigo = x["bov2:codigo"]._text.toString();
+            const sigla = item["bov2:sigla"]._text.toString();
+            const codigo = item["bov2:codigo"]._text.toString();
             let periodoVigencia =
-              x["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
+              item["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
             periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
             const situacao =
-              x["bov2:situacao"]["bov2:descricao"]._text.toString();
+              item["bov2:situacao"]["bov2:descricao"]._text.toString();
 
             const participante = {
               cnpj,
@@ -175,14 +177,22 @@ export default function DataSyncView(): React$Element<*> {
             }
             localStorage.setItem(key, JSON.stringify(participants));
             console.log(participants.length);
+
+            itemsProcessed++;
+            if (itemsProcessed === array.length) {
+              setPendingRequests(pendingRequests - 1);
+            }
           });
+        } else {
+          setPendingRequests(pendingRequests - 1);
         }
-        setPendingRequests(pendingRequests - 1);
       }, 5000);
     }
   };
 
   const sendRequest_ListarPerfis = async () => {
+    setPendingRequests(pendingRequests + 1);
+
     const key = selectedDataSource.replace("participantes", "perfis");
     console.log(key);
     let keys = dataSourceKeys.concat(key);
@@ -191,55 +201,64 @@ export default function DataSyncView(): React$Element<*> {
     localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
     let profiles = [];
 
-    dataSourceItems.forEach((x) => {
-      setTimeout(async () => {
-        setPendingRequests(pendingRequests + 1);
-        var perfis = await cadastrosService.listarPerfis(authData, x.codigo);
+    if (dataSourceItems !== null) {
+      dataSourceItems.forEach((x) => {
+        setTimeout(async () => {
+          var perfis = await cadastrosService.listarPerfis(authData, x.codigo);
 
-        if (perfis !== null) {
-          perfis.forEach((y) => {
-            const classe = y["bov2:classe"]["bov2:descricao"]._text.toString();
-            const codPerfil = y["bov2:codigo"]._text.toString();
-            var comercializadorVarejista =
-              y["bov2:comercializadorVarejista"]._text.toString();
-            const sigla = y["bov2:sigla"]._text.toString();
-            const situacao =
-              y["bov2:situacao"]["bov2:descricao"]._text.toString();
-            const submercado =
-              y["bov2:submercado"] === undefined
-                ? "Sem informação"
-                : y["bov2:submercado"]["bov2:nome"]._text.toString();
-            var perfilPrincipal = y["bov2:perfilPrincipal"]._text.toString();
-            var regimeCotas = y["bov2:regimeCotas"]._text.toString();
-            comercializadorVarejista =
-              comercializadorVarejista === "true" ? "Sim" : "Não";
-            perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
-            regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
+          var itemsProcessed = 0;
 
-            const perfil = {
-              codAgente: x.codigo,
-              classe,
-              codPerfil,
-              comercializadorVarejista,
-              sigla,
-              situacao,
-              submercado,
-              perfilPrincipal,
-              regimeCotas,
-            };
+          if (perfis !== null) {
+            perfis.forEach((item, index, array) => {
+              const classe =
+                item["bov2:classe"]["bov2:descricao"]._text.toString();
+              const codPerfil = item["bov2:codigo"]._text.toString();
+              var comercializadorVarejista =
+                item["bov2:comercializadorVarejista"]._text.toString();
+              const sigla = item["bov2:sigla"]._text.toString();
+              const situacao =
+                item["bov2:situacao"]["bov2:descricao"]._text.toString();
+              const submercado =
+                item["bov2:submercado"] === undefined
+                  ? "Sem informação"
+                  : item["bov2:submercado"]["bov2:nome"]._text.toString();
+              var perfilPrincipal =
+                item["bov2:perfilPrincipal"]._text.toString();
+              var regimeCotas = item["bov2:regimeCotas"]._text.toString();
+              comercializadorVarejista =
+                comercializadorVarejista === "true" ? "Sim" : "Não";
+              perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
+              regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
 
-            if (profiles.length === 0) {
-              profiles = [perfil];
-            } else {
-              profiles = profiles.concat(perfil);
-            }
-            localStorage.setItem(key, JSON.stringify(profiles));
-            console.log(profiles.length);
-          });
-        }
-        setPendingRequests(pendingRequests - 1);
-      }, 5000);
-    });
+              const perfil = {
+                codAgente: x.codigo,
+                classe,
+                codPerfil,
+                comercializadorVarejista,
+                sigla,
+                situacao,
+                submercado,
+                perfilPrincipal,
+                regimeCotas,
+              };
+
+              if (profiles.length === 0) {
+                profiles = [perfil];
+              } else {
+                profiles = profiles.concat(perfil);
+              }
+              localStorage.setItem(key, JSON.stringify(profiles));
+
+              console.log(profiles.length);
+              itemsProcessed++;
+              if (itemsProcessed === array.length) {
+                setPendingRequests(pendingRequests - 1);
+              }
+            });
+          }
+        }, 5000);
+      });
+    }
   };
 
   const sendRequest_ListarAtivosDeMedicao = async () => {
@@ -258,13 +277,16 @@ export default function DataSyncView(): React$Element<*> {
     console.log(JSON.stringify(keys));
     localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
     let resources = [];
+    var itemsProcessed = 0;
 
-    dataSourceItems.forEach((x) => {
+    dataSourceItems.forEach((item, index, array) => {
+      itemsProcessed++;
+
       setTimeout(async () => {
         setPendingRequests(pendingRequests + 1);
         var responseData = await ativosService.listarAtivosDeMedicao(
           authData,
-          x.codPerfil,
+          item.codPerfil,
           dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
         );
         if (responseData !== null) {
@@ -278,11 +300,10 @@ export default function DataSyncView(): React$Element<*> {
             ) {
               // eslint-disable-next-line no-loop-func
               setTimeout(async () => {
-                setPendingRequests(pendingRequests + 1);
                 var responseDataPaginated =
                   await ativosService.listarAtivosDeMedicao(
                     authData,
-                    x.codPerfil,
+                    item.codPerfil,
                     dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
                     paginaCorrente
                   );
@@ -300,7 +321,7 @@ export default function DataSyncView(): React$Element<*> {
                       y["bov2:vigencia"]["bov2:inicio"]._text.toString();
 
                     const resource = {
-                      codPerfil: x.codPerfil,
+                      codPerfil: item.codPerfil,
                       codAtivo,
                       nome,
                       tipo,
@@ -319,7 +340,6 @@ export default function DataSyncView(): React$Element<*> {
                     console.log(resources.length);
                   });
                 }
-                setPendingRequests(pendingRequests - 1);
               });
             }
           } else {
@@ -334,7 +354,7 @@ export default function DataSyncView(): React$Element<*> {
                 y["bov2:vigencia"]["bov2:inicio"]._text.toString();
 
               const resource = {
-                codPerfil: x.codPerfil,
+                codPerfil: item.codPerfil,
                 codAtivo,
                 nome,
                 tipo,
@@ -353,8 +373,10 @@ export default function DataSyncView(): React$Element<*> {
             });
           }
         }
-        setPendingRequests(pendingRequests - 1);
       }, 5000);
+      if (itemsProcessed === array.length) {
+        setPendingRequests(pendingRequests - 1);
+      }
     });
   };
 

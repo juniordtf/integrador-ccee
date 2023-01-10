@@ -138,7 +138,7 @@ export default function SettingsView(): React$Element<*> {
       >
         Salvar
       </Button>
-      {authData !== null ? (
+      {authData.certificate !== null ? (
         <Box sx={{ maxWidth: 375, marginTop: 2 }}>
           <Card variant="outlined">{card}</Card>
         </Box>
