@@ -70,6 +70,12 @@ export default function SettingsView(): React$Element<*> {
     setSuccesDialogOpen(true);
   };
 
+  const removeCertificate = () => {
+    setAuthData([]);
+    localStorage.removeItem("authData");
+    //setSuccesDialogOpen(true);
+  };
+
   const card = (
     <React.Fragment>
       <CardContent>
@@ -84,7 +90,9 @@ export default function SettingsView(): React$Element<*> {
         </Typography>
       </CardContent>
       <CardActions>
-        <Button size="small">Remover</Button>
+        <Button size="small" onClick={removeCertificate}>
+          Remover
+        </Button>
       </CardActions>
     </React.Fragment>
   );
@@ -92,58 +100,60 @@ export default function SettingsView(): React$Element<*> {
   return (
     <div>
       <Typography paragraph>Configurações</Typography>
-      <Box sx={styles.certificateSection}>
-        <FilePicker
-          extensions={["pfx"]}
-          onChange={importCertificate}
-          onError={displayError}
-        >
-          <Button variant="outlined">Importar certificado</Button>
-        </FilePicker>
-        <TextField
-          sx={{ width: "50%", marginTop: 1 }}
-          id="outlined-password-input"
-          label="Passphrase"
-          type="password"
-          autoComplete="current-password"
-          onChange={(event) => setPassphrase(event.target.value)}
-        />
-      </Box>
-      <Stack sx={{ width: "50%", marginTop: 3 }} spacing={1}>
-        <TextField
-          id="outlined-basic"
-          label="Username"
-          variant="outlined"
-          onChange={(event) => setUsername(event.target.value)}
-        />
-        <TextField
-          id="outlined-password-input"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          onChange={(event) => setPassword(event.target.value)}
-        />
-        <TextField
-          id="outlined-basic"
-          label="Código de perfil"
-          variant="outlined"
-          onChange={(event) => setProfileCode(event.target.value)}
-        />
-      </Stack>
 
-      <Button
-        variant="outlined"
-        onClick={saveCertificate}
-        sx={{ marginTop: 2 }}
-      >
-        Salvar
-      </Button>
-      {authData.certificate !== null ? (
+      {authData.certificate !== undefined ? (
         <Box sx={{ maxWidth: 375, marginTop: 2 }}>
           <Card variant="outlined">{card}</Card>
         </Box>
       ) : (
-        <div></div>
+        <div>
+          <Box sx={styles.certificateSection}>
+            <FilePicker
+              extensions={["pfx"]}
+              onChange={importCertificate}
+              onError={displayError}
+            >
+              <Button variant="outlined">Importar certificado</Button>
+            </FilePicker>
+            <TextField
+              sx={{ width: "50%", marginTop: 1 }}
+              id="outlined-password-input"
+              label="Passphrase"
+              type="password"
+              autoComplete="current-password"
+              onChange={(event) => setPassphrase(event.target.value)}
+            />
+          </Box>
+          <Stack sx={{ width: "50%", marginTop: 3 }} spacing={1}>
+            <TextField
+              id="outlined-basic"
+              label="Username"
+              variant="outlined"
+              onChange={(event) => setUsername(event.target.value)}
+            />
+            <TextField
+              id="outlined-password-input"
+              label="Password"
+              type="password"
+              autoComplete="current-password"
+              onChange={(event) => setPassword(event.target.value)}
+            />
+            <TextField
+              id="outlined-basic"
+              label="Código de perfil"
+              variant="outlined"
+              onChange={(event) => setProfileCode(event.target.value)}
+            />
+          </Stack>
+
+          <Button
+            variant="outlined"
+            onClick={saveCertificate}
+            sx={{ marginTop: 2 }}
+          >
+            Salvar
+          </Button>
+        </div>
       )}
       <Snackbar
         open={openSuccesDialog}

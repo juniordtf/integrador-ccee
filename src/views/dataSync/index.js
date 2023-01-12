@@ -10,6 +10,8 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
 import Modal from "@mui/material/Modal";
+import Snackbar from "@mui/material/Snackbar";
+import Alert from "@mui/material/Alert";
 import dayjs from "dayjs";
 import Stack from "@mui/material/Stack";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
@@ -28,6 +30,7 @@ export default function DataSyncView(): React$Element<*> {
   const [service, setService] = useState("");
   const [category, setCategory] = useState("");
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [openSuccesDialog, setSuccesDialogOpen] = useState(false);
   const [date, setDate] = useState(dayjs());
   const [open, setOpen] = useState(false);
 
@@ -56,11 +59,21 @@ export default function DataSyncView(): React$Element<*> {
     top: "50%",
     left: "50%",
     transform: "translate(-50%, -50%)",
-    width: 400,
+    width: 300,
     bgcolor: "background.paper",
-    border: "2px solid #000",
+    border: "1px solid gray",
+    borderRadius: "10px",
     boxShadow: 24,
     p: 4,
+    textAlign: "center",
+  };
+
+  const handleSuccessDialogClose = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setSuccesDialogOpen(false);
   };
 
   useEffect(() => {
@@ -108,7 +121,6 @@ export default function DataSyncView(): React$Element<*> {
         dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
         category
       );
-    setPendingRequests(pendingRequests - 1);
 
     console.log(totalPages);
     const categoryName = classes.find((x) => x.id === category).name;
@@ -125,7 +137,6 @@ export default function DataSyncView(): React$Element<*> {
     localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
 
     let participants = [];
-    setPendingRequests(pendingRequests + 1);
 
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
       // eslint-disable-next-line no-loop-func
@@ -181,6 +192,7 @@ export default function DataSyncView(): React$Element<*> {
             itemsProcessed++;
             if (itemsProcessed === array.length) {
               setPendingRequests(pendingRequests - 1);
+              setSuccesDialogOpen(true);
             }
           });
         } else {
@@ -253,8 +265,11 @@ export default function DataSyncView(): React$Element<*> {
               itemsProcessed++;
               if (itemsProcessed === array.length) {
                 setPendingRequests(pendingRequests - 1);
+                setSuccesDialogOpen(true);
               }
             });
+          } else {
+            setPendingRequests(pendingRequests - 1);
           }
         }, 5000);
       });
@@ -262,6 +277,8 @@ export default function DataSyncView(): React$Element<*> {
   };
 
   const sendRequest_ListarAtivosDeMedicao = async () => {
+    setPendingRequests(pendingRequests + 1);
+
     var date = selectedDataSource.substring(selectedDataSource.length - 5);
     date =
       "20" +
@@ -279,11 +296,13 @@ export default function DataSyncView(): React$Element<*> {
     let resources = [];
     var itemsProcessed = 0;
 
-    dataSourceItems.forEach((item, index, array) => {
-      itemsProcessed++;
+    if (dataSourceItems === null) {
+      setPendingRequests(pendingRequests - 1);
+      return;
+    }
 
+    dataSourceItems.forEach((item) => {
       setTimeout(async () => {
-        setPendingRequests(pendingRequests + 1);
         var responseData = await ativosService.listarAtivosDeMedicao(
           authData,
           item.codPerfil,
@@ -298,6 +317,7 @@ export default function DataSyncView(): React$Element<*> {
               paginaCorrente <= totalPaginasNumber;
               paginaCorrente++
             ) {
+              setPendingRequests(pendingRequests + 1);
               // eslint-disable-next-line no-loop-func
               setTimeout(async () => {
                 var responseDataPaginated =
@@ -310,7 +330,8 @@ export default function DataSyncView(): React$Element<*> {
 
                 var ativos = responseDataPaginated.ativos;
                 if (ativos !== null) {
-                  ativos.forEach((y) => {
+                  itemsProcessed++;
+                  ativos.forEach((y, idx, arr) => {
                     const codAtivo = y["bov2:codigo"]._text.toString();
                     const nome = y["bov2:nome"]._text.toString();
                     const tipo =
@@ -338,13 +359,18 @@ export default function DataSyncView(): React$Element<*> {
                     console.log("Pagina: " + paginaCorrente);
                     localStorage.setItem(key, JSON.stringify(resources));
                     console.log(resources.length);
+
+                    if (itemsProcessed === arr.length) {
+                      setPendingRequests(pendingRequests - 1);
+                    }
                   });
                 }
               });
             }
           } else {
+            itemsProcessed++;
             var ativos = responseData.ativos;
-            ativos.forEach((y) => {
+            ativos.forEach((y, idx, arr) => {
               const codAtivo = y["bov2:codigo"]._text.toString();
               const nome = y["bov2:nome"]._text.toString();
               const tipo = y["bov2:tipo"]["bov2:descricao"]._text.toString();
@@ -370,13 +396,15 @@ export default function DataSyncView(): React$Element<*> {
               console.log(resource);
               localStorage.setItem(key, JSON.stringify(resources));
               console.log(resources.length);
+
+              if (itemsProcessed === arr.length) {
+                setPendingRequests(pendingRequests - 1);
+                setSuccesDialogOpen(true);
+              }
             });
           }
         }
       }, 5000);
-      if (itemsProcessed === array.length) {
-        setPendingRequests(pendingRequests - 1);
-      }
     });
   };
 
@@ -514,15 +542,39 @@ export default function DataSyncView(): React$Element<*> {
         aria-describedby="modal-modal-description"
       >
         <Box sx={style}>
-          <Typography id="modal-modal-title" variant="h6" component="h2">
+          <Typography
+            id="modal-modal-title"
+            variant="h6"
+            component="h2"
+            sx={{ marginTop: "-15px" }}
+          >
             Processando requisição
           </Typography>
-          <CircularProgress />
-          <Typography id="modal-modal-description" sx={{ mt: 2 }}>
+          <CircularProgress sx={{ marginTop: "20px" }} />
+          <Typography
+            id="modal-modal-description"
+            sx={{
+              marginTop: "10px",
+              marginBottom: "-25px",
+            }}
+          >
             Por favor, aguarde...
           </Typography>
         </Box>
       </Modal>
+      <Snackbar
+        open={openSuccesDialog}
+        autoHideDuration={6000}
+        onClose={handleSuccessDialogClose}
+      >
+        <Alert
+          onClose={handleSuccessDialogClose}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          Requisição realizada com sucesso!
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

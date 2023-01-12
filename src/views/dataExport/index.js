@@ -213,6 +213,9 @@ export default function DataExportView(): React$Element<*> {
 
     localStorage.removeItem(selectedDataSource);
     localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(dataKeys));
+
+    setSelectedDataSource("");
+    setRows([]);
   };
 
   const handleClickOpen = () => {
