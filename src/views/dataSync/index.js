@@ -21,6 +21,8 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import styles from "./styles.module.css";
 import { cadastrosService } from "../../services/cadastrosService.ts";
 import { ativosService } from "../../services/ativosService.ts";
+import { bla } from "../../webWorkers/workers.js";
+import WebWorker from "../../webWorkers/workerSetup";
 
 export default function DataSyncView(): React$Element<*> {
   const [authData, setAuthData] = useState([]);
@@ -317,7 +319,6 @@ export default function DataSyncView(): React$Element<*> {
               paginaCorrente <= totalPaginasNumber;
               paginaCorrente++
             ) {
-              setPendingRequests(pendingRequests + 1);
               // eslint-disable-next-line no-loop-func
               setTimeout(async () => {
                 var responseDataPaginated =
@@ -340,6 +341,7 @@ export default function DataSyncView(): React$Element<*> {
                       y["bov2:situacao"]["bov2:descricao"]._text.toString();
                     const vigencia =
                       y["bov2:vigencia"]["bov2:inicio"]._text.toString();
+                    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
 
                     const resource = {
                       codPerfil: item.codPerfil,
@@ -347,7 +349,7 @@ export default function DataSyncView(): React$Element<*> {
                       nome,
                       tipo,
                       situacao,
-                      vigencia,
+                      periodoVigencia,
                     };
 
                     if (resources.length === 0) {
@@ -378,6 +380,7 @@ export default function DataSyncView(): React$Element<*> {
                 y["bov2:situacao"]["bov2:descricao"]._text.toString();
               const vigencia =
                 y["bov2:vigencia"]["bov2:inicio"]._text.toString();
+              var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
 
               const resource = {
                 codPerfil: item.codPerfil,
@@ -385,7 +388,7 @@ export default function DataSyncView(): React$Element<*> {
                 nome,
                 tipo,
                 situacao,
-                vigencia,
+                periodoVigencia,
               };
 
               if (resources.length === 0) {

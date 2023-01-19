@@ -72,7 +72,7 @@ const ResourcesColumns = [
   { id: "tipo", label: "Tipo", minWidth: 100 },
   { id: "situacao", label: "Situação", minWidth: 100 },
   {
-    id: "vigencia",
+    id: "periodoVigencia",
     label: "Data de início de vigência",
     minWidth: 100,
   },
@@ -95,7 +95,7 @@ const PartialResourcesColumns = [
   },
   { id: "nomeEmpresarial", label: "Nome Empresarial", minWidth: 100 },
   { id: "idSubmercado", label: "Id do submercado", minWidth: 100 },
-  { id: "vigencia", label: "Data de início de vigência", minWidth: 170 },
+  { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 170 },
   {
     id: "cnpj",
     label: "CNPJ",
