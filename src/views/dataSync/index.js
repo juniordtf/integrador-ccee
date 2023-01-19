@@ -198,7 +198,7 @@ export default function DataSyncView(): React$Element<*> {
         } else {
           setPendingRequests(pendingRequests - 1);
         }
-      }, 5000);
+      }, 25000);
     }
   };
 
@@ -365,7 +365,7 @@ export default function DataSyncView(): React$Element<*> {
                     }
                   });
                 }
-              });
+              }, 10000);
             }
           } else {
             itemsProcessed++;
@@ -404,7 +404,7 @@ export default function DataSyncView(): React$Element<*> {
             });
           }
         }
-      }, 5000);
+      }, 10000);
     });
   };
 
