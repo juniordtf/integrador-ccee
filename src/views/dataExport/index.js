@@ -26,6 +26,8 @@ import FormLabel from "@mui/material/FormLabel";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import styles from "./styles.module.css";
+import { useLiveQuery } from "dexie-react-hooks";
+import { db } from "../../database/db";
 
 const ParticipantsColumns = [
   {
@@ -120,10 +122,64 @@ export default function DataExportView(): React$Element<*> {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
-    const dataSources = JSON.parse(localStorage.getItem("DATA_SOURCE_KEYS"));
-    if (dataSources) {
-      setDataSourceKeys(dataSources);
+    async function fetchData() {
+      var participantes = await db.participantes;
+      if (participantes === undefined) {
+        participantes = [];
+      } else {
+        participantes = await db.participantes.toArray();
+      }
+      var perfis = await db.perfis;
+      if (perfis === undefined) {
+        perfis = [];
+      } else {
+        perfis = await db.perfis.toArray();
+      }
+      var ativosMedicao = await db.ativosMedicao;
+      if (ativosMedicao === undefined) {
+        ativosMedicao = [];
+      } else {
+        ativosMedicao = await db.ativosMedicao.toArray();
+      }
+
+      var dataSources = [];
+
+      if (participantes.length > 0) {
+        console.log(participantes.length);
+        dataSources = dataSources.concat(
+          participantes.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+      if (perfis.length > 0) {
+        dataSources = dataSources.concat(
+          perfis.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
+      if (ativosMedicao.length > 0) {
+        dataSources = dataSources.concat(
+          ativosMedicao.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
+      const distinctDataSources = [...new Set(dataSources)];
+
+      if (distinctDataSources) {
+        setDataSourceKeys(distinctDataSources);
+      }
     }
+    fetchData();
+
+    // const dataSources = JSON.parse(localStorage.getItem("DATA_SOURCE_KEYS"));
+    // if (dataSources) {
+    //   setDataSourceKeys(dataSources);
+    // }
 
     if (selectedDataSource.includes("participantes")) {
       setTableHeader(ParticipantsColumns);
@@ -152,12 +208,41 @@ export default function DataExportView(): React$Element<*> {
     setPage(0);
   };
 
-  const handleDataSourceChange = (event) => {
-    setSelectedDataSource(event.target.value);
-    console.log(event.target.value);
-    const content = JSON.parse(localStorage.getItem(event.target.value));
-    if (content) {
-      setRows(content);
+  const handleDataSourceChange = async (event) => {
+    const selectedDataSourceKey = event.target.value;
+    setSelectedDataSource(selectedDataSourceKey);
+
+    var participantes = await db.participantes;
+    if (participantes === undefined) {
+      participantes = [];
+    } else {
+      participantes = await db.participantes.toArray();
+    }
+    var perfis = await db.perfis;
+    if (perfis === undefined) {
+      perfis = [];
+    } else {
+      perfis = await db.perfis.toArray();
+    }
+    var ativosMedicao = await db.ativosMedicao;
+    if (ativosMedicao === undefined) {
+      ativosMedicao = [];
+    } else {
+      ativosMedicao = await db.ativosMedicao.toArray();
+    }
+
+    if (
+      participantes.length > 0 &&
+      participantes.filter((x) => x.key === selectedDataSourceKey).length > 0
+    ) {
+      setRows(participantes);
+    } else if (
+      perfis.length > 0 &&
+      perfis.filter((x) => x.key === selectedDataSourceKey).length > 0
+    ) {
+      setRows(perfis);
+    } else {
+      setRows(ativosMedicao);
     }
   };
 
@@ -240,9 +325,72 @@ export default function DataExportView(): React$Element<*> {
     setDialogOpen(false);
   };
 
+  function RenderTable() {
+    return (
+      <div>
+        {selectedDataSource !== "" ? (
+          <div>
+            <TableContainer sx={{ maxHeight: 440, marginTop: 5 }}>
+              <Table stickyHeader aria-label="sticky table">
+                <TableHead>
+                  <TableRow>
+                    {tableHeader.map((column) => (
+                      <TableCell
+                        key={column.id}
+                        align={column.align}
+                        style={{ minWidth: column.minWidth }}
+                      >
+                        {column.label}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {rows
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((row) => {
+                      return (
+                        <TableRow
+                          hover
+                          role="checkbox"
+                          tabIndex={-1}
+                          key={row[rowKey]}
+                        >
+                          {tableHeader.map((column) => {
+                            const value = row[column.id];
+                            return (
+                              <TableCell key={column.id} align={column.align}>
+                                {column.format ? column.format(value) : value}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              rowsPerPageOptions={[10, 25, 100]}
+              component="div"
+              count={rows.length}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+          </div>
+        ) : (
+          <div></div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <Typography paragraph>Exportar Dados</Typography>
+
       <Stack
         direction="row"
         divider={<Divider orientation="vertical" flexItem />}
@@ -262,7 +410,6 @@ export default function DataExportView(): React$Element<*> {
             ))}
           </Select>
         </FormControl>
-
         <Button
           variant="outlined"
           onClick={handleExportData}
@@ -278,61 +425,7 @@ export default function DataExportView(): React$Element<*> {
           Excluir
         </Button>
       </Stack>
-      {selectedDataSource !== "" ? (
-        <div>
-          <TableContainer sx={{ maxHeight: 440, marginTop: 5 }}>
-            <Table stickyHeader aria-label="sticky table">
-              <TableHead>
-                <TableRow>
-                  {tableHeader.map((column) => (
-                    <TableCell
-                      key={column.id}
-                      align={column.align}
-                      style={{ minWidth: column.minWidth }}
-                    >
-                      {column.label}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {rows
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((row) => {
-                    return (
-                      <TableRow
-                        hover
-                        role="checkbox"
-                        tabIndex={-1}
-                        key={row[rowKey]}
-                      >
-                        {tableHeader.map((column) => {
-                          const value = row[column.id];
-                          return (
-                            <TableCell key={column.id} align={column.align}>
-                              {column.format ? column.format(value) : value}
-                            </TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    );
-                  })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 100]}
-            component="div"
-            count={rows.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </div>
-      ) : (
-        <div></div>
-      )}
+      {selectedDataSource !== "" ? <div>{RenderTable()}</div> : <div></div>}
 
       <Dialog
         open={openDialog}

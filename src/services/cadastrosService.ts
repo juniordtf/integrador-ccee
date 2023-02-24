@@ -86,7 +86,6 @@ const listarParticipantesDeMercado = async (
       .catch(function (error) {
         if (error.response) {
           console.log(error.response.status);
-          console.log(error.response.data);
           resolve(null);
         }
       });
@@ -260,7 +259,6 @@ const listarPerfis = async (authData, agenteAtual): Promise<object> => {
       .catch(function (error) {
         if (error.response) {
           console.log(error.response.status);
-          console.log(error.response.data);
           resolve(null);
         }
       });

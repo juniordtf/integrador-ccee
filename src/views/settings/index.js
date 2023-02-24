@@ -11,6 +11,7 @@ import Card from "@mui/material/Card";
 import CardActions from "@mui/material/CardActions";
 import CardContent from "@mui/material/CardContent";
 import Alert from "@mui/material/Alert";
+import { authService } from "../../services/authService.ts";
 import styles from "./styles.module.css";
 
 export default function SettingsView(): React$Element<*> {
@@ -41,6 +42,9 @@ export default function SettingsView(): React$Element<*> {
   const importCertificate = (FileObject) => {
     try {
       console.log(FileObject);
+
+      console.log(__dirname + FileObject.webkitRelativePath);
+
       setCertificate(FileObject);
     } catch (err) {
       alert("Erro");
@@ -55,7 +59,7 @@ export default function SettingsView(): React$Element<*> {
     );
   };
 
-  const saveCertificate = () => {
+  const saveCertificate = async () => {
     const data = {
       certificate,
       certificateName: certificate.name,
@@ -67,10 +71,21 @@ export default function SettingsView(): React$Element<*> {
     };
     setAuthData(data);
     localStorage.setItem("authData", JSON.stringify(data));
+
+    const formData = new FormData();
+    const fileData = {
+      name: certificate.name,
+      type: certificate.type,
+      uri: certificate.webkitRelativePath,
+    };
+    formData.append("file", fileData);
+
+    await authService.uploadCertificate(formData);
+
     setSuccesDialogOpen(true);
   };
 
-  const removeCertificate = () => {
+  const removeCertificate = (e) => {
     setAuthData([]);
     localStorage.removeItem("authData");
     //setSuccesDialogOpen(true);
@@ -112,9 +127,13 @@ export default function SettingsView(): React$Element<*> {
               extensions={["pfx"]}
               onChange={importCertificate}
               onError={displayError}
+              directory=""
+              webkitdirectory=""
+              type="file"
             >
               <Button variant="outlined">Importar certificado</Button>
             </FilePicker>
+
             <TextField
               sx={{ width: "50%", marginTop: 1 }}
               id="outlined-password-input"
