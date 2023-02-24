@@ -286,18 +286,31 @@ export default function DataExportView(): React$Element<*> {
   };
 
   const deleteData = () => {
-    let dataKeys = dataSourceKeys;
-    const dataSourceToBeRemoved = dataKeys.find(
-      (x) => x === selectedDataSource
-    );
-    const index = dataKeys.indexOf(dataSourceToBeRemoved);
-
-    if (index > -1) {
-      dataKeys.splice(index, 1);
+    if (selectedDataSource.includes("participantes")) {
+      db.participantes
+        .where("key")
+        .equals(selectedDataSource)
+        .delete()
+        .then(function (deleteCount) {
+          console.log("Deleted " + deleteCount + " objects");
+        });
+    } else if (selectedDataSource.includes("perfis")) {
+      db.perfis
+        .where("key")
+        .equals(selectedDataSource)
+        .delete()
+        .then(function (deleteCount) {
+          console.log("Deleted " + deleteCount + " objects");
+        });
+    } else if (selectedDataSource.includes("ativos")) {
+      db.ativosMedicao
+        .where("key")
+        .equals(selectedDataSource)
+        .delete()
+        .then(function (deleteCount) {
+          console.log("Deleted " + deleteCount + " objects");
+        });
     }
-
-    localStorage.removeItem(selectedDataSource);
-    localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(dataKeys));
 
     setSelectedDataSource("");
     setRows([]);
