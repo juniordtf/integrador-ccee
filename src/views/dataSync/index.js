@@ -35,6 +35,8 @@ export default function DataSyncView(): React$Element<*> {
   const [category, setCategory] = useState("");
   const [pendingRequests, setPendingRequests] = useState(0);
   const [openSuccesDialog, setSuccesDialogOpen] = useState(false);
+  const [openWarningDialog, setWarningDialogOpen] = useState(false);
+  const [warningText, setWarningText] = useState("");
   const [date, setDate] = useState(dayjs());
   const [open, setOpen] = useState(false);
 
@@ -78,6 +80,14 @@ export default function DataSyncView(): React$Element<*> {
     }
 
     setSuccesDialogOpen(false);
+  };
+
+  const handleWarningDialogClose = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setWarningDialogOpen(false);
   };
 
   const fetchWebWorker = () => {
@@ -283,14 +293,19 @@ export default function DataSyncView(): React$Element<*> {
     const key =
       "participantes_" + categoryName + "_" + dayjs(date).format("MM/YY");
 
-    let keys = [];
-    if (dataSourceKeys.length === 0) {
-      keys = [key];
-    } else {
-      keys = dataSourceKeys.concat(key);
-    }
-    console.log(JSON.stringify(keys));
-    localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
+    db.participantes
+      .where("key")
+      .equalsIgnoreCase(key)
+      .count()
+      .then(function (count) {
+        console.log("Counted " + count + " objects");
+        setWarningText(
+          'Já existe uma coleção de dados com o nome "' + key + '"'
+        );
+        setPendingRequests(pendingRequests - 1);
+        setWarningDialogOpen(true);
+        return;
+      });
 
     let participants = [];
 
@@ -383,6 +398,20 @@ export default function DataSyncView(): React$Element<*> {
     const key = selectedDataSource.replace("participantes", "perfis");
     console.log(key);
 
+    db.perfis
+      .where("key")
+      .equalsIgnoreCase(key)
+      .count()
+      .then(function (count) {
+        console.log("Counted " + count + " objects");
+        setWarningText(
+          'Já existe uma coleção de dados com o nome "' + key + '"'
+        );
+        setPendingRequests(pendingRequests - 1);
+        setWarningDialogOpen(true);
+        return;
+      });
+
     let profiles = [];
 
     if (dataSourceItems !== null) {
@@ -416,28 +445,6 @@ export default function DataSyncView(): React$Element<*> {
               perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
               regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
 
-              console.log(
-                key +
-                  "," +
-                  x.codigo +
-                  "," +
-                  classe +
-                  "," +
-                  codPerfil +
-                  "," +
-                  comercializadorVarejista +
-                  "," +
-                  sigla +
-                  "," +
-                  situacao +
-                  "," +
-                  submercado +
-                  "," +
-                  perfilPrincipal +
-                  "," +
-                  regimeCotas
-              );
-
               await addPerfil(
                 key,
                 x.codigo,
@@ -452,13 +459,14 @@ export default function DataSyncView(): React$Element<*> {
               );
             });
           }
+
+          if (itemsProcessed === arr.length) {
+            console.log("Arr: " + arr.length);
+            console.log("Final: " + profiles.length);
+            setPendingRequests(pendingRequests - 1);
+            setSuccesDialogOpen(true);
+          }
         }, 5000);
-        if (itemsProcessed === arr.length) {
-          console.log("Arr: " + arr.length);
-          console.log("Final: " + profiles.length);
-          setPendingRequests(pendingRequests - 1);
-          setSuccesDialogOpen(true);
-        }
       });
     }
   };
@@ -507,6 +515,20 @@ export default function DataSyncView(): React$Element<*> {
     const key = selectedDataSource.replace("perfis", "ativos");
     console.log(key);
 
+    db.ativosMedicao
+      .where("key")
+      .equalsIgnoreCase(key)
+      .count()
+      .then(function (count) {
+        console.log("Counted " + count + " objects");
+        setWarningText(
+          'Já existe uma coleção de dados com o nome "' + key + '"'
+        );
+        setPendingRequests(pendingRequests - 1);
+        setWarningDialogOpen(true);
+        return;
+      });
+
     var itemsProcessed = 0;
 
     if (dataSourceItems === null) {
@@ -521,7 +543,6 @@ export default function DataSyncView(): React$Element<*> {
           item.codPerfil,
           dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
         );
-        itemsProcessed++;
 
         if (responseData !== null) {
           var totalPaginas = responseData.totalPaginas;
@@ -569,7 +590,6 @@ export default function DataSyncView(): React$Element<*> {
               }, 10000);
             }
           } else {
-            itemsProcessed++;
             var ativos = responseData.ativos;
             Array.prototype.forEach.call(ativos, async (y) => {
               const codAtivo = y["bov2:codigo"]._text.toString();
@@ -593,11 +613,14 @@ export default function DataSyncView(): React$Element<*> {
             });
           }
         }
-        if (itemsProcessed >= arr.length) {
+
+        itemsProcessed++;
+
+        if (itemsProcessed === arr.length) {
           setPendingRequests(pendingRequests - 1);
           setSuccesDialogOpen(true);
         }
-      }, 10000);
+      }, 5000);
     });
   };
 
@@ -791,6 +814,20 @@ export default function DataSyncView(): React$Element<*> {
           sx={{ width: "100%" }}
         >
           Requisição realizada com sucesso!
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={openWarningDialog}
+        autoHideDuration={6000}
+        onClose={handleWarningDialogClose}
+      >
+        <Alert
+          onClose={handleWarningDialogClose}
+          severity="warning"
+          sx={{ width: "100%" }}
+        >
+          {warningText}
         </Alert>
       </Snackbar>
     </Container>
