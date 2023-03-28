@@ -17,7 +17,7 @@ const uploadCertificate = async (formData) => {
 
   axios({
     method: "post",
-    url: "http://192.168.15.5:5000/uploadCertificate",
+    url: "http://localhost:5000/uploadCertificate",
     data: formData,
     headers: { "Content-Type": "multipart/form-data" },
   })

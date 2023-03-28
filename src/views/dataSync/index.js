@@ -298,13 +298,15 @@ export default function DataSyncView(): React$Element<*> {
       .equalsIgnoreCase(key)
       .count()
       .then(function (count) {
-        console.log("Counted " + count + " objects");
-        setWarningText(
-          'Já existe uma coleção de dados com o nome "' + key + '"'
-        );
-        setPendingRequests(pendingRequests - 1);
-        setWarningDialogOpen(true);
-        return;
+        if (count > 0) {
+          console.log("Counted " + count + " objects");
+          setWarningText(
+            'Já existe uma coleção de dados com o nome "' + key + '"'
+          );
+          setPendingRequests(pendingRequests - 1);
+          setWarningDialogOpen(true);
+          return;
+        }
       });
 
     let participants = [];
@@ -403,13 +405,15 @@ export default function DataSyncView(): React$Element<*> {
       .equalsIgnoreCase(key)
       .count()
       .then(function (count) {
-        console.log("Counted " + count + " objects");
-        setWarningText(
-          'Já existe uma coleção de dados com o nome "' + key + '"'
-        );
-        setPendingRequests(pendingRequests - 1);
-        setWarningDialogOpen(true);
-        return;
+        if (count > 0) {
+          console.log("Counted " + count + " objects");
+          setWarningText(
+            'Já existe uma coleção de dados com o nome "' + key + '"'
+          );
+          setPendingRequests(pendingRequests - 1);
+          setWarningDialogOpen(true);
+          return;
+        }
       });
 
     let profiles = [];
@@ -420,10 +424,14 @@ export default function DataSyncView(): React$Element<*> {
 
       dataSourceItems.forEach((x, idx, arr) => {
         setTimeout(async () => {
-          var perfis = await cadastrosService.listarPerfis(authData, x.codigo);
+          var responseData = await cadastrosService.listarPerfis(
+            authData,
+            x.codigo
+          );
           itemsProcessed++;
 
-          if (perfis !== null) {
+          if (responseData.code === 200) {
+            var perfis = responseData.data;
             Array.prototype.forEach.call(perfis, async (item) => {
               const classe =
                 item["bov2:classe"]["bov2:descricao"]._text.toString();
@@ -458,6 +466,16 @@ export default function DataSyncView(): React$Element<*> {
                 regimeCotas
               );
             });
+          } else {
+            if (responseData.code !== 500) {
+              addParticipanteToRetryList(
+                key,
+                responseData.data,
+                responseData.code,
+                0,
+                "listarPerfis"
+              );
+            }
           }
 
           if (itemsProcessed === arr.length) {
@@ -501,6 +519,35 @@ export default function DataSyncView(): React$Element<*> {
     }
   }
 
+  async function addParticipanteToRetryList(
+    key,
+    codAgente,
+    errorCode,
+    attempts,
+    serviceFailed
+  ) {
+    try {
+      const retryKey = "retry_" + key;
+      const retryParticipant = {
+        codAgente,
+        errorCode,
+        attempts,
+        serviceFailed,
+      };
+      let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
+      if (retryParticipants.length === 0) {
+        retryParticipants = [retryParticipant];
+      } else {
+        retryParticipants = retryParticipants.concat(retryParticipant);
+      }
+      localStorage.setItem(retryKey, JSON.stringify(retryParticipants));
+    } catch (error) {
+      console.log(
+        `Failed to add ${codAgente} to Retry Participant's list: ${error}`
+      );
+    }
+  }
+
   const sendRequest_ListarAtivosDeMedicao = async () => {
     setPendingRequests(pendingRequests + 1);
 
@@ -520,13 +567,15 @@ export default function DataSyncView(): React$Element<*> {
       .equalsIgnoreCase(key)
       .count()
       .then(function (count) {
-        console.log("Counted " + count + " objects");
-        setWarningText(
-          'Já existe uma coleção de dados com o nome "' + key + '"'
-        );
-        setPendingRequests(pendingRequests - 1);
-        setWarningDialogOpen(true);
-        return;
+        if (count > 0) {
+          console.log("Counted " + count + " objects");
+          setWarningText(
+            'Já existe uma coleção de dados com o nome "' + key + '"'
+          );
+          setPendingRequests(pendingRequests - 1);
+          setWarningDialogOpen(true);
+          return;
+        }
       });
 
     var itemsProcessed = 0;
@@ -544,53 +593,63 @@ export default function DataSyncView(): React$Element<*> {
           dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
         );
 
-        if (responseData !== null) {
-          var totalPaginas = responseData.totalPaginas;
-          var totalPaginasNumber = parseInt(totalPaginas._text.toString());
-          if (totalPaginasNumber > 1) {
-            for (
-              let paginaCorrente = 1;
-              paginaCorrente <= totalPaginasNumber;
-              paginaCorrente++
-            ) {
-              // eslint-disable-next-line no-loop-func
-              setTimeout(async () => {
-                var responseDataPaginated =
-                  await ativosService.listarAtivosDeMedicao(
-                    authData,
+        var totalPaginas = responseData.totalPaginas;
+        var totalPaginasNumber = parseInt(totalPaginas._text.toString());
+        if (totalPaginasNumber > 1) {
+          for (
+            let paginaCorrente = 1;
+            paginaCorrente <= totalPaginasNumber;
+            paginaCorrente++
+          ) {
+            // eslint-disable-next-line no-loop-func
+            setTimeout(async () => {
+              var responseDataPaginated =
+                await ativosService.listarAtivosDeMedicao(
+                  authData,
+                  item.codPerfil,
+                  dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+                  paginaCorrente
+                );
+
+              var ativos = responseDataPaginated.data;
+              if (responseDataPaginated.code === 200) {
+                Array.prototype.forEach.call(ativos, async (y) => {
+                  const codAtivo = y["bov2:codigo"]._text.toString();
+                  const nome = y["bov2:nome"]._text.toString();
+                  const tipo =
+                    y["bov2:tipo"]["bov2:descricao"]._text.toString();
+                  const situacao =
+                    y["bov2:situacao"]["bov2:descricao"]._text.toString();
+                  const vigencia =
+                    y["bov2:vigencia"]["bov2:inicio"]._text.toString();
+                  var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
+
+                  await addAtivo(
+                    key,
                     item.codPerfil,
-                    dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
-                    paginaCorrente
+                    codAtivo,
+                    nome,
+                    tipo,
+                    situacao,
+                    periodoVigencia
                   );
-
-                var ativos = responseDataPaginated.ativos;
-                if (ativos !== null) {
-                  Array.prototype.forEach.call(ativos, async (y) => {
-                    const codAtivo = y["bov2:codigo"]._text.toString();
-                    const nome = y["bov2:nome"]._text.toString();
-                    const tipo =
-                      y["bov2:tipo"]["bov2:descricao"]._text.toString();
-                    const situacao =
-                      y["bov2:situacao"]["bov2:descricao"]._text.toString();
-                    const vigencia =
-                      y["bov2:vigencia"]["bov2:inicio"]._text.toString();
-                    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
-
-                    await addAtivo(
-                      key,
-                      item.codPerfil,
-                      codAtivo,
-                      nome,
-                      tipo,
-                      situacao,
-                      periodoVigencia
-                    );
-                  });
+                });
+              } else {
+                if (responseDataPaginated.code !== 500) {
+                  addPerfilToRetryList(
+                    key,
+                    item.codPerfil,
+                    responseDataPaginated.code,
+                    0,
+                    "listarAtivosDeMedicao"
+                  );
                 }
-              }, 10000);
-            }
-          } else {
-            var ativos = responseData.ativos;
+              }
+            }, 5000);
+          }
+        } else {
+          var ativos = responseData.data;
+          if (responseData.code === 200) {
             Array.prototype.forEach.call(ativos, async (y) => {
               const codAtivo = y["bov2:codigo"]._text.toString();
               const nome = y["bov2:nome"]._text.toString();
@@ -611,6 +670,16 @@ export default function DataSyncView(): React$Element<*> {
                 periodoVigencia
               );
             });
+          } else {
+            if (responseData.code !== 500) {
+              addPerfilToRetryList(
+                key,
+                item.codPerfil,
+                responseData.code,
+                0,
+                "listarAtivosDeMedicao"
+              );
+            }
           }
         }
 
@@ -645,6 +714,35 @@ export default function DataSyncView(): React$Element<*> {
       });
     } catch (error) {
       console.log(`Failed to add Resource ${codAtivo}: ${error}`);
+    }
+  }
+
+  async function addPerfilToRetryList(
+    key,
+    codPerfil,
+    errorCode,
+    attempts,
+    serviceFailed
+  ) {
+    try {
+      const retryKey = "retry_" + key;
+      const retryProfile = {
+        codPerfil,
+        errorCode,
+        attempts,
+        serviceFailed,
+      };
+      let retryProfiles = JSON.parse(localStorage.getItem(retryKey));
+      if (retryProfiles.length === 0) {
+        retryProfiles = [retryProfile];
+      } else {
+        retryProfiles = retryProfiles.concat(retryProfile);
+      }
+      localStorage.setItem(retryKey, JSON.stringify(retryProfiles));
+    } catch (error) {
+      console.log(
+        `Failed to add ${codPerfil} to Retry Profile's list: ${error}`
+      );
     }
   }
 

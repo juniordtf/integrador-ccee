@@ -75,16 +75,22 @@ const listarAtivosDeMedicao = async (
             json["soapenv:Envelope"]["soapenv:Header"]["mhv2:paginacao"][
               "mhv2:totalPaginas"
             ];
-          var responseData = { ativos, totalPaginas };
+          var responseData = {
+            data: ativos,
+            code: response.status,
+            totalPaginas,
+          };
           resolve(responseData);
         } else {
-          resolve(null);
+          var responseData = { data: perfilAtual, code: response.status, totalPaginas: 0 };
+          resolve(responseData);
         }
       })
       .catch(function (error) {
         if (error.response) {
           console.log(error.response.status);
-          resolve(null);
+		  var responseData = { data: perfilAtual, code: error.response.status, totalPaginas: 0 };
+          resolve(responseData);
         }
       });
   });

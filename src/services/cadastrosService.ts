@@ -251,15 +251,18 @@ const listarPerfis = async (authData, agenteAtual): Promise<object> => {
             json["soapenv:Envelope"]["soapenv:Body"][
               "bmv2:listarPerfilParticipanteMercadoResponse"
             ]["bmv2:perfis"]["bov2:perfil"];
-          resolve(perfis);
+          var responseData = { data: perfis, code: 200 };
+          resolve(responseData);
         } else {
-          resolve(null);
+          var responseData = { data: agenteAtual, code: response.status };
+          resolve(responseData);
         }
       })
       .catch(function (error) {
         if (error.response) {
+          var responseData = { data: agenteAtual, code: error.response.status };
           console.log(error.response.status);
-          resolve(null);
+          resolve(responseData);
         }
       });
   });
