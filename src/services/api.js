@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const serverData = JSON.parse(localStorage.getItem("serverData"));
+
 const api = axios.create({
-  baseURL: "http://localhost:5000/ws/v2/",
+  baseURL: "http://" + serverData.serverAddress +"/ws/v2/",
 });
 
 export default api;
