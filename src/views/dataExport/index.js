@@ -23,6 +23,7 @@ import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import FormLabel from "@mui/material/FormLabel";
+import Switch from "@mui/material/Switch";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import styles from "./styles.module.css";
@@ -112,7 +113,12 @@ export default function DataExportView(): React$Element<*> {
   const [rows, setRows] = useState([]);
   const [rowKey, setRowKey] = useState("");
   const [tableHeader, setTableHeader] = useState([]);
+  const [compareDataSourcesFlag, setCompareDataSourcesFlag] = useState(false);
+  const [compareDataSources, setCompareDataSources] = useState("");
   const [selectedDataSource, setSelectedDataSource] = useState("");
+  const [selectedDataSourceA, setSelectedDataSourceA] = useState("");
+  const [selectedDataSourceB, setSelectedDataSourceB] = useState("");
+  const [resultDataSourceText, setResultDataSourceText] = useState("");
   const [selectedFileFormat, setSelectedFileFormat] = useState("csv");
   const [dialogTitle, setDialogTitle] = useState("");
   const [dialogContent, setDialogContent] = useState("");
@@ -211,7 +217,15 @@ export default function DataExportView(): React$Element<*> {
   const handleDataSourceChange = async (event) => {
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSource(selectedDataSourceKey);
+    var selectedRows = await getSelectedRows(selectedDataSourceKey);
 
+    if (selectedRows !== undefined && selectedRows.length > 0) {
+      setRows(selectedRows);
+    }
+  };
+
+  const getSelectedRows = async (dataSourceKey) => {
+    console.log(dataSourceKey);
     var participantes = await db.participantes;
     if (participantes === undefined) {
       participantes = [];
@@ -231,18 +245,22 @@ export default function DataExportView(): React$Element<*> {
       ativosMedicao = await db.ativosMedicao.toArray();
     }
 
-    if (
-      participantes.length > 0 &&
-      participantes.filter((x) => x.key === selectedDataSourceKey).length > 0
-    ) {
-      setRows(participantes);
-    } else if (
-      perfis.length > 0 &&
-      perfis.filter((x) => x.key === selectedDataSourceKey).length > 0
-    ) {
-      setRows(perfis);
+    var filteredParticipants = participantes.filter(
+      (x) => x.key === dataSourceKey
+    );
+    var filteredProfiles = perfis.filter((x) => x.key === dataSourceKey);
+    var filteredResources = ativosMedicao.filter(
+      (x) => x.key === dataSourceKey
+    );
+
+    if (participantes.length > 0 && filteredParticipants.length > 0) {
+      return filteredParticipants;
+    } else if (perfis.length > 0 && filteredProfiles.length > 0) {
+      return filteredProfiles;
+    } else if (ativosMedicao.length > 0 && filteredResources.length > 0) {
+      return filteredResources;
     } else {
-      setRows(ativosMedicao);
+      return [];
     }
   };
 
@@ -314,6 +332,65 @@ export default function DataExportView(): React$Element<*> {
 
     setSelectedDataSource("");
     setRows([]);
+  };
+
+  const handleCompareDataSourcesChange = (event) => {
+    setCompareDataSources(event.target.checked);
+  };
+
+  const handleDataSourceAChange = async (event) => {
+    setCompareDataSourcesFlag(false);
+
+    const selectedDataSourceKey = event.target.value;
+    setSelectedDataSourceA(selectedDataSourceKey);
+  };
+
+  const handleDataSourceBChange = async (event) => {
+    setCompareDataSourcesFlag(false);
+
+    const selectedDataSourceKey = event.target.value;
+    setSelectedDataSourceB(selectedDataSourceKey);
+  };
+
+  const handleCompareData = async () => {
+    setCompareDataSourcesFlag(true);
+    const sourceA = await getSelectedRows(selectedDataSourceA);
+    const sourceB = await getSelectedRows(selectedDataSourceB);
+
+    if (sourceA !== undefined && sourceB !== undefined) {
+      if (
+        selectedDataSourceA.includes("participantes") &&
+        selectedDataSourceB.includes("participantes")
+      ) {
+        let sourceB_Codigos = sourceB.map((x) => x.codigo);
+        let result = sourceA.filter((x) => !sourceB_Codigos.includes(x.codigo));
+        setResultDataSourceText("Novos_" + selectedDataSourceA);
+        setRows(result);
+        console.log("Diferença: " + result.length);
+      } else if (
+        selectedDataSourceA.includes("perfis") &&
+        selectedDataSourceB.includes("perfis")
+      ) {
+        let sourceB_Codigos = sourceB.map((x) => x.codPerfil);
+        let result = sourceA.filter(
+          (x) => !sourceB_Codigos.includes(x.codPerfil)
+        );
+        setResultDataSourceText("Novos_" + selectedDataSourceA);
+        setRows(result);
+      } else if (
+        selectedDataSourceA.includes("ativos") &&
+        selectedDataSourceB.includes("ativos")
+      ) {
+        let sourceB_Codigos = sourceB.map((x) => x.codAtivo);
+        let result = sourceA.filter(
+          (x) => !sourceB_Codigos.includes(x.codAtivo)
+        );
+        setResultDataSourceText("Novos_" + selectedDataSourceA);
+        setRows(result);
+      } else {
+        setRows([]);
+      }
+    }
   };
 
   const handleClickOpen = () => {
@@ -400,45 +477,160 @@ export default function DataExportView(): React$Element<*> {
     );
   }
 
+  function RenderSingleExporterView() {
+    return (
+      <div>
+        <Stack
+          direction="row"
+          divider={<Divider orientation="vertical" flexItem />}
+          sx={{ marginTop: 2 }}
+          spacing={2}
+        >
+          <FormControl sx={{ width: "50%" }}>
+            <InputLabel id="data-source-select-label">
+              Fonte de dados
+            </InputLabel>
+            <Select
+              labelId="data-source-select-label"
+              id="data-source-simple-select"
+              value={selectedDataSource}
+              label="Fonte de dados"
+              onChange={handleDataSourceChange}
+            >
+              {dataSourceKeys.map((x) => (
+                <MenuItem value={x}>{x}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            variant="outlined"
+            onClick={handleExportData}
+            sx={{ marginTop: 2 }}
+          >
+            Exportar
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleDeleteData}
+            sx={{ marginTop: 2 }}
+          >
+            Excluir
+          </Button>
+        </Stack>
+        {selectedDataSource !== "" ? <div>{RenderTable()}</div> : <div></div>}
+      </div>
+    );
+  }
+
+  function RenderComparatorExporterView() {
+    return (
+      <div>
+        <Stack
+          direction="row"
+          divider={<Divider orientation="vertical" flexItem />}
+          sx={{ marginTop: 2 }}
+          spacing={2}
+        >
+          <FormControl sx={{ width: "50%" }}>
+            <InputLabel id="data-source-select-label">
+              Fonte de dados A
+            </InputLabel>
+            <Select
+              labelId="data-source-select-a-label"
+              id="data-source-simple-select-a"
+              value={selectedDataSourceA}
+              label="Fonte de dados"
+              onChange={handleDataSourceAChange}
+            >
+              {dataSourceKeys.map((x) => (
+                <MenuItem value={x}>{x}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl sx={{ width: "50%" }}>
+            <InputLabel id="data-source-select-label">
+              Fonte de dados B
+            </InputLabel>
+            <Select
+              labelId="data-source-select-b-label"
+              id="data-source-simple-select-b"
+              value={selectedDataSourceB}
+              label="Fonte de dados"
+              onChange={handleDataSourceBChange}
+            >
+              {dataSourceKeys.map((x) => (
+                <MenuItem value={x}>{x}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Button
+            variant="outlined"
+            onClick={handleCompareData}
+            sx={{ marginTop: 2 }}
+          >
+            Comparar
+          </Button>
+        </Stack>
+
+        {compareDataSourcesFlag ? (
+          <div>
+            <Stack
+              direction="row"
+              divider={<Divider orientation="vertical" flexItem />}
+              sx={{ marginTop: 2, height: 55 }}
+              spacing={2}
+            >
+              <div className={styles.rowContainer}>
+                <div className={styles.resultFieldWithoutBorder}>
+                  <Typography paragraph className={styles.resultFieldText}>
+                    Resultado (A - B):
+                  </Typography>
+                </div>
+                <div className={styles.resultField}>
+                  <Typography paragraph className={styles.resultFieldText}>
+                    {resultDataSourceText}
+                  </Typography>
+                </div>
+              </div>
+
+              <Button
+                variant="outlined"
+                onClick={handleExportData}
+                sx={{ marginTop: 2 }}
+              >
+                Exportar
+              </Button>
+            </Stack>
+            {selectedDataSourceA !== "" && selectedDataSourceB !== "" ? (
+              <div>{RenderTable()}</div>
+            ) : (
+              <div></div>
+            )}
+          </div>
+        ) : (
+          <div></div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <Typography paragraph>Exportar Dados</Typography>
+      <FormControlLabel
+        control={
+          <Switch
+            checked={compareDataSources}
+            onChange={handleCompareDataSourcesChange}
+            name="gilad"
+          />
+        }
+        label="Comparar fontes de dados"
+      />
 
-      <Stack
-        direction="row"
-        divider={<Divider orientation="vertical" flexItem />}
-        spacing={2}
-      >
-        <FormControl sx={{ width: "50%" }}>
-          <InputLabel id="data-source-select-label">Fonte de dados</InputLabel>
-          <Select
-            labelId="data-source-select-label"
-            id="data-source-simple-select"
-            value={selectedDataSource}
-            label="Fonte de dados"
-            onChange={handleDataSourceChange}
-          >
-            {dataSourceKeys.map((x) => (
-              <MenuItem value={x}>{x}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Button
-          variant="outlined"
-          onClick={handleExportData}
-          sx={{ marginTop: 2 }}
-        >
-          Exportar
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={handleDeleteData}
-          sx={{ marginTop: 2 }}
-        >
-          Excluir
-        </Button>
-      </Stack>
-      {selectedDataSource !== "" ? <div>{RenderTable()}</div> : <div></div>}
+      {compareDataSources
+        ? RenderComparatorExporterView()
+        : RenderSingleExporterView()}
 
       <Dialog
         open={openDialog}
