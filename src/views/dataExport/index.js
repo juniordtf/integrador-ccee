@@ -365,6 +365,8 @@ export default function DataExportView(): React$Element<*> {
         let sourceB_Codigos = sourceB.map((x) => x.codigo);
         let result = sourceA.filter((x) => !sourceB_Codigos.includes(x.codigo));
         setResultDataSourceText("Novos_" + selectedDataSourceA);
+        setTableHeader(ParticipantsColumns);
+        setRowKey("codigo");
         setRows(result);
         console.log("Diferença: " + result.length);
       } else if (
@@ -376,6 +378,8 @@ export default function DataExportView(): React$Element<*> {
           (x) => !sourceB_Codigos.includes(x.codPerfil)
         );
         setResultDataSourceText("Novos_" + selectedDataSourceA);
+        setTableHeader(ProfilesColumns);
+        setRowKey("codPerfil");
         setRows(result);
       } else if (
         selectedDataSourceA.includes("ativos") &&
@@ -386,8 +390,24 @@ export default function DataExportView(): React$Element<*> {
           (x) => !sourceB_Codigos.includes(x.codAtivo)
         );
         setResultDataSourceText("Novos_" + selectedDataSourceA);
+        setTableHeader(ResourcesColumns);
+        setRowKey("codAtivo");
+        setRows(result);
+      } else if (
+        selectedDataSourceA.includes("parcela") &&
+        selectedDataSourceB.includes("parcela")
+      ) {
+        let sourceB_Codigos = sourceB.map((x) => x.codParcela);
+        let result = sourceA.filter(
+          (x) => !sourceB_Codigos.includes(x.codParcela)
+        );
+        setResultDataSourceText("Novos_" + selectedDataSourceA);
+        setTableHeader(PartialResourcesColumns);
+        setRowKey("codParcelaDeAtivo");
         setRows(result);
       } else {
+        setTableHeader([]);
+        setRowKey("");
         setRows([]);
       }
     }

@@ -470,7 +470,7 @@ export default function DataSyncView(): React$Element<*> {
             if (responseData.code !== 500) {
               addParticipanteToRetryList(
                 key,
-                responseData.data,
+                x.codigo,
                 responseData.code,
                 0,
                 "listarPerfis"
@@ -593,8 +593,12 @@ export default function DataSyncView(): React$Element<*> {
           dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
         );
 
+        itemsProcessed++;
+
         var totalPaginas = responseData.totalPaginas;
-        var totalPaginasNumber = parseInt(totalPaginas._text.toString());
+        var totalPaginasNumber = totalPaginas._text
+          ? parseInt(totalPaginas._text.toString())
+          : 0;
         if (totalPaginasNumber > 1) {
           for (
             let paginaCorrente = 1;
@@ -682,8 +686,6 @@ export default function DataSyncView(): React$Element<*> {
             }
           }
         }
-
-        itemsProcessed++;
 
         if (itemsProcessed === arr.length) {
           setPendingRequests(pendingRequests - 1);
