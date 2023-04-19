@@ -151,7 +151,6 @@ export default function DataExportView(): React$Element<*> {
       var dataSources = [];
 
       if (participantes.length > 0) {
-        console.log(participantes.length);
         dataSources = dataSources.concat(
           participantes.map(function (v) {
             return v.key;

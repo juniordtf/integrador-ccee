@@ -29,6 +29,7 @@ import { db } from "../../database/db";
 export default function DataSyncView(): React$Element<*> {
   const [authData, setAuthData] = useState([]);
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
+  const [retryKeys, setRetryKeys] = useState([]);
   const [selectedDataSource, setSelectedDataSource] = useState("");
   const [dataSourceItems, setDataSourceItems] = useState([]);
   const [service, setService] = useState("");
@@ -128,7 +129,6 @@ export default function DataSyncView(): React$Element<*> {
       var dataSources = [];
 
       if (participantes.length > 0) {
-        console.log(participantes.length);
         dataSources = dataSources.concat(
           participantes.map(function (v) {
             return v.key;
@@ -162,6 +162,11 @@ export default function DataSyncView(): React$Element<*> {
     const data = JSON.parse(localStorage.getItem("authData"));
     if (data) {
       setAuthData(data);
+    }
+
+    const keys = JSON.parse(localStorage.getItem("RETRY_KEYS"));
+    if (keys) {
+      setRetryKeys(keys);
     }
 
     if (pendingRequests > 0) {
@@ -210,14 +215,26 @@ export default function DataSyncView(): React$Element<*> {
       participantes.length > 0 &&
       participantes.filter((x) => x.key === selectedDataSourceKey).length > 0
     ) {
-      setDataSourceItems(participantes);
+      var selectedParticipants = participantes.filter(
+        (x) => x.key === selectedDataSourceKey
+      );
+      console.log(selectedParticipants.length);
+      setDataSourceItems(selectedParticipants);
     } else if (
       perfis.length > 0 &&
       perfis.filter((x) => x.key === selectedDataSourceKey).length > 0
     ) {
-      setDataSourceItems(perfis);
+      var selectedProfiles = perfis.filter(
+        (x) => x.key === selectedDataSourceKey
+      );
+      console.log(selectedProfiles.length);
+      setDataSourceItems(selectedProfiles);
     } else {
-      setDataSourceItems(ativosMedicao);
+      var selectedResource = ativosMedicao.filter(
+        (x) => x.key === selectedDataSourceKey
+      );
+      console.log(selectedResource.length);
+      setDataSourceItems(selectedResource);
     }
   };
 
@@ -313,60 +330,57 @@ export default function DataSyncView(): React$Element<*> {
 
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
       // eslint-disable-next-line no-loop-func
-      setTimeout(async () => {
-        var participantesData =
-          await cadastrosService.listarParticipantesDeMercado(
-            authData,
-            currentPage,
-            dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
-            category
+
+      var participantesData =
+        await cadastrosService.listarParticipantesDeMercado(
+          authData,
+          currentPage,
+          dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+          category
+        );
+
+      var itemsProcessed = 0;
+
+      if (participantesData !== null) {
+        participantesData.forEach(async (item, index, array) => {
+          const cnpj =
+            item["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"] !==
+            undefined
+              ? item["bov2:parte"]["bov2:pessoaJuridica"][
+                  "bov2:identificacoes"
+                ]["bov2:identificacao"]["bov2:numero"]._text.toString()
+              : "";
+          const nomeEmpresarial =
+            item["bov2:parte"]["bov2:pessoaJuridica"][
+              "bov2:nomeEmpresarial"
+            ]._text.toString();
+          const sigla = item["bov2:sigla"]._text.toString();
+          const codigo = item["bov2:codigo"]._text.toString();
+          let periodoVigencia =
+            item["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
+          periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
+          const situacao =
+            item["bov2:situacao"]["bov2:descricao"]._text.toString();
+
+          await addParticipante(
+            key,
+            cnpj,
+            nomeEmpresarial,
+            situacao,
+            sigla,
+            codigo,
+            periodoVigencia
           );
 
-        var itemsProcessed = 0;
-
-        if (participantesData !== null) {
-          participantesData.forEach(async (item, index, array) => {
-            const cnpj =
-              item["bov2:parte"]["bov2:pessoaJuridica"][
-                "bov2:identificacoes"
-              ] !== undefined
-                ? item["bov2:parte"]["bov2:pessoaJuridica"][
-                    "bov2:identificacoes"
-                  ]["bov2:identificacao"]["bov2:numero"]._text.toString()
-                : "";
-            const nomeEmpresarial =
-              item["bov2:parte"]["bov2:pessoaJuridica"][
-                "bov2:nomeEmpresarial"
-              ]._text.toString();
-            const sigla = item["bov2:sigla"]._text.toString();
-            const codigo = item["bov2:codigo"]._text.toString();
-            let periodoVigencia =
-              item["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
-            periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
-            const situacao =
-              item["bov2:situacao"]["bov2:descricao"]._text.toString();
-
-            await addParticipante(
-              key,
-              cnpj,
-              nomeEmpresarial,
-              situacao,
-              sigla,
-              codigo,
-              periodoVigencia
-            );
-
-            itemsProcessed++;
-            if (itemsProcessed === array.length && currentPage === totalPages) {
-              console.log(participants.length);
-              setPendingRequests(pendingRequests - 1);
-              setSuccesDialogOpen(true);
-            }
-          });
-        } else {
-          setPendingRequests(pendingRequests - 1);
-        }
-      }, 5000);
+          itemsProcessed++;
+          if (itemsProcessed === array.length && currentPage === totalPages) {
+            setPendingRequests(pendingRequests - 1);
+            setSuccesDialogOpen(true);
+          }
+        });
+      } else {
+        setPendingRequests(pendingRequests - 1);
+      }
     }
   };
 
@@ -416,19 +430,25 @@ export default function DataSyncView(): React$Element<*> {
         }
       });
 
-    let profiles = [];
-
     if (dataSourceItems !== null) {
       console.log("Total: " + dataSourceItems.length);
+      var codAgentes = dataSourceItems.map((x) => x.codigo);
+      listarPerfis(key, codAgentes);
+    }
+  };
+
+  async function listarPerfis(key, sourceItems, fromRetryList = false) {
+    try {
       var itemsProcessed = 0;
 
-      dataSourceItems.forEach((x, idx, arr) => {
-        setTimeout(async () => {
+      await Promise.all(
+        sourceItems.forEach(async (codAgente, idx, arr) => {
           var responseData = await cadastrosService.listarPerfis(
             authData,
-            x.codigo
+            codAgente
           );
           itemsProcessed++;
+          console.log(itemsProcessed);
 
           if (responseData.code === 200) {
             var perfis = responseData.data;
@@ -455,7 +475,7 @@ export default function DataSyncView(): React$Element<*> {
 
               await addPerfil(
                 key,
-                x.codigo,
+                codAgente,
                 classe,
                 codPerfil,
                 comercializadorVarejista,
@@ -465,29 +485,43 @@ export default function DataSyncView(): React$Element<*> {
                 perfilPrincipal,
                 regimeCotas
               );
+
+              console.log(fromRetryList);
+
+              if (fromRetryList) {
+                removeProfileFromRetryList(key, codAgente);
+              }
             });
           } else {
             if (responseData.code !== 500) {
-              addParticipanteToRetryList(
-                key,
-                x.codigo,
-                responseData.code,
-                0,
-                "listarPerfis"
-              );
+              if (!fromRetryList) {
+                addParticipanteToRetryList(
+                  key,
+                  codAgente,
+                  responseData.code,
+                  0,
+                  "listarPerfis"
+                );
+              }
+            } else {
+              if (fromRetryList) {
+                removeProfileFromRetryList(key, codAgente);
+              }
             }
           }
 
           if (itemsProcessed === arr.length) {
             console.log("Arr: " + arr.length);
-            console.log("Final: " + profiles.length);
             setPendingRequests(pendingRequests - 1);
             setSuccesDialogOpen(true);
           }
-        }, 5000);
-      });
+        })
+      );
+    } catch (e) {
+      console.log("Erro ao listar perfis");
+      console.error(e);
     }
-  };
+  }
 
   async function addPerfil(
     key,
@@ -534,8 +568,17 @@ export default function DataSyncView(): React$Element<*> {
         attempts,
         serviceFailed,
       };
+
+      let keys = [];
+      if (retryKeys.length === 0) {
+        keys = [retryKey];
+      } else {
+        keys = retryKeys.concat(retryKey);
+      }
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
+
       let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
-      if (retryParticipants.length === 0) {
+      if (retryParticipants === null) {
         retryParticipants = [retryParticipant];
       } else {
         retryParticipants = retryParticipants.concat(retryParticipant);
@@ -735,7 +778,7 @@ export default function DataSyncView(): React$Element<*> {
         serviceFailed,
       };
       let retryProfiles = JSON.parse(localStorage.getItem(retryKey));
-      if (retryProfiles.length === 0) {
+      if (retryProfiles === null) {
         retryProfiles = [retryProfile];
       } else {
         retryProfiles = retryProfiles.concat(retryProfile);
@@ -747,6 +790,49 @@ export default function DataSyncView(): React$Element<*> {
       );
     }
   }
+
+  const retryFaultyRequests = async () => {
+    if (retryKeys.length === 0) return;
+
+    retryKeys.forEach((key) => {
+      let retryData = JSON.parse(localStorage.getItem(key));
+
+      if (key.includes("perfis")) {
+        var codAgentes = retryData.map((x) => x.codAgente);
+        listarPerfis(key.substring(6), codAgentes, true);
+      } else if (key.includes("ativos")) {
+      } else {
+        return;
+      }
+    });
+  };
+
+  const removeProfileFromRetryList = (key, codAgente) => {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("removeProfileFromRetryList");
+    console.log(retryData.toString());
+    const itemToBeRemoved = retryData.find((x) => x.codAgente === codAgente);
+    const index = retryData.indexOf(itemToBeRemoved);
+
+    if (index > -1) {
+      retryData.splice(index, 1);
+    }
+
+    if (retryData.length === 0) {
+      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
+      const idx = retryKeys.indexOf(keyToBeRemoved);
+
+      if (idx > -1) {
+        retryKeys.splice(idx, 1);
+      }
+
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
+      localStorage.removeItem(retryKey);
+    } else {
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
+    }
+  };
 
   const sendRequest_ListarParcelasDeCarga = async () => {};
 
@@ -875,6 +961,14 @@ export default function DataSyncView(): React$Element<*> {
       </Stack>
       <Button variant="outlined" onClick={sendRequest} sx={{ marginTop: 2 }}>
         Enviar
+      </Button>
+
+      <Button
+        variant="outlined"
+        onClick={retryFaultyRequests}
+        sx={{ marginTop: 2, marginLeft: 5 }}
+      >
+        Reenviar dados faltantes
       </Button>
       <Modal
         open={open}
