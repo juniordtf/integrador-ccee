@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
@@ -40,6 +40,7 @@ export default function DataSyncView(): React$Element<*> {
   const [warningText, setWarningText] = useState("");
   const [date, setDate] = useState(dayjs());
   const [open, setOpen] = useState(false);
+  const timerRef = useRef(null);
 
   const servicos = [
     { id: 1, name: "Listar participantes de mercado" },
@@ -174,6 +175,9 @@ export default function DataSyncView(): React$Element<*> {
     } else {
       handleClose();
     }
+
+    const timeoutId = timerRef.current;
+    return () => clearTimeout(timeoutId);
   }, [pendingRequests]);
 
   const handleOpen = () => setOpen(true);
@@ -441,82 +445,78 @@ export default function DataSyncView(): React$Element<*> {
     try {
       var itemsProcessed = 0;
 
-      await Promise.all(
-        sourceItems.forEach(async (codAgente, idx, arr) => {
-          var responseData = await cadastrosService.listarPerfis(
-            authData,
-            codAgente
-          );
-          itemsProcessed++;
-          console.log(itemsProcessed);
+      for (const codAgente of sourceItems) {
+        console.log("Cod Agente:" + codAgente);
 
-          if (responseData.code === 200) {
-            var perfis = responseData.data;
-            Array.prototype.forEach.call(perfis, async (item) => {
-              const classe =
-                item["bov2:classe"]["bov2:descricao"]._text.toString();
-              const codPerfil = item["bov2:codigo"]._text.toString();
-              var comercializadorVarejista =
-                item["bov2:comercializadorVarejista"]._text.toString();
-              const sigla = item["bov2:sigla"]._text.toString();
-              const situacao =
-                item["bov2:situacao"]["bov2:descricao"]._text.toString();
-              const submercado =
-                item["bov2:submercado"] === undefined
-                  ? "Sem informação"
-                  : item["bov2:submercado"]["bov2:nome"]._text.toString();
-              var perfilPrincipal =
-                item["bov2:perfilPrincipal"]._text.toString();
-              var regimeCotas = item["bov2:regimeCotas"]._text.toString();
-              comercializadorVarejista =
-                comercializadorVarejista === "true" ? "Sim" : "Não";
-              perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
-              regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
+        var responseData = await cadastrosService.listarPerfis(
+          authData,
+          codAgente
+        );
+        itemsProcessed++;
+        console.log(itemsProcessed);
 
-              await addPerfil(
+        if (responseData.code === 200) {
+          var perfis = responseData.data;
+          Array.prototype.forEach.call(perfis, async (item) => {
+            const classe =
+              item["bov2:classe"]["bov2:descricao"]._text.toString();
+            const codPerfil = item["bov2:codigo"]._text.toString();
+            var comercializadorVarejista =
+              item["bov2:comercializadorVarejista"]._text.toString();
+            const sigla = item["bov2:sigla"]._text.toString();
+            const situacao =
+              item["bov2:situacao"]["bov2:descricao"]._text.toString();
+            const submercado =
+              item["bov2:submercado"] === undefined
+                ? "Sem informação"
+                : item["bov2:submercado"]["bov2:nome"]._text.toString();
+            var perfilPrincipal = item["bov2:perfilPrincipal"]._text.toString();
+            var regimeCotas = item["bov2:regimeCotas"]._text.toString();
+            comercializadorVarejista =
+              comercializadorVarejista === "true" ? "Sim" : "Não";
+            perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
+            regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
+
+            await addPerfil(
+              key,
+              codAgente,
+              classe,
+              codPerfil,
+              comercializadorVarejista,
+              sigla,
+              situacao,
+              submercado,
+              perfilPrincipal,
+              regimeCotas
+            );
+
+            if (fromRetryList) {
+              removeProfileFromRetryList(key, codAgente);
+            }
+          });
+        } else {
+          if (responseData.code !== 500) {
+            if (!fromRetryList) {
+              addParticipanteToRetryList(
                 key,
                 codAgente,
-                classe,
-                codPerfil,
-                comercializadorVarejista,
-                sigla,
-                situacao,
-                submercado,
-                perfilPrincipal,
-                regimeCotas
+                responseData.code,
+                0,
+                "listarPerfis"
               );
-
-              console.log(fromRetryList);
-
-              if (fromRetryList) {
-                removeProfileFromRetryList(key, codAgente);
-              }
-            });
+            }
           } else {
-            if (responseData.code !== 500) {
-              if (!fromRetryList) {
-                addParticipanteToRetryList(
-                  key,
-                  codAgente,
-                  responseData.code,
-                  0,
-                  "listarPerfis"
-                );
-              }
-            } else {
-              if (fromRetryList) {
-                removeProfileFromRetryList(key, codAgente);
-              }
+            if (fromRetryList) {
+              removeProfileFromRetryList(key, codAgente);
             }
           }
-
-          if (itemsProcessed === arr.length) {
-            console.log("Arr: " + arr.length);
-            setPendingRequests(pendingRequests - 1);
-            setSuccesDialogOpen(true);
-          }
-        })
-      );
+        }
+        if (itemsProcessed === sourceItems.length) {
+          console.log("Arr: " + sourceItems.length);
+          setPendingRequests(pendingRequests - 1);
+          setSuccesDialogOpen(true);
+        }
+      }
     } catch (e) {
       console.log("Erro ao listar perfis");
       console.error(e);
