@@ -543,8 +543,6 @@ export default function DataSyncView(): React$Element<*> {
 
       sourceItemsChunks.forEach(async (chunckItems) => {
         for (const codAgente of chunckItems) {
-          console.log("Cod Agente:" + codAgente);
-
           var responseData = await cadastrosService.listarPerfis(
             authData,
             codAgente
@@ -609,8 +607,8 @@ export default function DataSyncView(): React$Element<*> {
             }
           }
           console.log(itemsProcessed);
-          if (requestsQuantity > 0 && itemsProcessed >= requestsQuantity - 1) {
-            console.log("Arr: " + sourceItems.length);
+          if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
+            console.log("Arr: " + requestsQuantity);
             setPendingRequests(pendingRequests - 1);
             setSuccesDialogOpen(true);
           }
@@ -746,7 +744,6 @@ export default function DataSyncView(): React$Element<*> {
 
       sourceItemsChunks.forEach(async (chunckItems) => {
         for (const codPerfil of chunckItems) {
-          console.log("Cod Perfil:" + codPerfil);
           var responseData = await ativosService.listarAtivosDeMedicao(
             authData,
             codPerfil,
@@ -864,9 +861,9 @@ export default function DataSyncView(): React$Element<*> {
               }
             }
           }
+
           console.log(itemsProcessed);
-          console.log("Qte de req: " + requestsQuantity);
-          if (requestsQuantity > 0 && itemsProcessed >= requestsQuantity - 1) {
+          if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
             console.log("Arr: " + requestsQuantity);
             setPendingRequests(pendingRequests - 1);
             setSuccesDialogOpen(true);
@@ -978,7 +975,6 @@ export default function DataSyncView(): React$Element<*> {
 
     if (!retryData) return;
 
-    console.log(retryData.toString());
     const itemToBeRemoved = retryData.find((x) => x.codAgente === codAgente);
     const index = retryData.indexOf(itemToBeRemoved);
 
@@ -1008,7 +1004,6 @@ export default function DataSyncView(): React$Element<*> {
 
     if (!retryData) return;
 
-    console.log(retryData.toString());
     const itemToBeRemoved = retryData.find((x) => x.codPerfil === codPerfil);
     const index = retryData.indexOf(itemToBeRemoved);
 
@@ -1038,7 +1033,6 @@ export default function DataSyncView(): React$Element<*> {
 
     if (!retryData) return;
 
-    console.log(retryData.toString());
     const itemToBeRemoved = retryData.find((x) => x.page === page);
     const index = retryData.indexOf(itemToBeRemoved);
 
@@ -1190,13 +1184,20 @@ export default function DataSyncView(): React$Element<*> {
         Enviar
       </Button>
 
-      <Button
-        variant="outlined"
-        onClick={retryFaultyRequests}
-        sx={{ marginTop: 2, marginLeft: 5 }}
-      >
-        Reenviar dados faltantes
-      </Button>
+      {retryKeys.length > 0 ? (
+        <div>
+          <Button
+            variant="outlined"
+            onClick={retryFaultyRequests}
+            sx={{ marginTop: 7 }}
+          >
+            Reenviar dados faltantes
+          </Button>
+        </div>
+      ) : (
+        <div></div>
+      )}
+
       <Modal
         open={open}
         onClose={handleClose}

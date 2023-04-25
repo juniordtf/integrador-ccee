@@ -463,7 +463,7 @@ export default function DataExportView(): React$Element<*> {
                           hover
                           role="checkbox"
                           tabIndex={-1}
-                          key={row[rowKey]}
+                          key={row.id}
                         >
                           {tableHeader.map((column) => {
                             const value = row[column.id];
