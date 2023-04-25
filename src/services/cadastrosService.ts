@@ -78,15 +78,18 @@ const listarParticipantesDeMercado = async (
             json["soapenv:Envelope"]["soapenv:Body"][
               "bmv2:listarParticipanteMercadoResponse"
             ]["bmv2:participantesMercado"]["bov2:participanteMercado"];
-          resolve(participantes);
+          var responseData = { data: participantes, code: 200 };
+          resolve(responseData);
         } else {
-          resolve(null);
+          var responseData = { data: page, code: response.status };
+          resolve(responseData);
         }
       })
       .catch(function (error) {
         if (error.response) {
+          var responseData = { data: page, code: error.response.status };
           console.log(error.response.status);
-          resolve(null);
+          resolve(responseData);
         }
       });
   });
