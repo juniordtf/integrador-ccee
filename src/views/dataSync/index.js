@@ -551,44 +551,18 @@ export default function DataSyncView(): React$Element<*> {
 
           if (responseData.code === 200) {
             var perfis = responseData.data;
-            Array.prototype.forEach.call(perfis, async (item) => {
-              const classe =
-                item["bov2:classe"]["bov2:descricao"]._text.toString();
-              const codPerfil = item["bov2:codigo"]._text.toString();
-              var comercializadorVarejista =
-                item["bov2:comercializadorVarejista"]._text.toString();
-              const sigla = item["bov2:sigla"]._text.toString();
-              const situacao =
-                item["bov2:situacao"]["bov2:descricao"]._text.toString();
-              const submercado =
-                item["bov2:submercado"] === undefined
-                  ? "Sem informação"
-                  : item["bov2:submercado"]["bov2:nome"]._text.toString();
-              var perfilPrincipal =
-                item["bov2:perfilPrincipal"]._text.toString();
-              var regimeCotas = item["bov2:regimeCotas"]._text.toString();
-              comercializadorVarejista =
-                comercializadorVarejista === "true" ? "Sim" : "Não";
-              perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
-              regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
 
-              await addPerfil(
-                key,
-                codAgente,
-                classe,
-                codPerfil,
-                comercializadorVarejista,
-                sigla,
-                situacao,
-                submercado,
-                perfilPrincipal,
-                regimeCotas
-              );
+            if (perfis.length === undefined) {
+              mapResponseToProfileData(key, codAgente, perfis);
+            } else {
+              Array.prototype.forEach.call(perfis, async (item) => {
+                mapResponseToProfileData(key, codAgente, item);
+              });
+            }
 
-              if (fromRetryList) {
-                removeProfileFromRetryList(key, codAgente);
-              }
-            });
+            if (fromRetryList) {
+              removeProfileFromRetryList(key, codAgente);
+            }
           } else {
             if (responseData.code !== 500) {
               if (!fromRetryList) {
@@ -618,6 +592,38 @@ export default function DataSyncView(): React$Element<*> {
       console.log("Erro ao listar perfis");
       console.error(e);
     }
+  }
+
+  async function mapResponseToProfileData(key, codAgente, item) {
+    const classe = item["bov2:classe"]["bov2:descricao"]._text.toString();
+    const codPerfil = item["bov2:codigo"]._text.toString();
+    var comercializadorVarejista =
+      item["bov2:comercializadorVarejista"]._text.toString();
+    const sigla = item["bov2:sigla"]._text.toString();
+    const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
+    const submercado =
+      item["bov2:submercado"] === undefined
+        ? "Sem informação"
+        : item["bov2:submercado"]["bov2:nome"]._text.toString();
+    var perfilPrincipal = item["bov2:perfilPrincipal"]._text.toString();
+    var regimeCotas = item["bov2:regimeCotas"]._text.toString();
+    comercializadorVarejista =
+      comercializadorVarejista === "true" ? "Sim" : "Não";
+    perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
+    regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
+
+    await addPerfil(
+      key,
+      codAgente,
+      classe,
+      codPerfil,
+      comercializadorVarejista,
+      sigla,
+      situacao,
+      submercado,
+      perfilPrincipal,
+      regimeCotas
+    );
   }
 
   async function addPerfil(

@@ -26,6 +26,10 @@ import FormLabel from "@mui/material/FormLabel";
 import Switch from "@mui/material/Switch";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
+import IconButton from "@mui/material/IconButton";
+import Input from "@mui/material/Input";
+import InputAdornment from "@mui/material/InputAdornment";
+import SearchIcon from "@mui/icons-material/Search";
 import styles from "./styles.module.css";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../database/db";
@@ -110,6 +114,7 @@ const PartialResourcesColumns = [
 
 export default function DataExportView(): React$Element<*> {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
+  const [initialRows, setInitialRows] = useState([]);
   const [rows, setRows] = useState([]);
   const [rowKey, setRowKey] = useState("");
   const [tableHeader, setTableHeader] = useState([]);
@@ -220,6 +225,7 @@ export default function DataExportView(): React$Element<*> {
 
     if (selectedRows !== undefined && selectedRows.length > 0) {
       setRows(selectedRows);
+      setInitialRows(selectedRows);
     }
   };
 
@@ -274,7 +280,7 @@ export default function DataExportView(): React$Element<*> {
   };
 
   const exportData = () => {
-    const data = rows;
+    const data = initialRows;
     const fileName = selectedDataSource;
     let exportType = "";
 
@@ -331,6 +337,7 @@ export default function DataExportView(): React$Element<*> {
 
     setSelectedDataSource("");
     setRows([]);
+    setInitialRows([]);
   };
 
   const handleCompareDataSourcesChange = (event) => {
@@ -367,6 +374,7 @@ export default function DataExportView(): React$Element<*> {
         setTableHeader(ParticipantsColumns);
         setRowKey("codigo");
         setRows(result);
+        setInitialRows(result);
         console.log("Diferença: " + result.length);
       } else if (
         selectedDataSourceA.includes("perfis") &&
@@ -380,6 +388,7 @@ export default function DataExportView(): React$Element<*> {
         setTableHeader(ProfilesColumns);
         setRowKey("codPerfil");
         setRows(result);
+        setInitialRows(result);
       } else if (
         selectedDataSourceA.includes("ativos") &&
         selectedDataSourceB.includes("ativos")
@@ -392,6 +401,7 @@ export default function DataExportView(): React$Element<*> {
         setTableHeader(ResourcesColumns);
         setRowKey("codAtivo");
         setRows(result);
+        setInitialRows(result);
       } else if (
         selectedDataSourceA.includes("parcela") &&
         selectedDataSourceB.includes("parcela")
@@ -404,12 +414,60 @@ export default function DataExportView(): React$Element<*> {
         setTableHeader(PartialResourcesColumns);
         setRowKey("codParcelaDeAtivo");
         setRows(result);
+        setInitialRows(result);
       } else {
         setTableHeader([]);
         setRowKey("");
         setRows([]);
+        setInitialRows([]);
       }
     }
+  };
+
+  const filterTable = (searchText) => {
+    var filteredData = [];
+
+    if (searchText === "") {
+      setRows(initialRows);
+      return;
+    }
+
+    if (rowKey === "codigo") {
+      filteredData = initialRows.filter(
+        (x) =>
+          x.codigo.includes(searchText) ||
+          x.sigla.includes(searchText) ||
+          x.situacao.includes(searchText) ||
+          x.nomeEmpresarial.includes(searchText) ||
+          x.cnpj.includes(searchText)
+      );
+    } else if (rowKey === "codPerfil") {
+      filteredData = initialRows.filter(
+        (x) =>
+          x.codPerfil.includes(searchText) ||
+          x.classe.includes(searchText) ||
+          x.codAgente.includes(searchText) ||
+          x.sigla.includes(searchText) ||
+          x.situacao.includes(searchText) ||
+          x.submercado.includes(searchText)
+      );
+    } else if (rowKey === "codAtivo") {
+      filteredData = initialRows.filter(
+        (x) =>
+          x.codAtivo.includes(searchText) ||
+          x.codPerfil.includes(searchText) ||
+          x.nome.includes(searchText) ||
+          x.situacao.includes(searchText)
+      );
+    } else if (rowKey === "codParcelaAtivo") {
+      filteredData = initialRows.filter((x) =>
+        x.codParcelaAtivo.includes(searchText)
+      );
+    } else {
+      filteredData = [];
+    }
+
+    setRows(filteredData);
   };
 
   const handleClickOpen = () => {
@@ -439,55 +497,88 @@ export default function DataExportView(): React$Element<*> {
       <div>
         {selectedDataSource !== "" ? (
           <div>
-            <TableContainer sx={{ maxHeight: 440, marginTop: 5 }}>
-              <Table stickyHeader aria-label="sticky table">
-                <TableHead>
-                  <TableRow>
-                    {tableHeader.map((column) => (
-                      <TableCell
-                        key={column.id}
-                        align={column.align}
-                        style={{ minWidth: column.minWidth }}
+            <Stack
+              divider={<Divider orientation="horizontal" flexItem />}
+              sx={{ marginTop: 2 }}
+              spacing={2}
+            >
+              <FormControl
+                sx={{ m: 1, width: "55ch", marginTop: 3 }}
+                variant="standard"
+              >
+                <InputLabel htmlFor="standard-adornment-search">
+                  Pesquisar...
+                </InputLabel>
+                <Input
+                  id="standard-adornment-search"
+                  type={"text"}
+                  endAdornment={
+                    <InputAdornment position="end">
+                      <IconButton
+                        type="button"
+                        sx={{ p: "10px" }}
+                        aria-label="search"
                       >
-                        {column.label}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {rows
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((row) => {
-                      return (
-                        <TableRow
-                          hover
-                          role="checkbox"
-                          tabIndex={-1}
-                          key={row.id}
+                        <SearchIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  }
+                  onChange={(event) => filterTable(event.target.value)}
+                />
+              </FormControl>
+              <TableContainer sx={{ maxHeight: 440, marginTop: 1 }}>
+                <Table stickyHeader aria-label="sticky table">
+                  <TableHead>
+                    <TableRow>
+                      {tableHeader.map((column) => (
+                        <TableCell
+                          key={column.id}
+                          align={column.align}
+                          style={{ minWidth: column.minWidth }}
                         >
-                          {tableHeader.map((column) => {
-                            const value = row[column.id];
-                            return (
-                              <TableCell key={column.id} align={column.align}>
-                                {column.format ? column.format(value) : value}
-                              </TableCell>
-                            );
-                          })}
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <TablePagination
-              rowsPerPageOptions={[10, 25, 100]}
-              component="div"
-              count={rows.length}
-              rowsPerPage={rowsPerPage}
-              page={page}
-              onPageChange={handleChangePage}
-              onRowsPerPageChange={handleChangeRowsPerPage}
-            />
+                          {column.label}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {rows
+                      .slice(
+                        page * rowsPerPage,
+                        page * rowsPerPage + rowsPerPage
+                      )
+                      .map((row) => {
+                        return (
+                          <TableRow
+                            hover
+                            role="checkbox"
+                            tabIndex={-1}
+                            key={row.id}
+                          >
+                            {tableHeader.map((column) => {
+                              const value = row[column.id];
+                              return (
+                                <TableCell key={column.id} align={column.align}>
+                                  {column.format ? column.format(value) : value}
+                                </TableCell>
+                              );
+                            })}
+                          </TableRow>
+                        );
+                      })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <TablePagination
+                rowsPerPageOptions={[10, 25, 100]}
+                component="div"
+                count={rows.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            </Stack>
           </div>
         ) : (
           <div></div>
