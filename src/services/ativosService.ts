@@ -82,14 +82,122 @@ const listarAtivosDeMedicao = async (
           };
           resolve(responseData);
         } else {
-          var responseData = { data: perfilAtual, code: response.status, totalPaginas: 0 };
+          var responseData = {
+            data: perfilAtual,
+            code: response.status,
+            totalPaginas: 0,
+          };
           resolve(responseData);
         }
       })
       .catch(function (error) {
         if (error.response) {
           console.log(error.response.status);
-		  var responseData = { data: perfilAtual, code: error.response.status, totalPaginas: 0 };
+          var responseData = {
+            data: perfilAtual,
+            code: error.response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      });
+  });
+};
+
+const listarParcelasDeAtivosDeMedicao = async (
+  authData,
+  codMedidor,
+  inicioVigencia,
+  paginaAtual = 1
+): Promise<object> => {
+  var options = {
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: "listarParcelaAtivo",
+    },
+  };
+
+  var xmlBodyStr = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mhv2="http://xmlns.energia.org.br/MH/v2" xmlns:oas="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:bmv2="http://xmlns.energia.org.br/BM/v2" xmlns:bov2="http://xmlns.energia.org.br/BO/v2">
+  <soapenv:Header>
+     <mhv2:messageHeader>
+        <mhv2:codigoPerfilAgente>${authData.AuthCodigoPerfilAgente}</mhv2:codigoPerfilAgente>
+     </mhv2:messageHeader>
+     <oas:Security>
+        <oas:UsernameToken>
+           <oas:Username>${authData.AuthUsername}</oas:Username>
+           <oas:Password>${authData.AuthPassword}</oas:Password>
+        </oas:UsernameToken>
+     </oas:Security>
+     <mhv2:paginacao>
+        <mhv2:numero>${paginaAtual}</mhv2:numero>
+        <mhv2:quantidadeItens>50</mhv2:quantidadeItens>
+     </mhv2:paginacao>
+  </soapenv:Header>
+ <soapenv:Body>
+   <bmv2:listarParcelaAtivoRequest>
+            <bmv2:codigoMae>${codMedidor}</bmv2:codigoMae> 
+     <bmv2:periodoReferencia>
+       <bov2:inicio>${inicioVigencia}</bov2:inicio>
+     </bmv2:periodoReferencia>
+     <bmv2:parcelaAtivo>
+       <!--<bov2:codigo>CODIGO_PARCELA</bov2:codigo>-->
+       <bov2:participanteMercado>
+         <bov2:perfis>
+           <bov2:perfil>
+           <!--<bov2:codigo>1165</bov2:codigo>-->  
+                       </bov2:perfil>   
+         </bov2:perfis>
+       </bov2:participanteMercado>
+       <bov2:ativoMedicao>
+         <!--<bov2:codigo>CODIGO_ATIVO</bov2:codigo>-->
+       </bov2:ativoMedicao>
+       <bov2:identificacao>
+         <!--<bov2:numero>CNPJ_ATIVO</bov2:numero>-->
+       </bov2:identificacao>
+     </bmv2:parcelaAtivo>
+   </bmv2:listarParcelaAtivoRequest>
+ </soapenv:Body>
+</soapenv:Envelope>`;
+
+  return new Promise((resolve) => {
+    api
+      .post("/ParcelaAtivoBSv2", xmlBodyStr, options)
+      .then((response) => {
+        if (response.status === 200) {
+          let resBody = new Buffer.from(response.data).toString();
+          var xml = xml2json(resBody, { compact: true, spaces: 4 });
+          var json = JSON.parse(xml);
+          var parcelaDeAtivos =
+            json["soapenv:Envelope"]["soapenv:Body"][
+              "bmv2:listarParcelaAtivoResponse"
+            ]["bmv2:parcelasAtivo"]["bov2:parcelaAtivo"];
+          const totalPaginas =
+            json["soapenv:Envelope"]["soapenv:Header"]["mh:paginacao"][
+              "mh:totalPaginas"
+            ];
+          var responseData = {
+            data: parcelaDeAtivos,
+            code: response.status,
+            totalPaginas,
+          };
+          resolve(responseData);
+        } else {
+          var responseData = {
+            data: codMedidor,
+            code: response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      })
+      .catch(function (error) {
+        if (error.response) {
+          console.log(error.response.status);
+          var responseData = {
+            data: codMedidor,
+            code: error.response.status,
+            totalPaginas: 0,
+          };
           resolve(responseData);
         }
       });
@@ -98,4 +206,5 @@ const listarAtivosDeMedicao = async (
 
 export const ativosService = {
   listarAtivosDeMedicao,
+  listarParcelasDeAtivosDeMedicao,
 };

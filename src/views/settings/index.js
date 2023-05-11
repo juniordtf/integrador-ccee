@@ -174,7 +174,7 @@ export default function SettingsView(): React$Element<*> {
                   </FormLabel>
                   <RadioGroup
                     aria-labelledby="demo-radio-buttons-group-label"
-                    defaultValue="csv"
+                    defaultValue="CEMIG GT"
                     name="radio-buttons-group"
                     value={companyCertificateHolder}
                     onChange={handleCompanyCertificateHolderChange}

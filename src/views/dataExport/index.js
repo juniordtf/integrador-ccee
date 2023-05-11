@@ -112,6 +112,30 @@ const PartialResourcesColumns = [
   { id: "situacao", label: "Situação", minWidth: 100 },
 ];
 
+const PartialMeasurementColumns = [
+  {
+    id: "codParcelaAtivo",
+    label: "Código de Parcela de Ativo",
+    minWidth: 170,
+  },
+  { id: "nome", label: "Nome Empresarial", minWidth: 100 },
+  { id: "codMedidor", label: "Código Medidor SCDE", minWidth: 100 },
+  {
+    id: "codPerfil",
+    label: "Código de Perfil",
+    minWidth: 170,
+  },
+  { id: "idSubmercado", label: "Id do submercado", minWidth: 100 },
+  {
+    id: "cnpj",
+    label: "CNPJ",
+    minWidth: 170,
+    format: (value) => formatStringByPattern("XX.XXX.XXX/XXXX-XX", value),
+  },
+  { id: "situacao", label: "Situação", minWidth: 100 },
+  { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 170 },
+];
+
 export default function DataExportView(): React$Element<*> {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [initialRows, setInitialRows] = useState([]);
@@ -152,6 +176,12 @@ export default function DataExportView(): React$Element<*> {
       } else {
         ativosMedicao = await db.ativosMedicao.toArray();
       }
+      var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
+      if (parcelasAtivosMedicao === undefined) {
+        parcelasAtivosMedicao = [];
+      } else {
+        parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
+      }
 
       var dataSources = [];
 
@@ -173,6 +203,14 @@ export default function DataExportView(): React$Element<*> {
       if (ativosMedicao.length > 0) {
         dataSources = dataSources.concat(
           ativosMedicao.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
+      if (parcelasAtivosMedicao.length > 0) {
+        dataSources = dataSources.concat(
+          parcelasAtivosMedicao.map(function (v) {
             return v.key;
           })
         );
@@ -200,9 +238,12 @@ export default function DataExportView(): React$Element<*> {
     } else if (selectedDataSource.includes("ativos")) {
       setTableHeader(ResourcesColumns);
       setRowKey("codAtivo");
-    } else if (selectedDataSource.includes("parcela")) {
+    } else if (selectedDataSource.includes("parcelasDeAtivos")) {
+      setTableHeader(PartialMeasurementColumns);
+      setRowKey("codParcelaAtivo");
+    } else if (selectedDataSource.includes("parcelasDeCargas")) {
       setTableHeader(PartialResourcesColumns);
-      setRowKey("codParcelaDeAtivo");
+      setRowKey("codParcelaCarga");
     } else {
       setTableHeader([]);
       setRowKey("");
@@ -249,12 +290,21 @@ export default function DataExportView(): React$Element<*> {
     } else {
       ativosMedicao = await db.ativosMedicao.toArray();
     }
+    var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
+    if (parcelasAtivosMedicao === undefined) {
+      parcelasAtivosMedicao = [];
+    } else {
+      parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
+    }
 
     var filteredParticipants = participantes.filter(
       (x) => x.key === dataSourceKey
     );
     var filteredProfiles = perfis.filter((x) => x.key === dataSourceKey);
     var filteredResources = ativosMedicao.filter(
+      (x) => x.key === dataSourceKey
+    );
+    var filteredPartialResources = parcelasAtivosMedicao.filter(
       (x) => x.key === dataSourceKey
     );
 
@@ -264,6 +314,11 @@ export default function DataExportView(): React$Element<*> {
       return filteredProfiles;
     } else if (ativosMedicao.length > 0 && filteredResources.length > 0) {
       return filteredResources;
+    } else if (
+      parcelasAtivosMedicao.length > 0 &&
+      filteredPartialResources.length > 0
+    ) {
+      return filteredPartialResources;
     } else {
       return [];
     }
@@ -424,7 +479,8 @@ export default function DataExportView(): React$Element<*> {
     }
   };
 
-  const filterTable = (searchText) => {
+  const filterTable = (inputText) => {
+    var searchText = inputText.toUpperCase();
     var filteredData = [];
 
     if (searchText === "") {
@@ -436,28 +492,28 @@ export default function DataExportView(): React$Element<*> {
       filteredData = initialRows.filter(
         (x) =>
           x.codigo.includes(searchText) ||
-          x.sigla.includes(searchText) ||
-          x.situacao.includes(searchText) ||
-          x.nomeEmpresarial.includes(searchText) ||
+          x.sigla.toUpperCase().includes(searchText) ||
+          x.situacao.toUpperCase().includes(searchText) ||
+          x.nomeEmpresarial.toUpperCase().includes(searchText) ||
           x.cnpj.includes(searchText)
       );
     } else if (rowKey === "codPerfil") {
       filteredData = initialRows.filter(
         (x) =>
           x.codPerfil.includes(searchText) ||
-          x.classe.includes(searchText) ||
+          x.classe.toUpperCase().includes(searchText) ||
           x.codAgente.includes(searchText) ||
-          x.sigla.includes(searchText) ||
-          x.situacao.includes(searchText) ||
-          x.submercado.includes(searchText)
+          x.sigla.toUpperCase().includes(searchText) ||
+          x.situacao.toUpperCase().includes(searchText) ||
+          x.submercado.toUpperCase().includes(searchText)
       );
     } else if (rowKey === "codAtivo") {
       filteredData = initialRows.filter(
         (x) =>
           x.codAtivo.includes(searchText) ||
           x.codPerfil.includes(searchText) ||
-          x.nome.includes(searchText) ||
-          x.situacao.includes(searchText)
+          x.nome.toUpperCase().includes(searchText) ||
+          x.situacao.toUpperCase().includes(searchText)
       );
     } else if (rowKey === "codParcelaAtivo") {
       filteredData = initialRows.filter((x) =>
