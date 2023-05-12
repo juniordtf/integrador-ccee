@@ -370,7 +370,7 @@ export default function DataExportView(): React$Element<*> {
         .equals(selectedDataSource)
         .delete()
         .then(function (deleteCount) {
-          console.log("Deleted " + deleteCount + " objects");
+          console.log(deleteCount + " objects deleted");
         });
     } else if (selectedDataSource.includes("perfis")) {
       db.perfis
@@ -378,7 +378,7 @@ export default function DataExportView(): React$Element<*> {
         .equals(selectedDataSource)
         .delete()
         .then(function (deleteCount) {
-          console.log("Deleted " + deleteCount + " objects");
+          console.log(deleteCount + " objects deleted");
         });
     } else if (selectedDataSource.includes("ativos")) {
       db.ativosMedicao
@@ -386,7 +386,15 @@ export default function DataExportView(): React$Element<*> {
         .equals(selectedDataSource)
         .delete()
         .then(function (deleteCount) {
-          console.log("Deleted " + deleteCount + " objects");
+          console.log(deleteCount + " objects deleted");
+        });
+    } else if (selectedDataSource.includes("parcelasDeAtivos")) {
+      db.parcelasAtivosMedicao
+        .where("key")
+        .equals(selectedDataSource)
+        .delete()
+        .then(function (deleteCount) {
+          console.log(deleteCount + " objects deleted");
         });
     }
 
@@ -516,8 +524,13 @@ export default function DataExportView(): React$Element<*> {
           x.situacao.toUpperCase().includes(searchText)
       );
     } else if (rowKey === "codParcelaAtivo") {
-      filteredData = initialRows.filter((x) =>
-        x.codParcelaAtivo.includes(searchText)
+      filteredData = initialRows.filter(
+        (x) =>
+          x.codParcelaAtivo.includes(searchText) ||
+          x.nome.includes(searchText) ||
+          x.codMedidor.includes(searchText) ||
+          x.codPerfil.includes(searchText) ||
+          x.cnpj.includes(searchText)
       );
     } else {
       filteredData = [];

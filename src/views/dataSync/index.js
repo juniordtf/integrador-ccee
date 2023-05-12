@@ -800,27 +800,13 @@ export default function DataSyncView(): React$Element<*> {
 
               var ativos = responseDataPaginated.data;
               if (responseDataPaginated.code === 200) {
-                Array.prototype.forEach.call(ativos, async (y) => {
-                  const codAtivo = y["bov2:codigo"]._text.toString();
-                  const nome = y["bov2:nome"]._text.toString();
-                  const tipo =
-                    y["bov2:tipo"]["bov2:descricao"]._text.toString();
-                  const situacao =
-                    y["bov2:situacao"]["bov2:descricao"]._text.toString();
-                  const vigencia =
-                    y["bov2:vigencia"]["bov2:inicio"]._text.toString();
-                  var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
-
-                  await addAtivo(
-                    key,
-                    codPerfil,
-                    codAtivo,
-                    nome,
-                    tipo,
-                    situacao,
-                    periodoVigencia
-                  );
-                });
+                if (ativos.length === undefined) {
+                  mapResponseToResourceData(key, codPerfil, ativos);
+                } else {
+                  Array.prototype.forEach.call(ativos, async (item) => {
+                    mapResponseToResourceData(key, codPerfil, item);
+                  });
+                }
 
                 if (fromRetryList) {
                   removeResourceFromRetryList(key, codPerfil);
@@ -846,26 +832,13 @@ export default function DataSyncView(): React$Element<*> {
           } else {
             var ativos = responseData.data;
             if (responseData.code === 200) {
-              Array.prototype.forEach.call(ativos, async (y) => {
-                const codAtivo = y["bov2:codigo"]._text.toString();
-                const nome = y["bov2:nome"]._text.toString();
-                const tipo = y["bov2:tipo"]["bov2:descricao"]._text.toString();
-                const situacao =
-                  y["bov2:situacao"]["bov2:descricao"]._text.toString();
-                const vigencia =
-                  y["bov2:vigencia"]["bov2:inicio"]._text.toString();
-                var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
-
-                await addAtivo(
-                  key,
-                  codPerfil,
-                  codAtivo,
-                  nome,
-                  tipo,
-                  situacao,
-                  periodoVigencia
-                );
-              });
+              if (ativos.length === undefined) {
+                mapResponseToResourceData(key, codPerfil, ativos);
+              } else {
+                Array.prototype.forEach.call(ativos, async (item) => {
+                  mapResponseToResourceData(key, codPerfil, item);
+                });
+              }
 
               if (fromRetryList) {
                 removeResourceFromRetryList(key, codPerfil);
@@ -901,6 +874,25 @@ export default function DataSyncView(): React$Element<*> {
       console.log("Erro ao listar ativos");
       console.error(e);
     }
+  }
+
+  async function mapResponseToResourceData(key, codPerfil, item) {
+    const codAtivo = item["bov2:codigo"]._text.toString();
+    const nome = item["bov2:nome"]._text.toString();
+    const tipo = item["bov2:tipo"]["bov2:descricao"]._text.toString();
+    const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
+    const vigencia = item["bov2:vigencia"]["bov2:inicio"]._text.toString();
+    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
+
+    await addAtivo(
+      key,
+      codPerfil,
+      codAtivo,
+      nome,
+      tipo,
+      situacao,
+      periodoVigencia
+    );
   }
 
   async function addAtivo(

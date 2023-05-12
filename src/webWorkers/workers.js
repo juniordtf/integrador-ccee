@@ -1,8 +1,8 @@
 import dayjs from "dayjs";
 
-var bla = () => {
+var onMessage = () => {
   // eslint-disable-next-line no-restricted-globals
-  self.addEventListener("message", (e) => {
+  self.onmessage( (e) => {
     // eslint-disable-line no-restricted-globals
     if (!e) return;
 
@@ -114,5 +114,5 @@ const listarParticipantes = () => {
 
 export const workers = {
   //listarParticipantes,
-  bla,
+  onMessage,
 };
