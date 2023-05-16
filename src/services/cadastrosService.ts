@@ -70,6 +70,7 @@ const listarParticipantesDeMercado = async (
     api
       .post("/ParticipanteMercadoBSv2", xmlBodyStr, options)
       .then((response) => {
+        var responseData = [];
         if (response.status === 200) {
           let resBody = new Buffer.from(response.data).toString();
           var xml = xml2json(resBody, { compact: true, spaces: 4 });
@@ -78,10 +79,10 @@ const listarParticipantesDeMercado = async (
             json["soapenv:Envelope"]["soapenv:Body"][
               "bmv2:listarParticipanteMercadoResponse"
             ]["bmv2:participantesMercado"]["bov2:participanteMercado"];
-          var responseData = { data: participantes, code: 200 };
+          responseData = { data: participantes, code: 200 };
           resolve(responseData);
         } else {
-          var responseData = { data: page, code: response.status };
+          responseData = { data: page, code: response.status };
           resolve(responseData);
         }
       })

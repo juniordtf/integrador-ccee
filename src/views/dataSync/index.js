@@ -43,6 +43,7 @@ export default function DataSyncView(): React$Element<*> {
   const [service, setService] = useState("");
   const [category, setCategory] = useState("");
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [progress, setProgress] = useState(0);
   const [openSuccesDialog, setSuccesDialogOpen] = useState(false);
   const [openWarningDialog, setWarningDialogOpen] = useState(false);
   const [warningText, setWarningText] = useState("");
@@ -110,19 +111,20 @@ export default function DataSyncView(): React$Element<*> {
   };
 
   const fetchWebWorker = () => {
-    const test = { name: "Marco", Phone: "2398432984" };
+    const test = {
+      name: "Marco",
+      Phone: "2398432984",
+      authData,
+      date,
+      category,
+    };
     workers.bla.postMessage(test);
-
-    workers.bla.addEventListener("message", (event) => {
-      console.log(event.data.length);
-    });
   };
 
   useEffect(() => {
     //localStorage.clear();
 
     //workers.bla = new WebWorker(workers.bla);
-    //workers.listarParticipantes = new WebWorker(workers.listarParticipantes);
 
     async function fetchData() {
       var participantes = await db.participantes;
@@ -193,12 +195,18 @@ export default function DataSyncView(): React$Element<*> {
       handleClose();
     }
 
-    const timeoutId = timerRef.current;
-    return () => clearTimeout(timeoutId);
+    // workers.bla.addEventListener("message", (event) => {
+    //   console.log(event.data.length);
+    // });
   }, [pendingRequests]);
 
   const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleClose = (event, reason) => {
+    if (reason === "backdropClick") {
+      return;
+    }
+    setOpen(false);
+  };
 
   const handleServiceChange = (event) => {
     setService(event.target.value);
@@ -207,7 +215,6 @@ export default function DataSyncView(): React$Element<*> {
 
   const handleCategoryChange = (event) => {
     setCategory(event.target.value);
-    //fetchWebWorker();
   };
 
   const handleDataSourceChange = async (event) => {
@@ -262,63 +269,6 @@ export default function DataSyncView(): React$Element<*> {
   const handleParameterChange = (event) => {
     setParameter(event.target.value);
   };
-
-  // const sendRequest_ListarParticipantes = async () => {
-  //   setPendingRequests(pendingRequests + 1);
-  //   var totalPages =
-  //     await cadastrosService.listarParticipantesDeMercado_totalDePaginas(
-  //       authData,
-  //       "01",
-  //       dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
-  //       category
-  //     );
-
-  //   console.log(totalPages);
-  //   const categoryName = classes.find((x) => x.id === category).name;
-  //   const key =
-  //     "participantes_" + categoryName + "_" + dayjs(date).format("MM/YY");
-
-  //   let keys = [];
-  //   if (dataSourceKeys.length === 0) {
-  //     keys = [key];
-  //   } else {
-  //     keys = dataSourceKeys.concat(key);
-  //   }
-  //   console.log(JSON.stringify(keys));
-  //   localStorage.setItem("DATA_SOURCE_KEYS", JSON.stringify(keys));
-
-  //   var messageData = { authData, key, totalPages, date, category };
-
-  //   let participants = [];
-  //   for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
-  //     // eslint-disable-next-line no-loop-func
-  //     setTimeout(async () => {
-  //       var participantesData =
-  //         await cadastrosService.listarParticipantesDeMercado(
-  //           authData,
-  //           currentPage,
-  //           dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
-  //           category
-  //         );
-
-  //       var itemsProcessed = 0;
-
-  //       if (participantesData !== null) {
-  //         console.log("Aqui");
-  //         // workers.listarParticipantes.postMessage("participantesData");
-  //         // workers.listarParticipantes.addEventListener("message", (event) => {
-  //         //   console.log("----------------------");
-  //         //   console.log(event.data);
-  //         //   console.log(event.data.length);
-  //         //   console.log("----------------------");
-  //         // });
-  //         await fetchWebWorker();
-  //       } else {
-  //         setPendingRequests(pendingRequests - 1);
-  //       }
-  //     }, 25000);
-  //   }
-  // };
 
   const sendRequest_ListarParticipantes = async () => {
     setPendingRequests(pendingRequests + 1);
@@ -441,9 +391,12 @@ export default function DataSyncView(): React$Element<*> {
         }
 
         itemsProcessed++;
+        var amountDone = (currentPage / totalPages) * 100;
+        setProgress(amountDone);
         console.log(currentPage);
         if (currentPage === totalPages) {
           setPendingRequests(pendingRequests - 1);
+          setProgress(0);
           setSuccesDialogOpen(true);
         }
       }
@@ -602,9 +555,12 @@ export default function DataSyncView(): React$Element<*> {
             }
           }
           console.log(itemsProcessed);
+          var amountDone = (itemsProcessed / requestsQuantity) * 100;
+          setProgress(amountDone);
           if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
             console.log("Arr: " + requestsQuantity);
             setPendingRequests(pendingRequests - 1);
+            setProgress(0);
             setSuccesDialogOpen(true);
           }
         }
@@ -863,9 +819,12 @@ export default function DataSyncView(): React$Element<*> {
           }
 
           console.log(itemsProcessed);
+          var amountDone = (itemsProcessed / requestsQuantity) * 100;
+          setProgress(amountDone);
           if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
             console.log("Arr: " + requestsQuantity);
             setPendingRequests(pendingRequests - 1);
+            setProgress(0);
             setSuccesDialogOpen(true);
           }
         }
@@ -1130,9 +1089,12 @@ export default function DataSyncView(): React$Element<*> {
             }
           }
 
+          var amountDone = (itemsProcessed / requestsQuantity) * 100;
+          setProgress(amountDone);
           if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
             console.log("Arr: " + requestsQuantity);
             setPendingRequests(pendingRequests - 1);
+            setProgress(0);
             setSuccesDialogOpen(true);
           }
         }
@@ -1237,6 +1199,8 @@ export default function DataSyncView(): React$Element<*> {
         sendRequest_ListarParticipantes();
         break;
     }
+
+    //fetchWebWorker();
   };
 
   const chooseFieldsToRender = () => {
@@ -1456,7 +1420,35 @@ export default function DataSyncView(): React$Element<*> {
           >
             Processando requisição
           </Typography>
-          <CircularProgress sx={{ marginTop: "20px" }} />
+          <Box
+            sx={{
+              position: "relative",
+              display: "inline-flex",
+              marginTop: "20px",
+            }}
+          >
+            <CircularProgress />
+            <Box
+              sx={{
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: 0,
+                position: "absolute",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Typography
+                variant="caption"
+                component="div"
+                color="text.secondary"
+              >
+                {`${Math.round(progress)}%`}
+              </Typography>
+            </Box>
+          </Box>
           <Typography
             id="modal-modal-description"
             sx={{
