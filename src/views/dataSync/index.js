@@ -78,6 +78,7 @@ export default function DataSyncView(): React$Element<*> {
     { id: 1, name: "Código Medidor SCDE" },
     { id: 2, name: "Código Parcela de Ativo" },
     { id: 3, name: "Código Ativo de Medição" },
+    { id: 4, name: "Código Perfil" },
   ];
 
   const style = {
@@ -1034,22 +1035,82 @@ export default function DataSyncView(): React$Element<*> {
   };
 
   const sendRequest_ListarParcelasDeAtivo = async () => {
-    const key =
-      "buscaCustommizada_parcelasDeAtivos_" + dayjs(date).format("DD/MM/YY");
-    console.log(key);
+    var key,
+      formDate,
+      selectedParameter = "";
+    var sourceData = [];
 
-    var codMedidores = rows.map((x) => x[0]);
-    listarParcelasDeAtivos(key, codMedidores);
+    if (searchMethod === "Manual") {
+      key =
+        "buscaCustommizada_parcelasDeAtivos_" + dayjs(date).format("DD/MM/YY");
+      console.log(key);
+      formDate = dayjs(date).format("YYYY-MM-DDTHH:mm:ss");
+
+      sourceData = rows.map((x) => x[0]);
+      selectedParameter = parameter;
+    } else {
+      var date = selectedDataSource.substring(selectedDataSource.length - 5);
+      formDate =
+        "20" +
+        date.substring(date.length - 2) +
+        "-" +
+        date.substring(0, 2) +
+        "-01";
+
+      formDate = dayjs(formDate).format("YYYY-MM-DDTHH:mm:ss");
+
+      key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
+
+      db.parcelasAtivosMedicao
+        .where("key")
+        .equalsIgnoreCase(key)
+        .count()
+        .then(function (count) {
+          if (count > 0) {
+            console.log("Counted " + count + " objects");
+            setWarningText(
+              'Já existe uma coleção de dados com o nome "' + key + '"'
+            );
+            setPendingRequests(pendingRequests - 1);
+            setWarningDialogOpen(true);
+            return;
+          }
+        });
+
+      if (dataSourceItems === null) {
+        setPendingRequests(pendingRequests - 1);
+        return;
+      }
+
+      sourceData = dataSourceItems.map((x) => x.codPerfil);
+      selectedParameter = 4;
+    }
+
+    console.log("Total: " + sourceData.length);
+
+    listarParcelasDeAtivos(
+      key,
+      sourceData.slice(137),
+      formDate,
+      selectedParameter
+    );
   };
 
   async function listarParcelasDeAtivos(
     key,
     sourceItems,
+    searchDate,
+    selectedParameter,
     fromRetryList = false
   ) {
     try {
       var itemsProcessed = 0;
       setPendingRequests(pendingRequests + 1);
+
+      var codMedidor,
+        codParcelaAtivo,
+        codAtivoMedicao,
+        codPerfil = "";
 
       const requestsQuantity = sourceItems.length;
 
@@ -1063,12 +1124,25 @@ export default function DataSyncView(): React$Element<*> {
         });
 
       sourceItemsChunks.forEach(async (chunckItems) => {
-        for (const codMedidor of chunckItems) {
+        for (const item of chunckItems) {
+          if (selectedParameter === 1) {
+            codMedidor = item;
+          } else if (selectedParameter === 2) {
+            codParcelaAtivo = item;
+          } else if (selectedParameter === 3) {
+            codAtivoMedicao = item;
+          } else {
+            codPerfil = item;
+          }
+
           var responseData =
             await ativosService.listarParcelasDeAtivosDeMedicao(
               authData,
               codMedidor,
-              dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
+              codParcelaAtivo,
+              codAtivoMedicao,
+              codPerfil,
+              searchDate
             );
 
           itemsProcessed++;
@@ -1107,6 +1181,8 @@ export default function DataSyncView(): React$Element<*> {
 
   async function mapResponseToPartialMeasurementData(key, codMedidor, item) {
     const codParcelaAtivo = item["bov2:codigo"]._text.toString();
+    const codAtivoMedicao =
+      item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString();
     const nome = item["bov2:nome"]._text.toString();
     const codPerfil =
       item["bov2:participanteMercado"]["bov2:perfis"]["bov2:perfil"][
@@ -1121,6 +1197,7 @@ export default function DataSyncView(): React$Element<*> {
     await addParcelaDeAtivo(
       key,
       codParcelaAtivo,
+      codAtivoMedicao,
       nome,
       codMedidor,
       codPerfil,
@@ -1134,6 +1211,7 @@ export default function DataSyncView(): React$Element<*> {
   async function addParcelaDeAtivo(
     key,
     codParcelaAtivo,
+    codAtivoMedicao,
     nome,
     codMedidor,
     codPerfil,
@@ -1146,6 +1224,7 @@ export default function DataSyncView(): React$Element<*> {
       await db.parcelasAtivosMedicao.add({
         key,
         codParcelaAtivo,
+        codAtivoMedicao,
         nome,
         codMedidor,
         codPerfil,
@@ -1282,6 +1361,11 @@ export default function DataSyncView(): React$Element<*> {
   }
 
   const renderFractionalMeasurementFields = () => {
+    var sortedDataSourceKeys = [];
+    sortedDataSourceKeys = dataSourceKeys.filter((item) =>
+      item.includes("perfis")
+    );
+
     return (
       <div>
         {searchMethod === "Manual" ? (
@@ -1327,7 +1411,7 @@ export default function DataSyncView(): React$Element<*> {
                 label="Fonte de dados"
                 onChange={handleDataSourceChange}
               >
-                {dataSourceKeys.map((x) => (
+                {sortedDataSourceKeys.map((x) => (
                   <MenuItem value={x}>{x}</MenuItem>
                 ))}
               </Select>

@@ -107,6 +107,9 @@ const listarAtivosDeMedicao = async (
 const listarParcelasDeAtivosDeMedicao = async (
   authData,
   codMedidor,
+  codParcelaAtivo,
+  codAtivoMedicao,
+  codPerfil,
   inicioVigencia,
   paginaAtual = 1
 ): Promise<object> => {
@@ -116,6 +119,12 @@ const listarParcelasDeAtivosDeMedicao = async (
       SOAPAction: "listarParcelaAtivo",
     },
   };
+
+  codMedidor = codMedidor === undefined ? " " : codMedidor;
+  codParcelaAtivo = codParcelaAtivo === undefined ? " " : codParcelaAtivo;
+  codAtivoMedicao = codAtivoMedicao === undefined ? " " : codAtivoMedicao;
+  codPerfil = codPerfil === undefined ? " " : codPerfil;
+  inicioVigencia = inicioVigencia === undefined ? " " : inicioVigencia;
 
   var xmlBodyStr = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mhv2="http://xmlns.energia.org.br/MH/v2" xmlns:oas="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:bmv2="http://xmlns.energia.org.br/BM/v2" xmlns:bov2="http://xmlns.energia.org.br/BO/v2">
   <soapenv:Header>
@@ -134,28 +143,28 @@ const listarParcelasDeAtivosDeMedicao = async (
      </mhv2:paginacao>
   </soapenv:Header>
  <soapenv:Body>
-   <bmv2:listarParcelaAtivoRequest>
-            <bmv2:codigoMae>${codMedidor}</bmv2:codigoMae> 
-     <bmv2:periodoReferencia>
-       <bov2:inicio>${inicioVigencia}</bov2:inicio>
-     </bmv2:periodoReferencia>
-     <bmv2:parcelaAtivo>
-       <!--<bov2:codigo>CODIGO_PARCELA</bov2:codigo>-->
-       <bov2:participanteMercado>
-         <bov2:perfis>
-           <bov2:perfil>
-           <!--<bov2:codigo>1165</bov2:codigo>-->  
-                       </bov2:perfil>   
-         </bov2:perfis>
-       </bov2:participanteMercado>
-       <bov2:ativoMedicao>
-         <!--<bov2:codigo>CODIGO_ATIVO</bov2:codigo>-->
-       </bov2:ativoMedicao>
-       <bov2:identificacao>
-         <!--<bov2:numero>CNPJ_ATIVO</bov2:numero>-->
-       </bov2:identificacao>
-     </bmv2:parcelaAtivo>
-   </bmv2:listarParcelaAtivoRequest>
+ <bmv2:listarParcelaAtivoRequest>
+  <bmv2:codigoMae>${codMedidor}</bmv2:codigoMae>   
+<bmv2:periodoReferencia>
+<bov2:inicio>${inicioVigencia}</bov2:inicio>
+</bmv2:periodoReferencia>
+<bmv2:parcelaAtivo>
+ <bov2:codigo>${codParcelaAtivo}</bov2:codigo> 
+<bov2:participanteMercado>
+<bov2:perfis>
+<bov2:perfil>
+   <bov2:codigo>${codPerfil}</bov2:codigo>  
+           </bov2:perfil>    
+</bov2:perfis>
+</bov2:participanteMercado>
+<bov2:ativoMedicao>
+<!-- <bov2:codigo>COD_ATIVO_MED</bov2:codigo> -->
+</bov2:ativoMedicao>
+<bov2:identificacao>
+<!-- <bov2:numero></bov2:numero> -->
+</bov2:identificacao>
+</bmv2:parcelaAtivo>
+</bmv2:listarParcelaAtivoRequest>
  </soapenv:Body>
 </soapenv:Envelope>`;
 
