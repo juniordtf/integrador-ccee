@@ -118,6 +118,7 @@ const listarParcelasDeAtivosDeMedicao = async (
       "Content-Type": "text/xml; charset=utf-8",
       SOAPAction: "listarParcelaAtivo",
     },
+    timeout: 60000
   };
 
   codMedidor = codMedidor === undefined ? " " : codMedidor;
