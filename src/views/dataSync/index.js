@@ -917,6 +917,48 @@ export default function DataSyncView(): React$Element<*> {
     }
   }
 
+  async function addParameterToRetryList(
+    key,
+    parameterCode,
+    searchDate,
+    parameter,
+    errorCode,
+    attempts,
+    serviceFailed
+  ) {
+    try {
+      const retryKey = "retry_" + key;
+      const retryParameter = {
+        parameterCode,
+        searchDate,
+        parameter,
+        errorCode,
+        attempts,
+        serviceFailed,
+      };
+
+      let keys = [];
+      if (retryKeys.length === 0) {
+        keys = [retryKey];
+      } else {
+        keys = retryKeys.concat(retryKey);
+      }
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
+
+      let retryParameters = JSON.parse(localStorage.getItem(retryKey));
+      if (retryParameters === null) {
+        retryParameters = [retryParameter];
+      } else {
+        retryParameters = retryParameters.concat(retryParameter);
+      }
+      localStorage.setItem(retryKey, JSON.stringify(retryParameters));
+    } catch (error) {
+      console.log(
+        `Failed to add ${parameterCode} to Retry Parameter's list: ${error}`
+      );
+    }
+  }
+
   const retryFaultyRequests = async () => {
     if (retryKeys.length === 0) return;
 
@@ -938,6 +980,17 @@ export default function DataSyncView(): React$Element<*> {
       } else if (key.includes("perfis")) {
         const codAgentes = retryData.map((x) => x.codAgente);
         listarPerfis(key.substring(6), codAgentes, true);
+      } else if (key.includes("parcelasDeAtivos")) {
+        const parametersCodes = retryData.map((x) => x.parameterCode);
+        const searchDate = retryData.map((x) => x.searchDate)[0];
+        const parameter = retryData.map((x) => x.parameter)[0];
+        listarParcelasDeAtivos(
+          key.substring(6),
+          parametersCodes,
+          searchDate,
+          parameter,
+          true
+        );
       } else if (key.includes("ativos")) {
         const codPerfis = retryData.map((x) => x.codPerfil);
         listarAtivos(key.substring(6), codPerfis, true);
@@ -1005,6 +1058,37 @@ export default function DataSyncView(): React$Element<*> {
     }
   };
 
+  const removeParameterFromRetryList = (key, parameterCode) => {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("removeParameterFromRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeRemoved = retryData.find(
+      (x) => x.parameterCode === parameterCode
+    );
+    const index = retryData.indexOf(itemToBeRemoved);
+
+    if (index > -1) {
+      retryData.splice(index, 1);
+    }
+
+    if (retryData.length === 0) {
+      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
+      const idx = retryKeys.indexOf(keyToBeRemoved);
+
+      if (idx > -1) {
+        retryKeys.splice(idx, 1);
+      }
+
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
+      localStorage.removeItem(retryKey);
+    } else {
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
+    }
+  };
+
   const removeParticipantsPageFromRetryList = (key, page) => {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
@@ -1043,9 +1127,7 @@ export default function DataSyncView(): React$Element<*> {
     if (searchMethod === "Manual") {
       key =
         "buscaCustommizada_parcelasDeAtivos_" + dayjs(date).format("DD/MM/YY");
-      console.log(key);
       formDate = dayjs(date).format("YYYY-MM-DDTHH:mm:ss");
-
       sourceData = rows.map((x) => x[0]);
       selectedParameter = parameter;
     } else {
@@ -1056,9 +1138,7 @@ export default function DataSyncView(): React$Element<*> {
         "-" +
         date.substring(0, 2) +
         "-01";
-
       formDate = dayjs(formDate).format("YYYY-MM-DDTHH:mm:ss");
-
       key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
 
       db.parcelasAtivosMedicao
@@ -1088,12 +1168,7 @@ export default function DataSyncView(): React$Element<*> {
 
     console.log("Total: " + sourceData.length);
 
-    listarParcelasDeAtivos(
-      key,
-      sourceData.slice(137),
-      formDate,
-      selectedParameter
-    );
+    listarParcelasDeAtivos(key, sourceData, formDate, selectedParameter);
   };
 
   async function listarParcelasDeAtivos(
@@ -1147,22 +1222,107 @@ export default function DataSyncView(): React$Element<*> {
 
           itemsProcessed++;
 
-          if (responseData.code === 200) {
-            var parcelaAtivos = responseData.data;
+          var totalPaginas = responseData.totalPaginas;
+          var totalPaginasNumber = totalPaginas._text
+            ? parseInt(totalPaginas._text.toString())
+            : 0;
+          if (totalPaginasNumber > 1) {
+            for (
+              let paginaCorrente = 1;
+              paginaCorrente <= totalPaginasNumber;
+              paginaCorrente++
+            ) {
+              // eslint-disable-next-line no-loop-func
+              var responseDataPaginated =
+                await ativosService.listarParcelasDeAtivosDeMedicao(
+                  authData,
+                  codMedidor,
+                  codParcelaAtivo,
+                  codAtivoMedicao,
+                  codPerfil,
+                  searchDate,
+                  paginaCorrente
+                );
 
-            if (parcelaAtivos.length === undefined) {
-              mapResponseToPartialMeasurementData(
-                key,
-                codMedidor,
-                parcelaAtivos
-              );
+              if (responseDataPaginated.code === 200) {
+                var parcelaAtivos = responseDataPaginated.data;
+
+                if (parcelaAtivos.length === undefined) {
+                  mapResponseToPartialMeasurementData(
+                    key,
+                    codMedidor,
+                    parcelaAtivos
+                  );
+                } else {
+                  Array.prototype.forEach.call(parcelaAtivos, async (item) => {
+                    mapResponseToPartialMeasurementData(key, codMedidor, item);
+                  });
+                }
+
+                if (fromRetryList) {
+                  removeParameterFromRetryList(key, item);
+                }
+              } else {
+                if (responseDataPaginated.code !== 500) {
+                  if (!fromRetryList) {
+                    addParameterToRetryList(
+                      key,
+                      item,
+                      searchDate,
+                      selectedParameter,
+                      responseDataPaginated.code,
+                      0,
+                      "listarParcelasDeAtivos"
+                    );
+                  }
+                } else {
+                  if (fromRetryList) {
+                    removeParameterFromRetryList(key, item);
+                  }
+                }
+              }
+            }
+          } else {
+            if (responseData.code === 200) {
+              var parcelaAtivos = responseData.data;
+
+              if (parcelaAtivos.length === undefined) {
+                mapResponseToPartialMeasurementData(
+                  key,
+                  codMedidor,
+                  parcelaAtivos
+                );
+              } else {
+                Array.prototype.forEach.call(parcelaAtivos, async (x) => {
+                  mapResponseToPartialMeasurementData(key, codMedidor, x);
+                });
+              }
+
+              if (fromRetryList) {
+                removeParameterFromRetryList(key, item);
+              }
             } else {
-              Array.prototype.forEach.call(parcelaAtivos, async (item) => {
-                mapResponseToPartialMeasurementData(key, codMedidor, item);
-              });
+              if (responseData.code !== 500) {
+                if (!fromRetryList) {
+                  addParameterToRetryList(
+                    key,
+                    item,
+                    searchDate,
+                    selectedParameter,
+                    responseData.code,
+                    0,
+                    "listarParcelasDeAtivos"
+                  );
+                }
+              } else {
+                if (fromRetryList) {
+                  removeParameterFromRetryList(key, item);
+                }
+              }
             }
           }
 
+          console.log(itemsProcessed);
           var amountDone = (itemsProcessed / requestsQuantity) * 100;
           setProgress(amountDone);
           if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
@@ -1185,11 +1345,16 @@ export default function DataSyncView(): React$Element<*> {
       item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString();
     const nome = item["bov2:nome"]._text.toString();
     const codPerfil =
-      item["bov2:participanteMercado"]["bov2:perfis"]["bov2:perfil"][
-        "bov2:codigo"
-      ]._text.toString();
+      item["bov2:participanteMercado"]["bov2:perfis"] !== undefined
+        ? item["bov2:participanteMercado"]["bov2:perfis"]["bov2:perfil"][
+            "bov2:codigo"
+          ]._text.toString()
+        : "";
     const idSubmercado = item["bov2:submercado"]["bov2:id"]._text.toString();
-    const cnpj = item["bov2:identificacao"]["bov2:numero"]._text.toString();
+    const cnpj =
+      item["bov2:identificacao"] !== undefined
+        ? item["bov2:identificacao"]["bov2:numero"]._text.toString()
+        : "";
     const situacao = item["bov2:status"]["bov2:descricao"]._text.toString();
     const vigencia = item["bov2:vigencia"]["bov2:inicio"]._text.toString();
     var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");

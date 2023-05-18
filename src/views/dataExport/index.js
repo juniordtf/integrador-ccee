@@ -527,10 +527,8 @@ export default function DataExportView(): React$Element<*> {
       filteredData = initialRows.filter(
         (x) =>
           x.codParcelaAtivo.includes(searchText) ||
-          x.nome.includes(searchText) ||
-          x.codMedidor.includes(searchText) ||
-          x.codPerfil.includes(searchText) ||
-          x.cnpj.includes(searchText)
+          x.nome.toUpperCase().includes(searchText) ||
+          x.codPerfil.includes(searchText) 
       );
     } else {
       filteredData = [];
