@@ -322,7 +322,7 @@ export default function DataSyncView(): React$Element<*> {
     fromRetryList = false
   ) {
     try {
-      const initialPage = fromRetryList ? totalPages - 1 : 1;
+      const initialPage = fromRetryList ? totalPages : 1;
       for (
         let currentPage = initialPage;
         currentPage <= totalPages;
@@ -339,55 +339,32 @@ export default function DataSyncView(): React$Element<*> {
           const participantes = responseData.data;
           var itemsProcessed = 0;
 
-          Array.prototype.forEach.call(
-            participantes,
-            async (item, index, array) => {
-              const cnpj =
-                item["bov2:parte"]["bov2:pessoaJuridica"][
-                  "bov2:identificacoes"
-                ] !== undefined
-                  ? item["bov2:parte"]["bov2:pessoaJuridica"][
-                      "bov2:identificacoes"
-                    ]["bov2:identificacao"]["bov2:numero"]._text.toString()
-                  : "";
-              const nomeEmpresarial =
-                item["bov2:parte"]["bov2:pessoaJuridica"][
-                  "bov2:nomeEmpresarial"
-                ]._text.toString();
-              const sigla = item["bov2:sigla"]._text.toString();
-              const codigo = item["bov2:codigo"]._text.toString();
-              let periodoVigencia =
-                item["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
-              periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
-              const situacao =
-                item["bov2:situacao"]["bov2:descricao"]._text.toString();
-
-              await addParticipante(
-                key,
-                cnpj,
-                nomeEmpresarial,
-                situacao,
-                sigla,
-                codigo,
-                periodoVigencia
-              );
-            }
-          );
-        } else {
-          if (responseData.code !== 500) {
-            if (!fromRetryList) {
-              addParticipantsPageToRetryList(
-                key,
-                responseData.data,
-                responseData.code,
-                0,
-                "listarParticipantes"
-              );
-            }
+          var participantesData = [];
+          if (participantes.length === undefined) {
+            participantesData = [participantes];
           } else {
-            if (fromRetryList) {
-              removeParticipantsPageFromRetryList(key, currentPage);
-            }
+            participantesData = participantes;
+          }
+
+          Array.prototype.forEach.call(participantesData, async (item) => {
+            mapResponseToParticipantsData(key, item);
+          });
+
+          if (fromRetryList) {
+            removeParticipantsPageFromRetryList(key, currentPage);
+          }
+        } else {
+          if (fromRetryList) {
+            removeParticipantsPageFromRetryList(key, currentPage);
+          } else {
+            addParticipantsPageToRetryList(
+              key,
+              category,
+              responseData.data,
+              responseData.code,
+              0,
+              "listarParticipantes"
+            );
           }
         }
 
@@ -405,6 +382,36 @@ export default function DataSyncView(): React$Element<*> {
       console.log("Erro ao listar participantes");
       console.error(e);
     }
+  }
+
+  async function mapResponseToParticipantsData(key, item) {
+    const cnpj =
+      item["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"] !==
+      undefined
+        ? item["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"][
+            "bov2:identificacao"
+          ]["bov2:numero"]._text.toString()
+        : "";
+    const nomeEmpresarial =
+      item["bov2:parte"]["bov2:pessoaJuridica"][
+        "bov2:nomeEmpresarial"
+      ]._text.toString();
+    const sigla = item["bov2:sigla"]._text.toString();
+    const codigo = item["bov2:codigo"]._text.toString();
+    let periodoVigencia =
+      item["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
+    periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
+    const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
+
+    await addParticipante(
+      key,
+      cnpj,
+      nomeEmpresarial,
+      situacao,
+      sigla,
+      codigo,
+      periodoVigencia
+    );
   }
 
   async function addParticipante(
@@ -433,6 +440,7 @@ export default function DataSyncView(): React$Element<*> {
 
   async function addParticipantsPageToRetryList(
     key,
+    category,
     page,
     errorCode,
     attempts,
@@ -442,6 +450,7 @@ export default function DataSyncView(): React$Element<*> {
       const retryKey = "retry_" + key;
       const retryParticipant = {
         page,
+        category,
         errorCode,
         date,
         attempts,
@@ -539,20 +548,16 @@ export default function DataSyncView(): React$Element<*> {
               removeProfileFromRetryList(key, codAgente);
             }
           } else {
-            if (responseData.code !== 500) {
-              if (!fromRetryList) {
-                addParticipanteToRetryList(
-                  key,
-                  codAgente,
-                  responseData.code,
-                  0,
-                  "listarPerfis"
-                );
-              }
+            if (fromRetryList) {
+              updateParticipantInRetryList(codAgente, key);
             } else {
-              if (fromRetryList) {
-                removeProfileFromRetryList(key, codAgente);
-              }
+              addParticipanteToRetryList(
+                key,
+                codAgente,
+                responseData.code,
+                0,
+                "listarPerfis"
+              );
             }
           }
           console.log(itemsProcessed);
@@ -669,6 +674,24 @@ export default function DataSyncView(): React$Element<*> {
       console.log(
         `Failed to add ${codAgente} to Retry Participant's list: ${error}`
       );
+    }
+  }
+
+  async function updateParticipantInRetryList(codAgente, key) {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("updateParticipantInRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeUpdated = retryData.find((x) => x.codAgente === codAgente);
+    var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    const index = retryData.indexOf(itemToBeUpdated);
+
+    if (index !== -1) {
+      retryData[index] = itemToBeUpdatedClone;
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
   }
 
@@ -967,16 +990,16 @@ export default function DataSyncView(): React$Element<*> {
 
       if (key.includes("participantes")) {
         setPendingRequests(pendingRequests + 1);
-        const pages = retryData.map((x) => x.page);
-        const searchDate = retryData.map((x) => x.date)[0];
-        const searchCategory = retryData.map((x) => x.category)[0];
-        listarParticipantes(
-          key.substring(6),
-          pages,
-          searchDate,
-          searchCategory,
-          true
-        );
+
+        retryData.forEach((rd) => {
+          listarParticipantes(
+            key.substring(6),
+            rd.page,
+            rd.date,
+            rd.category,
+            true
+          );
+        });
       } else if (key.includes("perfis")) {
         const codAgentes = retryData.map((x) => x.codAgente);
         listarPerfis(key.substring(6), codAgentes, true);
@@ -1118,6 +1141,37 @@ export default function DataSyncView(): React$Element<*> {
     }
   };
 
+  const removeExpiredData = async () => {
+    setPendingRequests(pendingRequests + 1);
+
+    retryKeys.forEach((key) => {
+      let retryData = JSON.parse(localStorage.getItem(key));
+      let itemsToRemove = retryData.filter((z) => z.attempts > 3);
+
+      if (itemsToRemove.length === 0) return;
+
+      if (key.includes("participantes")) {
+        itemsToRemove.forEach((x) =>
+          removeParticipantsPageFromRetryList(key.substring(6), x.page)
+        );
+      } else if (key.includes("perfis")) {
+        itemsToRemove.forEach((x) =>
+          removeProfileFromRetryList(key.substring(6), x.codAgente)
+        );
+      } else if (key.includes("parcelasDeAtivos")) {
+        itemsToRemove.forEach((x) =>
+          removeParameterFromRetryList(key.substring(6), x.parameterCode)
+        );
+      } else if (key.includes("ativos")) {
+        itemsToRemove.forEach((x) =>
+          removeResourceFromRetryList(key.substring(6), x.codPerfil)
+        );
+      } else {
+        return;
+      }
+    });
+  };
+
   const sendRequest_ListarParcelasDeAtivo = async () => {
     var key,
       formDate,
@@ -1233,6 +1287,7 @@ export default function DataSyncView(): React$Element<*> {
               paginaCorrente++
             ) {
               // eslint-disable-next-line no-loop-func
+
               var responseDataPaginated =
                 await ativosService.listarParcelasDeAtivosDeMedicao(
                   authData,
@@ -1247,17 +1302,16 @@ export default function DataSyncView(): React$Element<*> {
               if (responseDataPaginated.code === 200) {
                 var parcelaAtivos = responseDataPaginated.data;
 
+                var parcelasDeAtivos = [];
                 if (parcelaAtivos.length === undefined) {
-                  mapResponseToPartialMeasurementData(
-                    key,
-                    codMedidor,
-                    parcelaAtivos
-                  );
+                  parcelasDeAtivos = [parcelaAtivos];
                 } else {
-                  Array.prototype.forEach.call(parcelaAtivos, async (item) => {
-                    mapResponseToPartialMeasurementData(key, codMedidor, item);
-                  });
+                  parcelasDeAtivos = parcelaAtivos;
                 }
+
+                Array.prototype.forEach.call(parcelasDeAtivos, async (x) => {
+                  mapResponseToPartialMeasurementData(key, codMedidor, x);
+                });
 
                 if (fromRetryList) {
                   removeParameterFromRetryList(key, item);
@@ -1324,7 +1378,9 @@ export default function DataSyncView(): React$Element<*> {
 
           console.log(itemsProcessed);
           var amountDone = (itemsProcessed / requestsQuantity) * 100;
-          setProgress(amountDone);
+          if (amountDone !== progress) {
+            setProgress(amountDone);
+          }
           if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
             console.log("Arr: " + requestsQuantity);
             setPendingRequests(pendingRequests - 1);
@@ -1340,23 +1396,38 @@ export default function DataSyncView(): React$Element<*> {
   }
 
   async function mapResponseToPartialMeasurementData(key, codMedidor, item) {
-    const codParcelaAtivo = item["bov2:codigo"]._text.toString();
+    const codParcelaAtivo =
+      item["bov2:codigo"] !== undefined
+        ? item["bov2:codigo"]._text.toString()
+        : "";
     const codAtivoMedicao =
-      item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString();
-    const nome = item["bov2:nome"]._text.toString();
+      item["bov2:ativoMedicao"] !== undefined
+        ? item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString()
+        : "";
+    const nome =
+      item["bov2:nome"] !== undefined ? item["bov2:nome"]._text.toString() : "";
     const codPerfil =
-      item["bov2:participanteMercado"]["bov2:perfis"] !== undefined
+      item["bov2:participanteMercado"] !== undefined
         ? item["bov2:participanteMercado"]["bov2:perfis"]["bov2:perfil"][
             "bov2:codigo"
           ]._text.toString()
         : "";
-    const idSubmercado = item["bov2:submercado"]["bov2:id"]._text.toString();
+    const idSubmercado =
+      item["bov2:submercado"] !== undefined
+        ? item["bov2:submercado"]["bov2:id"]._text.toString()
+        : "";
     const cnpj =
       item["bov2:identificacao"] !== undefined
         ? item["bov2:identificacao"]["bov2:numero"]._text.toString()
         : "";
-    const situacao = item["bov2:status"]["bov2:descricao"]._text.toString();
-    const vigencia = item["bov2:vigencia"]["bov2:inicio"]._text.toString();
+    const situacao =
+      item["bov2:status"] !== undefined
+        ? item["bov2:status"]["bov2:descricao"]._text.toString()
+        : "";
+    const vigencia =
+      item["bov2:vigencia"] !== undefined
+        ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
+        : "";
     var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
 
     await addParcelaDeAtivo(
@@ -1648,6 +1719,13 @@ export default function DataSyncView(): React$Element<*> {
             sx={{ marginTop: 7 }}
           >
             Reenviar dados faltantes
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={removeExpiredData}
+            sx={{ marginTop: 7, marginLeft: 5 }}
+          >
+            Remover dados expirados
           </Button>
         </div>
       ) : (
