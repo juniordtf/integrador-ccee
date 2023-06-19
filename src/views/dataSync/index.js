@@ -695,6 +695,26 @@ export default function DataSyncView(): React$Element<*> {
     }
   }
 
+  async function updatePartialResourceInRetryList(parameterCode, key) {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("updateParticipantInRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeUpdated = retryData.find(
+      (x) => x.parameterCode === parameterCode
+    );
+    var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    const index = retryData.indexOf(itemToBeUpdated);
+
+    if (index !== -1) {
+      retryData[index] = itemToBeUpdatedClone;
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
+    }
+  }
+
   const sendRequest_ListarAtivosDeMedicao = async () => {
     var date = selectedDataSource.substring(selectedDataSource.length - 5);
     date =
@@ -1005,6 +1025,7 @@ export default function DataSyncView(): React$Element<*> {
         listarPerfis(key.substring(6), codAgentes, true);
       } else if (key.includes("parcelasDeAtivos")) {
         const parametersCodes = retryData.map((x) => x.parameterCode);
+        console.log("Total: " + parametersCodes.length);
         const searchDate = retryData.map((x) => x.searchDate)[0];
         const parameter = retryData.map((x) => x.parameter)[0];
         listarParcelasDeAtivos(
@@ -1143,6 +1164,11 @@ export default function DataSyncView(): React$Element<*> {
 
   const removeExpiredData = async () => {
     setPendingRequests(pendingRequests + 1);
+
+    if (retryKeys.length === 0) {
+      setPendingRequests(pendingRequests - 1);
+      return;
+    }
 
     retryKeys.forEach((key) => {
       let retryData = JSON.parse(localStorage.getItem(key));
@@ -1317,22 +1343,18 @@ export default function DataSyncView(): React$Element<*> {
                   removeParameterFromRetryList(key, item);
                 }
               } else {
-                if (responseDataPaginated.code !== 500) {
-                  if (!fromRetryList) {
-                    addParameterToRetryList(
-                      key,
-                      item,
-                      searchDate,
-                      selectedParameter,
-                      responseDataPaginated.code,
-                      0,
-                      "listarParcelasDeAtivos"
-                    );
-                  }
+                if (fromRetryList) {
+                  updatePartialResourceInRetryList(item, key);
                 } else {
-                  if (fromRetryList) {
-                    removeParameterFromRetryList(key, item);
-                  }
+                  addParameterToRetryList(
+                    key,
+                    item,
+                    searchDate,
+                    selectedParameter,
+                    responseDataPaginated.code,
+                    0,
+                    "listarParcelasDeAtivos"
+                  );
                 }
               }
             }
@@ -1356,22 +1378,18 @@ export default function DataSyncView(): React$Element<*> {
                 removeParameterFromRetryList(key, item);
               }
             } else {
-              if (responseData.code !== 500) {
-                if (!fromRetryList) {
-                  addParameterToRetryList(
-                    key,
-                    item,
-                    searchDate,
-                    selectedParameter,
-                    responseData.code,
-                    0,
-                    "listarParcelasDeAtivos"
-                  );
-                }
+              if (fromRetryList) {
+                updatePartialResourceInRetryList(item, key);
               } else {
-                if (fromRetryList) {
-                  removeParameterFromRetryList(key, item);
-                }
+                addParameterToRetryList(
+                  key,
+                  item,
+                  searchDate,
+                  selectedParameter,
+                  responseData.code,
+                  0,
+                  "listarParcelasDeAtivos"
+                );
               }
             }
           }
