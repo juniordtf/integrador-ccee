@@ -22,6 +22,10 @@ const routes: Array<RouteDefinition> = [
     name: "dataExport",
   },
   {
+    path: "/visualizacaoHierarquica",
+    name: "hierarchicalView",
+  },
+  {
     path: "/configuracoes",
     name: "settings",
   },

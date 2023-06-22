@@ -159,7 +159,7 @@ const listarParcelasDeAtivosDeMedicao = async (
 </bov2:perfis>
 </bov2:participanteMercado>
 <bov2:ativoMedicao>
-<!-- <bov2:codigo>COD_ATIVO_MED</bov2:codigo> -->
+ <bov2:codigo>${codAtivoMedicao}</bov2:codigo> 
 </bov2:ativoMedicao>
 <bov2:identificacao>
 <!-- <bov2:numero></bov2:numero> -->

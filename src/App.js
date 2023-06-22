@@ -16,12 +16,14 @@ import ListItemText from "@mui/material/ListItemText";
 import SettingsIcon from "@mui/icons-material/Settings";
 import FileDownload from "@mui/icons-material/FileDownload";
 import FileUpload from "@mui/icons-material/FileUpload";
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import MenuIcon from "@mui/icons-material/Menu";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { NavLink } from "react-router-dom";
 import DataSyncView from "./views/dataSync/index";
 import DataExportView from "./views/dataExport/index";
+import HierarchicalView from "./views/hierarchicalView/index";
 import SettingsView from "./views/settings/index";
 import routes from "./routes";
 
@@ -54,6 +56,7 @@ function App(props: Props) {
             <ListItemText primary={"Importar Dados"} />
           </ListItem>
         </NavLink>
+
         <NavLink
           to="/exportarDados"
           style={{ textDecoration: "none", color: "black" }}
@@ -63,6 +66,17 @@ function App(props: Props) {
               <FileUpload />
             </ListItemIcon>
             <ListItemText primary={"Exportar Dados"} />
+          </ListItem>
+        </NavLink>
+        <NavLink
+          to="/visualizacaoHierarquica"
+          style={{ textDecoration: "none", color: "black" }}
+        >
+          <ListItem button>
+            <ListItemIcon>
+              <AccountTreeIcon />
+            </ListItemIcon>
+            <ListItemText primary={"Visualização Hierárquica"} />
           </ListItem>
         </NavLink>
         <NavLink
@@ -158,6 +172,7 @@ function App(props: Props) {
             <Route exact path="/" element={<DataSyncView />} />
             <Route exact path="/importarDados" element={<DataSyncView />} />
             <Route exact path="/exportarDados" element={<DataExportView />} />
+            <Route exact path="/visualizacaoHierarquica" element={<HierarchicalView />} />
             <Route exact path="/configuracoes" element={<SettingsView />} />
           </Routes>
         </Box>

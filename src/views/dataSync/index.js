@@ -32,7 +32,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../database/db";
 import { setWeekYearWithOptions } from "date-fns/fp";
 
-export default function DataSyncView(): React$Element<*> {
+export default function DataSyncView() {
   const [authData, setAuthData] = useState([]);
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [retryKeys, setRetryKeys] = useState([]);

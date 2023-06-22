@@ -136,7 +136,7 @@ const PartialMeasurementColumns = [
   { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 170 },
 ];
 
-export default function DataExportView(): React$Element<*> {
+export default function DataExportView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [initialRows, setInitialRows] = useState([]);
   const [rows, setRows] = useState([]);
@@ -265,8 +265,12 @@ export default function DataExportView(): React$Element<*> {
     var selectedRows = await getSelectedRows(selectedDataSourceKey);
 
     if (selectedRows !== undefined && selectedRows.length > 0) {
-      setRows(selectedRows);
-      setInitialRows(selectedRows);
+      let data = selectedRows.map(({ id, key, ...rest }) => {
+        return rest;
+      });
+
+      setRows(data);
+      setInitialRows(data);
     }
   };
 
@@ -528,7 +532,7 @@ export default function DataExportView(): React$Element<*> {
         (x) =>
           x.codParcelaAtivo.includes(searchText) ||
           x.nome.toUpperCase().includes(searchText) ||
-          x.codPerfil.includes(searchText) 
+          x.codPerfil.includes(searchText)
       );
     } else {
       filteredData = [];
