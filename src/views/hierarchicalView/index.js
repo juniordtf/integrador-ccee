@@ -7,12 +7,17 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-import TreeView from "@mui/lab/TreeView";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import TreeItem from "@mui/lab/TreeItem";
+import TreeView from "@mui/lab/TreeView";
+import TreeItem, { treeItemClasses } from "@mui/lab/TreeItem";
+import Box from "@mui/material/Box";
 import { db } from "../../database/db";
+import { styled } from "@mui/material/styles";
 import styles from "./styles.module.css";
+import BusinessIcon from "@mui/icons-material/Business";
+import PersonIcon from "@mui/icons-material/Person";
+import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
 
 export default function HierarchicalView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
@@ -106,7 +111,11 @@ export default function HierarchicalView() {
           var innerItem = {
             id: partialResourceInitialCode.toString(),
             name: z.nome,
-            codigo: z.codParcelaAtivo,
+            code: z.codParcelaAtivo,
+            category: 3,
+            icon: EmojiObjectsIcon,
+            color: "#3c8039",
+            bgColor: "#e6f4ea",
           };
           relatedPartialResourceNodes.push(innerItem);
         }
@@ -115,8 +124,12 @@ export default function HierarchicalView() {
       var item = {
         id: profileInitialCode.toString(),
         name: x.sigla,
-        codigo: x.codPerfil,
+        code: x.codPerfil,
+        category: 2,
         children: relatedPartialResourceNodes,
+        icon: PersonIcon,
+        color: "#e3742f",
+        bgColor: "#fcefe3",
       };
       relatedProfileNodes.push(item);
 
@@ -127,17 +140,94 @@ export default function HierarchicalView() {
       id: "root",
       name: selectedParticipant.nomeEmpresarial,
       children: relatedProfileNodes,
+      code: selectedParticipant.codigo,
+      category: 1,
+      icon: BusinessIcon,
+      color: "#1a73e8",
+      bgColor: "#e8f0fe",
     };
 
     setTreeViewData(data);
   };
 
+  const StyledTreeItemRoot = styled(TreeItem)(({ theme }) => ({
+    color: theme.palette.text.secondary,
+    [`& .${treeItemClasses.content}`]: {
+      color: theme.palette.text.secondary,
+      paddingRight: theme.spacing(1),
+      fontWeight: theme.typography.fontWeightMedium,
+      "&.Mui-expanded": {
+        fontWeight: theme.typography.fontWeightRegular,
+      },
+      "&:hover": {
+        backgroundColor: theme.palette.action.hover,
+      },
+      "&.Mui-focused, &.Mui-selected, &.Mui-selected.Mui-focused": {
+        backgroundColor: `var(--tree-view-bg-color, ${theme.palette.action.selected})`,
+        color: "var(--tree-view-color)",
+      },
+      [`& .${treeItemClasses.label}`]: {
+        fontWeight: "inherit",
+        color: "inherit",
+      },
+    },
+    [`& .${treeItemClasses.group}`]: {
+      marginLeft: 0,
+      [`& .${treeItemClasses.content}`]: {
+        paddingLeft: theme.spacing(2),
+      },
+    },
+  }));
+
+  function StyledTreeItem(props) {
+    const {
+      bgColor,
+      color,
+      labelIcon: LabelIcon,
+      labelText,
+      ...other
+    } = props;
+
+    return (
+      <StyledTreeItemRoot
+        label={
+          <Box sx={{ display: "flex", alignItems: "center", p: 0.5, pr: 0 }}>
+            <Box component={LabelIcon} color="inherit" sx={{ mr: 1 }} />
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: "inherit", flexGrow: 1 }}
+            >
+              {labelText}
+            </Typography>
+          </Box>
+        }
+        style={{
+          "--tree-view-color": color,
+          "--tree-view-bg-color": bgColor,
+        }}
+        {...other}
+      />
+    );
+  }
+
+  const viewDetails = (code) => {
+    console.log(code);
+  };
+
   const renderTree = (nodes) => (
-    <TreeItem key={nodes.id} nodeId={nodes.id} label={nodes.name}>
+    <StyledTreeItem
+      nodeId={nodes.id}
+      labelText={nodes.name}
+      labelIcon={nodes.icon}
+      category={nodes.category}
+      code={nodes.code}
+      color={nodes.color}
+      bgColor={nodes.bgColor}
+    >
       {Array.isArray(nodes.children)
         ? nodes.children.map((node) => renderTree(node))
         : null}
-    </TreeItem>
+    </StyledTreeItem>
   );
 
   return (
@@ -165,14 +255,11 @@ export default function HierarchicalView() {
           type="number"
           onChange={(event) => setParticipantsCode(event.target.value)}
         />
-        <Button
-        variant="outlined"
-        onClick={generateTreeView}
-      >
-        Gerar Visualização
-      </Button>
+        <Button variant="outlined" onClick={generateTreeView}>
+          Gerar Visualização
+        </Button>
       </Stack>
-      
+
       <div className={styles.treeViewContainer}>
         <TreeView
           aria-label="rich object"
