@@ -7,6 +7,8 @@ import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
+import CircularProgress from "@mui/material/CircularProgress";
+import Modal from "@mui/material/Modal";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import TreeView from "@mui/lab/TreeView";
@@ -18,12 +20,30 @@ import styles from "./styles.module.css";
 import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
+import { Icon } from "@mui/material";
 
 export default function HierarchicalView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [selectedDataSource, setSelectedDataSource] = useState("");
   const [participantsCode, setParticipantsCode] = useState("");
   const [treeViewData, setTreeViewData] = useState([]);
+  const [participants, setParticipants] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [partialResources, setPartialResources] = useState([]);
+  const [selectedType, setSelectedType] = useState(0);
+  const [selectedParticipantData, setSelectedParticipantData] = useState([]);
+  const [selectedProfileData, setSelectedProfileData] = useState([]);
+  const [selectedPartialResourceData, setSelectedPartialResourceData] =
+    useState([]);
+  const [open, setOpen] = useState(false);
+
+  const handleOpen = () => setOpen(true);
+  const handleClose = (event, reason) => {
+    if (reason === "backdropClick") {
+      return;
+    }
+    setOpen(false);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -33,6 +53,26 @@ export default function HierarchicalView() {
       } else {
         participantes = await db.participantes.toArray();
       }
+
+      setParticipants(participantes);
+
+      var perfis = await db.perfis;
+      if (perfis === undefined) {
+        perfis = [];
+      } else {
+        perfis = await db.perfis.toArray();
+      }
+
+      setProfiles(perfis);
+
+      var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
+      if (parcelasAtivosMedicao === undefined) {
+        parcelasAtivosMedicao = [];
+      } else {
+        parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
+      }
+
+      setPartialResources(parcelasAtivosMedicao);
 
       var dataSources = [];
 
@@ -61,45 +101,33 @@ export default function HierarchicalView() {
   const generateTreeView = async () => {
     if (participantsCode === "") return;
 
-    var participantes = await db.participantes;
-    if (participantes === undefined) {
-      participantes = [];
-    } else {
-      participantes = await db.participantes.toArray();
-    }
-    var perfis = await db.perfis;
-    if (perfis === undefined) {
-      perfis = [];
-    } else {
-      perfis = await db.perfis.toArray();
-    }
-    var ativosMedicao = await db.ativosMedicao;
-    if (ativosMedicao === undefined) {
-      ativosMedicao = [];
-    } else {
-      ativosMedicao = await db.ativosMedicao.toArray();
-    }
-    var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
-    if (parcelasAtivosMedicao === undefined) {
-      parcelasAtivosMedicao = [];
-    } else {
-      parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
-    }
+    setSelectedType(0);
+    handleOpen();
 
-    var selectedParticipant = participantes.find(
+    var selectedParticipant = participants.find(
       (x) => x.codigo === participantsCode
     );
 
-    var relatedProfiles = perfis.filter(
+    if (selectedParticipant === undefined) {
+      handleClose();
+      return;
+    }
+
+    var relatedProfiles = profiles.filter(
       (x) => x.codAgente === participantsCode
     );
+
+    if (relatedProfiles.length === 0) {
+      handleClose();
+      return;
+    }
 
     var profileInitialCode = 1;
     var partialResourceInitialCode = relatedProfiles.length + 1;
     var relatedProfileNodes = [];
 
     for (const x of relatedProfiles) {
-      var relatedPartialResource = parcelasAtivosMedicao.filter(
+      var relatedPartialResource = partialResources.filter(
         (y) => y.codPerfil === x.codPerfil
       );
 
@@ -148,6 +176,7 @@ export default function HierarchicalView() {
     };
 
     setTreeViewData(data);
+    handleClose();
   };
 
   const StyledTreeItemRoot = styled(TreeItem)(({ theme }) => ({
@@ -180,13 +209,7 @@ export default function HierarchicalView() {
   }));
 
   function StyledTreeItem(props) {
-    const {
-      bgColor,
-      color,
-      labelIcon: LabelIcon,
-      labelText,
-      ...other
-    } = props;
+    const { bgColor, color, labelIcon: LabelIcon, labelText, ...other } = props;
 
     return (
       <StyledTreeItemRoot
@@ -210,25 +233,216 @@ export default function HierarchicalView() {
     );
   }
 
-  const viewDetails = (code) => {
-    console.log(code);
+  const viewDetails = (category, code) => {
+    setSelectedType(category);
+
+    if (category === 1) {
+      var selectedParticipant = participants.find((x) => x.codigo === code);
+      setSelectedParticipantData(selectedParticipant);
+    } else if (category === 2) {
+      var selectedProfile = profiles.find((x) => x.codPerfil === code);
+      setSelectedProfileData(selectedProfile);
+    } else {
+      var selectedPartialResources = partialResources.find(
+        (x) => x.codParcelaAtivo === code
+      );
+      setSelectedPartialResourceData(selectedPartialResources);
+    }
   };
+
+  const chooseCardToRender = () => {
+    if (selectedType === 1) {
+      return <div>{ParticipantCard()}</div>;
+    } else if (selectedType === 2) {
+      return <div>{ProfileCard()}</div>;
+    } else if (selectedType === 3) {
+      return <div>{PartialResourceCard()}</div>;
+    } else {
+      return <div></div>;
+    }
+  };
+
+  function ParticipantCard() {
+    return (
+      <div>
+        <Box className={styles.detailsCard}>
+          <Stack direction="row" spacing={1} className={styles.cardHeader}>
+            <BusinessIcon sx={{ color: "#1a73e8" }} />
+            <Typography className={styles.participantCardHeaderText}>Agente</Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>CNPJ:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedParticipantData.cnpj}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Nome:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedParticipantData.nomeEmpresarial}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Sigla:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedParticipantData.sigla}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>
+              Código de Agente:
+            </Typography>
+            <Typography className={styles.cardText}>
+              {selectedParticipantData.codigo}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>
+              Data de início de vigência:
+            </Typography>
+            <Typography className={styles.cardText}>
+              {selectedParticipantData.periodoVigencia}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Situação:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedParticipantData.situacao}
+            </Typography>
+          </Stack>
+        </Box>
+      </div>
+    );
+  }
+
+  function ProfileCard() {
+    return (
+      <div>
+        <Box className={styles.detailsCard}>
+          <Stack direction="row" spacing={1} className={styles.cardHeader}>
+            <PersonIcon sx={{ color: "#e3742f" }} />
+            <Typography className={styles.profileCardHeaderText}>Perfil</Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Sigla:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedProfileData.sigla}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Classe:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedProfileData.classe}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Submercado:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedProfileData.submercado}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>
+              Código:
+            </Typography>
+            <Typography className={styles.cardText}>
+              {selectedProfileData.codPerfil}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>
+              Perfil principal?
+            </Typography>
+            <Typography className={styles.cardText}>
+              {selectedProfileData.perfilPrincipal}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Situação:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedProfileData.situacao}
+            </Typography>
+          </Stack>
+        </Box>
+      </div>
+    );
+  }
+
+  function PartialResourceCard() {
+    return (
+      <div>
+        <Box className={styles.detailsCard}>
+          <Stack direction="row" spacing={1} className={styles.cardHeader}>
+            <EmojiObjectsIcon sx={{ color: "#3c8039" }} />
+            <Typography className={styles.partialResourceCardHeaderText}>Parcela de Ativo de Medição</Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Nome:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedPartialResourceData.nome}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>CNPJ:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedPartialResourceData.cnpj}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Código:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedPartialResourceData.codParcelaAtivo}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>
+              Data de início de vigência:
+            </Typography>
+            <Typography className={styles.cardText}>
+              {selectedPartialResourceData.periodoVigencia}
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Typography className={styles.cardFieldText}>Situação:</Typography>
+            <Typography className={styles.cardText}>
+              {selectedPartialResourceData.situacao}
+            </Typography>
+          </Stack>
+        </Box>
+      </div>
+    );
+  }
 
   const renderTree = (nodes) => (
     <StyledTreeItem
       nodeId={nodes.id}
       labelText={nodes.name}
       labelIcon={nodes.icon}
-      category={nodes.category}
-      code={nodes.code}
       color={nodes.color}
       bgColor={nodes.bgColor}
+      onClick={() => {
+        viewDetails(nodes.category, nodes.code);
+      }}
     >
       {Array.isArray(nodes.children)
         ? nodes.children.map((node) => renderTree(node))
         : null}
     </StyledTreeItem>
   );
+
+  const style = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: 300,
+    bgcolor: "background.paper",
+    border: "1px solid gray",
+    borderRadius: "10px",
+    boxShadow: 24,
+    p: 4,
+    textAlign: "center",
+  };
 
   return (
     <div>
@@ -276,6 +490,55 @@ export default function HierarchicalView() {
           {renderTree(treeViewData)}
         </TreeView>
       </div>
+      <div className={styles.detailsSection}>{chooseCardToRender()}</div>
+
+      <Modal
+        open={open}
+        onClose={handleClose}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box sx={style}>
+          <Typography
+            id="modal-modal-title"
+            variant="h6"
+            component="h2"
+            sx={{ marginTop: "-15px" }}
+          >
+            Gerando visualização
+          </Typography>
+          <Box
+            sx={{
+              position: "relative",
+              display: "inline-flex",
+              marginTop: "20px",
+            }}
+          >
+            <CircularProgress />
+            <Box
+              sx={{
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: 0,
+                position: "absolute",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            ></Box>
+          </Box>
+          <Typography
+            id="modal-modal-description"
+            sx={{
+              marginTop: "10px",
+              marginBottom: "-25px",
+            }}
+          >
+            Por favor, aguarde...
+          </Typography>
+        </Box>
+      </Modal>
     </div>
   );
 }
