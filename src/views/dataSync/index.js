@@ -1682,7 +1682,7 @@ export default function DataSyncView() {
 
   return (
     <Container className={styles.container}>
-      <Typography paragraph>Importar Dados</Typography>
+      <Typography variant="h5" mb={2}>Importar Dados</Typography>
 
       <Stack sx={{ width: "50%" }} spacing={2}>
         <FormControl>

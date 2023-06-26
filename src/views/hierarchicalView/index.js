@@ -20,7 +20,8 @@ import styles from "./styles.module.css";
 import BusinessIcon from "@mui/icons-material/Business";
 import PersonIcon from "@mui/icons-material/Person";
 import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
-import { Icon } from "@mui/material";
+import formatStringByPattern from "format-string-by-pattern";
+import Divider from "@mui/material/Divider";
 
 export default function HierarchicalView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
@@ -263,18 +264,23 @@ export default function HierarchicalView() {
   };
 
   function ParticipantCard() {
+    var cnpj = formatStringByPattern(
+      "XX.XXX.XXX/XXXX-XX",
+      selectedParticipantData.cnpj
+    );
+
     return (
       <div>
         <Box className={styles.detailsCard}>
           <Stack direction="row" spacing={1} className={styles.cardHeader}>
             <BusinessIcon sx={{ color: "#1a73e8" }} />
-            <Typography className={styles.participantCardHeaderText}>Agente</Typography>
+            <Typography className={styles.participantCardHeaderText}>
+              Agente
+            </Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
             <Typography className={styles.cardFieldText}>CNPJ:</Typography>
-            <Typography className={styles.cardText}>
-              {selectedParticipantData.cnpj}
-            </Typography>
+            <Typography className={styles.cardText}>{cnpj}</Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
             <Typography className={styles.cardFieldText}>Nome:</Typography>
@@ -321,7 +327,9 @@ export default function HierarchicalView() {
         <Box className={styles.detailsCard}>
           <Stack direction="row" spacing={1} className={styles.cardHeader}>
             <PersonIcon sx={{ color: "#e3742f" }} />
-            <Typography className={styles.profileCardHeaderText}>Perfil</Typography>
+            <Typography className={styles.profileCardHeaderText}>
+              Perfil
+            </Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
             <Typography className={styles.cardFieldText}>Sigla:</Typography>
@@ -336,15 +344,15 @@ export default function HierarchicalView() {
             </Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
-            <Typography className={styles.cardFieldText}>Submercado:</Typography>
+            <Typography className={styles.cardFieldText}>
+              Submercado:
+            </Typography>
             <Typography className={styles.cardText}>
               {selectedProfileData.submercado}
             </Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
-            <Typography className={styles.cardFieldText}>
-              Código:
-            </Typography>
+            <Typography className={styles.cardFieldText}>Código:</Typography>
             <Typography className={styles.cardText}>
               {selectedProfileData.codPerfil}
             </Typography>
@@ -369,12 +377,19 @@ export default function HierarchicalView() {
   }
 
   function PartialResourceCard() {
+    var cnpj = formatStringByPattern(
+      "XX.XXX.XXX/XXXX-XX",
+      selectedPartialResourceData.cnpj
+    );
+
     return (
       <div>
         <Box className={styles.detailsCard}>
           <Stack direction="row" spacing={1} className={styles.cardHeader}>
             <EmojiObjectsIcon sx={{ color: "#3c8039" }} />
-            <Typography className={styles.partialResourceCardHeaderText}>Parcela de Ativo de Medição</Typography>
+            <Typography className={styles.partialResourceCardHeaderText}>
+              Parcela de Ativo de Medição
+            </Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
             <Typography className={styles.cardFieldText}>Nome:</Typography>
@@ -384,9 +399,7 @@ export default function HierarchicalView() {
           </Stack>
           <Stack direction="row" spacing={1}>
             <Typography className={styles.cardFieldText}>CNPJ:</Typography>
-            <Typography className={styles.cardText}>
-              {selectedPartialResourceData.cnpj}
-            </Typography>
+            <Typography className={styles.cardText}>{cnpj}</Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
             <Typography className={styles.cardFieldText}>Código:</Typography>
@@ -446,8 +459,11 @@ export default function HierarchicalView() {
 
   return (
     <div>
-      <Typography paragraph>Visualização Hierárquica</Typography>
-      <Stack direction="row" spacing={2}>
+      <Typography variant="h5" mb={2}>Visualização Hierárquica</Typography>
+      <Stack
+        direction="row"
+        spacing={2}
+      >
         <FormControl sx={{ width: "45%" }}>
           <InputLabel id="data-source-select-label">Fonte de dados</InputLabel>
           <Select
@@ -469,6 +485,7 @@ export default function HierarchicalView() {
           type="number"
           onChange={(event) => setParticipantsCode(event.target.value)}
         />
+        <Divider orientation="horizontal" />
         <Button variant="outlined" onClick={generateTreeView}>
           Gerar Visualização
         </Button>

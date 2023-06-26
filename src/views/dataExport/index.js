@@ -797,7 +797,7 @@ export default function DataExportView() {
 
   return (
     <div>
-      <Typography paragraph>Exportar Dados</Typography>
+      <Typography variant="h5" mb={2}>Exportar Dados</Typography>
       <FormControlLabel
         control={
           <Switch
