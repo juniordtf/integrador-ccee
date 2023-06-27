@@ -39,6 +39,7 @@ export default function HierarchicalView() {
   const [open, setOpen] = useState(false);
 
   const handleOpen = () => setOpen(true);
+
   const handleClose = (event, reason) => {
     if (reason === "backdropClick") {
       return;
@@ -459,11 +460,10 @@ export default function HierarchicalView() {
 
   return (
     <div>
-      <Typography variant="h5" mb={2}>Visualização Hierárquica</Typography>
-      <Stack
-        direction="row"
-        spacing={2}
-      >
+      <Typography variant="h5" mb={5}>
+        Visualização Hierárquica
+      </Typography>
+      <Stack direction="row" spacing={2}>
         <FormControl sx={{ width: "45%" }}>
           <InputLabel id="data-source-select-label">Fonte de dados</InputLabel>
           <Select

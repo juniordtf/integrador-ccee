@@ -142,7 +142,7 @@ export default function SettingsView(): React$Element<*> {
 
   return (
     <div>
-      <Typography variant="h5" mb={2}>Configurações</Typography>
+      <Typography variant="h5" mb={5}>Configurações</Typography>
       <Accordion>
         <AccordionSummary
           expandIcon={<ExpandMoreIcon />}

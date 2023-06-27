@@ -31,7 +31,9 @@ import Input from "@mui/material/Input";
 import InputAdornment from "@mui/material/InputAdornment";
 import SearchIcon from "@mui/icons-material/Search";
 import styles from "./styles.module.css";
-import { useLiveQuery } from "dexie-react-hooks";
+import CircularProgress from "@mui/material/CircularProgress";
+import Modal from "@mui/material/Modal";
+import Box from "@mui/material/Box";
 import { db } from "../../database/db";
 
 const ParticipantsColumns = [
@@ -155,6 +157,17 @@ export default function DataExportView() {
   const [openDialog, setDialogOpen] = useState(false);
   const [page, setPage] = React.useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [inputText, setInputText] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const handleLoadingModalOpen = () => setOpen(true);
+
+  const handleLoadingModalClose = (event, reason) => {
+    if (reason === "backdropClick") {
+      return;
+    }
+    setOpen(false);
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -260,6 +273,7 @@ export default function DataExportView() {
   };
 
   const handleDataSourceChange = async (event) => {
+    setInputText("");
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSource(selectedDataSourceKey);
     var selectedRows = await getSelectedRows(selectedDataSourceKey);
@@ -409,6 +423,11 @@ export default function DataExportView() {
 
   const handleCompareDataSourcesChange = (event) => {
     setCompareDataSources(event.target.checked);
+    setSelectedDataSource("");
+    setSelectedDataSourceA("");
+    setSelectedDataSourceB("");
+    setResultDataSourceText("");
+    setInputText("");
   };
 
   const handleDataSourceAChange = async (event) => {
@@ -416,6 +435,7 @@ export default function DataExportView() {
 
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSourceA(selectedDataSourceKey);
+    setInputText("");
   };
 
   const handleDataSourceBChange = async (event) => {
@@ -423,76 +443,72 @@ export default function DataExportView() {
 
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSourceB(selectedDataSourceKey);
+    setInputText("");
   };
 
   const handleCompareData = async () => {
     setCompareDataSourcesFlag(true);
+    handleLoadingModalOpen();
     const sourceA = await getSelectedRows(selectedDataSourceA);
     const sourceB = await getSelectedRows(selectedDataSourceB);
 
-    if (sourceA !== undefined && sourceB !== undefined) {
-      if (
-        selectedDataSourceA.includes("participantes") &&
-        selectedDataSourceB.includes("participantes")
-      ) {
-        let sourceB_Codigos = sourceB.map((x) => x.codigo);
-        let result = sourceA.filter((x) => !sourceB_Codigos.includes(x.codigo));
-        setResultDataSourceText("Novos_" + selectedDataSourceA);
-        setTableHeader(ParticipantsColumns);
-        setRowKey("codigo");
-        setRows(result);
-        setInitialRows(result);
-        console.log("Diferença: " + result.length);
-      } else if (
-        selectedDataSourceA.includes("perfis") &&
-        selectedDataSourceB.includes("perfis")
-      ) {
-        let sourceB_Codigos = sourceB.map((x) => x.codPerfil);
-        let result = sourceA.filter(
-          (x) => !sourceB_Codigos.includes(x.codPerfil)
-        );
-        setResultDataSourceText("Novos_" + selectedDataSourceA);
-        setTableHeader(ProfilesColumns);
-        setRowKey("codPerfil");
-        setRows(result);
-        setInitialRows(result);
-      } else if (
-        selectedDataSourceA.includes("ativos") &&
-        selectedDataSourceB.includes("ativos")
-      ) {
-        let sourceB_Codigos = sourceB.map((x) => x.codAtivo);
-        let result = sourceA.filter(
-          (x) => !sourceB_Codigos.includes(x.codAtivo)
-        );
-        setResultDataSourceText("Novos_" + selectedDataSourceA);
-        setTableHeader(ResourcesColumns);
-        setRowKey("codAtivo");
-        setRows(result);
-        setInitialRows(result);
-      } else if (
-        selectedDataSourceA.includes("parcela") &&
-        selectedDataSourceB.includes("parcela")
-      ) {
-        let sourceB_Codigos = sourceB.map((x) => x.codParcela);
-        let result = sourceA.filter(
-          (x) => !sourceB_Codigos.includes(x.codParcela)
-        );
-        setResultDataSourceText("Novos_" + selectedDataSourceA);
-        setTableHeader(PartialResourcesColumns);
-        setRowKey("codParcelaDeAtivo");
-        setRows(result);
-        setInitialRows(result);
-      } else {
-        setTableHeader([]);
-        setRowKey("");
-        setRows([]);
-        setInitialRows([]);
-      }
+    if (sourceA === undefined && sourceB === undefined) {
+      handleLoadingModalClose();
+      return;
     }
+
+    if (
+      selectedDataSourceA.includes("participantes") &&
+      selectedDataSourceB.includes("participantes")
+    ) {
+      let sourceB_Codigos = sourceB.map((x) => x.codigo);
+      let result = sourceA.filter((x) => !sourceB_Codigos.includes(x.codigo));
+      setRows(result);
+      setInitialRows(result);
+      console.log("Diferença: " + result.length);
+    } else if (
+      selectedDataSourceA.includes("perfis") &&
+      selectedDataSourceB.includes("perfis")
+    ) {
+      let sourceB_Codigos = sourceB.map((x) => x.codPerfil);
+      let result = sourceA.filter(
+        (x) => !sourceB_Codigos.includes(x.codPerfil)
+      );
+      setRows(result);
+      setInitialRows(result);
+    } else if (
+      selectedDataSourceA.includes("ativos") &&
+      selectedDataSourceB.includes("ativos")
+    ) {
+      let sourceB_Codigos = sourceB.map((x) => x.codAtivo);
+      let result = sourceA.filter((x) => !sourceB_Codigos.includes(x.codAtivo));
+      setRows(result);
+      setInitialRows(result);
+    } else if (
+      selectedDataSourceA.includes("parcela") &&
+      selectedDataSourceB.includes("parcela")
+    ) {
+      let sourceB_Codigos = sourceB.map((x) => x.codParcelaAtivo);
+      let result = sourceA.filter(
+        (x) => !sourceB_Codigos.includes(x.codParcelaAtivo)
+      );
+      setRows(result);
+      setInitialRows(result);
+    } else {
+      setTableHeader([]);
+      setRowKey("");
+      setRows([]);
+      setInitialRows([]);
+    }
+
+    setResultDataSourceText("Novos_" + selectedDataSourceA);
+    setSelectedDataSource("Novos_" + selectedDataSourceA);
+    handleLoadingModalClose();
   };
 
-  const filterTable = (inputText) => {
-    var searchText = inputText.toUpperCase();
+  const filterTable = (text) => {
+    setInputText(text);
+    var searchText = text.toUpperCase();
     var filteredData = [];
 
     if (searchText === "") {
@@ -594,6 +610,7 @@ export default function DataExportView() {
                       </IconButton>
                     </InputAdornment>
                   }
+                  value={inputText}
                   onChange={(event) => filterTable(event.target.value)}
                 />
               </FormControl>
@@ -753,7 +770,9 @@ export default function DataExportView() {
           </Button>
         </Stack>
 
-        {compareDataSourcesFlag ? (
+        {compareDataSourcesFlag &&
+        selectedDataSourceA !== "" &&
+        selectedDataSourceB !== "" ? (
           <div>
             <Stack
               direction="row"
@@ -782,10 +801,12 @@ export default function DataExportView() {
                 Exportar
               </Button>
             </Stack>
-            {selectedDataSourceA !== "" && selectedDataSourceB !== "" ? (
+            {rows.length > 0 ? (
               <div>{RenderTable()}</div>
             ) : (
-              <div></div>
+              <div>
+                <Typography paragraph>Sem dados para exibição</Typography>
+              </div>
             )}
           </div>
         ) : (
@@ -795,9 +816,25 @@ export default function DataExportView() {
     );
   }
 
+  const style = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: 300,
+    bgcolor: "background.paper",
+    border: "1px solid gray",
+    borderRadius: "10px",
+    boxShadow: 24,
+    p: 4,
+    textAlign: "center",
+  };
+
   return (
     <div>
-      <Typography variant="h5" mb={2}>Exportar Dados</Typography>
+      <Typography variant="h5" mb={5}>
+        Exportar Dados
+      </Typography>
       <FormControlLabel
         control={
           <Switch
@@ -812,6 +849,54 @@ export default function DataExportView() {
       {compareDataSources
         ? RenderComparatorExporterView()
         : RenderSingleExporterView()}
+
+      <Modal
+        open={open}
+        onClose={handleLoadingModalClose}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box sx={style}>
+          <Typography
+            id="modal-modal-title"
+            variant="h6"
+            component="h2"
+            sx={{ marginTop: "-15px" }}
+          >
+            Gerando resultados
+          </Typography>
+          <Box
+            sx={{
+              position: "relative",
+              display: "inline-flex",
+              marginTop: "20px",
+            }}
+          >
+            <CircularProgress />
+            <Box
+              sx={{
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: 0,
+                position: "absolute",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            ></Box>
+          </Box>
+          <Typography
+            id="modal-modal-description"
+            sx={{
+              marginTop: "10px",
+              marginBottom: "-25px",
+            }}
+          >
+            Por favor, aguarde...
+          </Typography>
+        </Box>
+      </Modal>
 
       <Dialog
         open={openDialog}
