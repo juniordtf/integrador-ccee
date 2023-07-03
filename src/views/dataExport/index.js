@@ -273,6 +273,7 @@ export default function DataExportView() {
   };
 
   const handleDataSourceChange = async (event) => {
+    handleLoadingModalOpen();
     setInputText("");
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSource(selectedDataSourceKey);
@@ -286,6 +287,8 @@ export default function DataExportView() {
       setRows(data);
       setInitialRows(data);
     }
+
+    handleLoadingModalClose();
   };
 
   const getSelectedRows = async (dataSourceKey) => {
@@ -382,6 +385,8 @@ export default function DataExportView() {
   };
 
   const deleteData = () => {
+    handleLoadingModalOpen();
+
     if (selectedDataSource.includes("participantes")) {
       db.participantes
         .where("key")
@@ -389,6 +394,7 @@ export default function DataExportView() {
         .delete()
         .then(function (deleteCount) {
           console.log(deleteCount + " objects deleted");
+          handleLoadingModalClose();
         });
     } else if (selectedDataSource.includes("perfis")) {
       db.perfis
@@ -397,6 +403,7 @@ export default function DataExportView() {
         .delete()
         .then(function (deleteCount) {
           console.log(deleteCount + " objects deleted");
+          handleLoadingModalClose();
         });
     } else if (selectedDataSource.includes("ativos")) {
       db.ativosMedicao
@@ -405,6 +412,7 @@ export default function DataExportView() {
         .delete()
         .then(function (deleteCount) {
           console.log(deleteCount + " objects deleted");
+          handleLoadingModalClose();
         });
     } else if (selectedDataSource.includes("parcelasDeAtivos")) {
       db.parcelasAtivosMedicao
@@ -413,6 +421,7 @@ export default function DataExportView() {
         .delete()
         .then(function (deleteCount) {
           console.log(deleteCount + " objects deleted");
+          handleLoadingModalClose();
         });
     }
 
@@ -804,8 +813,8 @@ export default function DataExportView() {
             {rows.length > 0 ? (
               <div>{RenderTable()}</div>
             ) : (
-              <div>
-                <Typography paragraph>Sem dados para exibição</Typography>
+              <div className={styles.dataContainer}>
+                <Typography paragraph variant="h6">Sem dados para exibição</Typography>
               </div>
             )}
           </div>
@@ -863,7 +872,7 @@ export default function DataExportView() {
             component="h2"
             sx={{ marginTop: "-15px" }}
           >
-            Gerando resultados
+            Processando requisição
           </Typography>
           <Box
             sx={{

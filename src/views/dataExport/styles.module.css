@@ -9,6 +9,8 @@
   margin-left: 15px;
   min-width: 350px;
   display: flex;
+  background-color:#f1eded;
+
 }
 
 .resultFieldWithoutBorder {
@@ -23,10 +25,20 @@
   text-align: center;
   vertical-align: middle;
   line-height: 55px;
+  padding: 5px;
 }
 
 .rowContainer {
   display: flex;
   flex-direction: row;
   min-width: 30%;
+}
+
+.dataContainer {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin-top: 70px;
+  margin-left: auto;
+  margin-right: auto;
 }

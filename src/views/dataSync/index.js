@@ -496,17 +496,17 @@ export default function DataSyncView() {
           setPendingRequests(pendingRequests - 1);
           setWarningDialogOpen(true);
           return;
+        } else {
+          if (dataSourceItems === null) {
+            setPendingRequests(pendingRequests - 1);
+            return;
+          }
+
+          console.log("Total: " + dataSourceItems.length);
+          var codAgentes = dataSourceItems.map((x) => x.codigo);
+          listarPerfis(key, codAgentes);
         }
       });
-
-    if (dataSourceItems === null) {
-      setPendingRequests(pendingRequests - 1);
-      return;
-    }
-
-    console.log("Total: " + dataSourceItems.length);
-    var codAgentes = dataSourceItems.map((x) => x.codigo);
-    listarPerfis(key, codAgentes);
   };
 
   async function listarPerfis(key, sourceItems, fromRetryList = false) {
@@ -516,61 +516,50 @@ export default function DataSyncView() {
 
       const requestsQuantity = sourceItems.length;
 
-      const chunckSize = sourceItems.length >= 100 ? 100 : sourceItems.length;
-      const sourceItemsChunks = new Array(
-        Math.ceil(sourceItems.length / chunckSize)
-      )
-        .fill()
-        .map((_) => {
-          return sourceItems.splice(0, chunckSize);
-        });
+      for (const codAgente of sourceItems) {
+        var responseData = await cadastrosService.listarPerfis(
+          authData,
+          codAgente
+        );
+        itemsProcessed++;
 
-      sourceItemsChunks.forEach(async (chunckItems) => {
-        for (const codAgente of chunckItems) {
-          var responseData = await cadastrosService.listarPerfis(
-            authData,
-            codAgente
-          );
-          itemsProcessed++;
+        if (responseData.code === 200) {
+          var perfis = responseData.data;
 
-          if (responseData.code === 200) {
-            var perfis = responseData.data;
-
-            if (perfis.length === undefined) {
-              mapResponseToProfileData(key, codAgente, perfis);
-            } else {
-              Array.prototype.forEach.call(perfis, async (item) => {
-                mapResponseToProfileData(key, codAgente, item);
-              });
-            }
-
-            if (fromRetryList) {
-              removeProfileFromRetryList(key, codAgente);
-            }
+          if (perfis.length === undefined) {
+            mapResponseToProfileData(key, codAgente, perfis);
           } else {
-            if (fromRetryList) {
-              updateParticipantInRetryList(codAgente, key);
-            } else {
-              addParticipanteToRetryList(
-                key,
-                codAgente,
-                responseData.code,
-                0,
-                "listarPerfis"
-              );
-            }
+            Array.prototype.forEach.call(perfis, async (item) => {
+              mapResponseToProfileData(key, codAgente, item);
+            });
           }
-          console.log(itemsProcessed);
-          var amountDone = (itemsProcessed / requestsQuantity) * 100;
-          setProgress(amountDone);
-          if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-            console.log("Arr: " + requestsQuantity);
-            setPendingRequests(pendingRequests - 1);
-            setProgress(0);
-            setSuccesDialogOpen(true);
+
+          if (fromRetryList) {
+            removeProfileFromRetryList(key, codAgente);
+          }
+        } else {
+          if (fromRetryList) {
+            updateParticipantInRetryList(codAgente, key);
+          } else {
+            addParticipanteToRetryList(
+              key,
+              codAgente,
+              responseData.code,
+              0,
+              "listarPerfis"
+            );
           }
         }
-      });
+        console.log(itemsProcessed);
+        var amountDone = (itemsProcessed / requestsQuantity) * 100;
+        setProgress(amountDone);
+        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
+          console.log("Arr: " + requestsQuantity);
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
+        }
+      }
     } catch (e) {
       console.log("Erro ao listar perfis");
       console.error(e);
@@ -740,17 +729,17 @@ export default function DataSyncView() {
           setPendingRequests(pendingRequests - 1);
           setWarningDialogOpen(true);
           return;
+        } else {
+          if (dataSourceItems === null) {
+            setPendingRequests(pendingRequests - 1);
+            return;
+          }
+
+          console.log("Total: " + dataSourceItems.length);
+          var codPerfis = dataSourceItems.map((x) => x.codPerfil);
+          listarAtivos(key, codPerfis);
         }
       });
-
-    if (dataSourceItems === null) {
-      setPendingRequests(pendingRequests - 1);
-      return;
-    }
-
-    console.log("Total: " + dataSourceItems.length);
-    var codPerfis = dataSourceItems.map((x) => x.codPerfil);
-    listarAtivos(key, codPerfis);
   };
 
   async function listarAtivos(key, sourceItems, fromRetryList = false) {
@@ -1071,6 +1060,8 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
+
+    setPendingRequests(pendingRequests - 1);
   };
 
   const removeResourceFromRetryList = (key, codPerfil) => {
@@ -1100,6 +1091,8 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
+
+    setPendingRequests(pendingRequests - 1);
   };
 
   const removeParameterFromRetryList = (key, parameterCode) => {
@@ -1131,6 +1124,8 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
+
+    setPendingRequests(pendingRequests - 1);
   };
 
   const removeParticipantsPageFromRetryList = (key, page) => {
@@ -1160,6 +1155,8 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
+
+    setPendingRequests(pendingRequests - 1);
   };
 
   const removeExpiredData = async () => {
@@ -1172,9 +1169,12 @@ export default function DataSyncView() {
 
     retryKeys.forEach((key) => {
       let retryData = JSON.parse(localStorage.getItem(key));
-      let itemsToRemove = retryData.filter((z) => z.attempts > 3);
+      let itemsToRemove = retryData.filter((z) => z.attempts > 2);
 
-      if (itemsToRemove.length === 0) return;
+      if (itemsToRemove.length === 0) {
+        setPendingRequests(pendingRequests - 1);
+        return;
+      }
 
       if (key.includes("participantes")) {
         itemsToRemove.forEach((x) =>
@@ -1221,22 +1221,6 @@ export default function DataSyncView() {
       formDate = dayjs(formDate).format("YYYY-MM-DDTHH:mm:ss");
       key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
 
-      db.parcelasAtivosMedicao
-        .where("key")
-        .equalsIgnoreCase(key)
-        .count()
-        .then(function (count) {
-          if (count > 0) {
-            console.log("Counted " + count + " objects");
-            setWarningText(
-              'Já existe uma coleção de dados com o nome "' + key + '"'
-            );
-            setPendingRequests(pendingRequests - 1);
-            setWarningDialogOpen(true);
-            return;
-          }
-        });
-
       if (dataSourceItems === null) {
         setPendingRequests(pendingRequests - 1);
         return;
@@ -1246,9 +1230,24 @@ export default function DataSyncView() {
       selectedParameter = 4;
     }
 
-    console.log("Total: " + sourceData.length);
-
-    listarParcelasDeAtivos(key, sourceData, formDate, selectedParameter);
+    db.parcelasAtivosMedicao
+      .where("key")
+      .equalsIgnoreCase(key)
+      .count()
+      .then(function (count) {
+        if (count > 0) {
+          console.log("Counted " + count + " objects");
+          setWarningText(
+            'Já existe uma coleção de dados com o nome "' + key + '"'
+          );
+          setPendingRequests(pendingRequests - 1);
+          setWarningDialogOpen(true);
+          return;
+        } else {
+          console.log("Total: " + sourceData.length);
+          listarParcelasDeAtivos(key, sourceData, formDate, selectedParameter);
+        }
+      });
   };
 
   async function listarParcelasDeAtivos(
@@ -1269,110 +1268,64 @@ export default function DataSyncView() {
 
       const requestsQuantity = sourceItems.length;
 
-      const chunckSize = sourceItems.length >= 100 ? 100 : sourceItems.length;
-      const sourceItemsChunks = new Array(
-        Math.ceil(sourceItems.length / chunckSize)
-      )
-        .fill()
-        .map((_) => {
-          return sourceItems.splice(0, chunckSize);
-        });
+      for (const item of sourceItems) {
+        if (selectedParameter === 1) {
+          codMedidor = item;
+        } else if (selectedParameter === 2) {
+          codParcelaAtivo = item;
+        } else if (selectedParameter === 3) {
+          codAtivoMedicao = item;
+        } else {
+          codPerfil = item;
+        }
 
-      sourceItemsChunks.forEach(async (chunckItems) => {
-        for (const item of chunckItems) {
-          if (selectedParameter === 1) {
-            codMedidor = item;
-          } else if (selectedParameter === 2) {
-            codParcelaAtivo = item;
-          } else if (selectedParameter === 3) {
-            codAtivoMedicao = item;
-          } else {
-            codPerfil = item;
-          }
+        var responseData = await ativosService.listarParcelasDeAtivosDeMedicao(
+          authData,
+          codMedidor,
+          codParcelaAtivo,
+          codAtivoMedicao,
+          codPerfil,
+          searchDate
+        );
 
-          var responseData =
-            await ativosService.listarParcelasDeAtivosDeMedicao(
-              authData,
-              codMedidor,
-              codParcelaAtivo,
-              codAtivoMedicao,
-              codPerfil,
-              searchDate
-            );
+        itemsProcessed++;
 
-          itemsProcessed++;
+        var totalPaginas = responseData.totalPaginas;
+        var totalPaginasNumber = totalPaginas._text
+          ? parseInt(totalPaginas._text.toString())
+          : 0;
+        if (totalPaginasNumber > 1) {
+          for (
+            let paginaCorrente = 1;
+            paginaCorrente <= totalPaginasNumber;
+            paginaCorrente++
+          ) {
+            // eslint-disable-next-line no-loop-func
 
-          var totalPaginas = responseData.totalPaginas;
-          var totalPaginasNumber = totalPaginas._text
-            ? parseInt(totalPaginas._text.toString())
-            : 0;
-          if (totalPaginasNumber > 1) {
-            for (
-              let paginaCorrente = 1;
-              paginaCorrente <= totalPaginasNumber;
-              paginaCorrente++
-            ) {
-              // eslint-disable-next-line no-loop-func
+            var responseDataPaginated =
+              await ativosService.listarParcelasDeAtivosDeMedicao(
+                authData,
+                codMedidor,
+                codParcelaAtivo,
+                codAtivoMedicao,
+                codPerfil,
+                searchDate,
+                paginaCorrente
+              );
 
-              var responseDataPaginated =
-                await ativosService.listarParcelasDeAtivosDeMedicao(
-                  authData,
-                  codMedidor,
-                  codParcelaAtivo,
-                  codAtivoMedicao,
-                  codPerfil,
-                  searchDate,
-                  paginaCorrente
-                );
+            if (responseDataPaginated.code === 200) {
+              var parcelaAtivos = responseDataPaginated.data;
 
-              if (responseDataPaginated.code === 200) {
-                var parcelaAtivos = responseDataPaginated.data;
-
-                var parcelasDeAtivos = [];
-                if (parcelaAtivos.length === undefined) {
-                  parcelasDeAtivos = [parcelaAtivos];
-                } else {
-                  parcelasDeAtivos = parcelaAtivos;
-                }
-
-                Array.prototype.forEach.call(parcelasDeAtivos, async (x) => {
-                  mapResponseToPartialMeasurementData(key, codMedidor, x);
-                });
-
-                if (fromRetryList) {
-                  removeParameterFromRetryList(key, item);
-                }
-              } else {
-                if (fromRetryList) {
-                  updatePartialResourceInRetryList(item, key);
-                } else {
-                  addParameterToRetryList(
-                    key,
-                    item,
-                    searchDate,
-                    selectedParameter,
-                    responseDataPaginated.code,
-                    0,
-                    "listarParcelasDeAtivos"
-                  );
-                }
-              }
-            }
-          } else {
-            if (responseData.code === 200) {
-              var parcelaAtivos = responseData.data;
-
+              var parcelasDeAtivos = [];
               if (parcelaAtivos.length === undefined) {
-                mapResponseToPartialMeasurementData(
-                  key,
-                  codMedidor,
-                  parcelaAtivos
-                );
+                parcelasDeAtivos = [parcelaAtivos];
               } else {
-                Array.prototype.forEach.call(parcelaAtivos, async (x) => {
-                  mapResponseToPartialMeasurementData(key, codMedidor, x);
-                });
+                parcelasDeAtivos = parcelaAtivos;
               }
+
+              Array.prototype.forEach.call(parcelasDeAtivos, async (x) => {
+                mapResponseToPartialMeasurementData(key, codMedidor, x);
+              });
 
               if (fromRetryList) {
                 removeParameterFromRetryList(key, item);
@@ -1386,27 +1339,61 @@ export default function DataSyncView() {
                   item,
                   searchDate,
                   selectedParameter,
-                  responseData.code,
+                  responseDataPaginated.code,
                   0,
                   "listarParcelasDeAtivos"
                 );
               }
             }
           }
+        } else {
+          if (responseData.code === 200) {
+            var parcelaAtivos = responseData.data;
 
-          console.log(itemsProcessed);
-          var amountDone = (itemsProcessed / requestsQuantity) * 100;
-          if (amountDone !== progress) {
-            setProgress(amountDone);
-          }
-          if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-            console.log("Arr: " + requestsQuantity);
-            setPendingRequests(pendingRequests - 1);
-            setProgress(0);
-            setSuccesDialogOpen(true);
+            if (parcelaAtivos.length === undefined) {
+              mapResponseToPartialMeasurementData(
+                key,
+                codMedidor,
+                parcelaAtivos
+              );
+            } else {
+              Array.prototype.forEach.call(parcelaAtivos, async (x) => {
+                mapResponseToPartialMeasurementData(key, codMedidor, x);
+              });
+            }
+
+            if (fromRetryList) {
+              removeParameterFromRetryList(key, item);
+            }
+          } else {
+            if (fromRetryList) {
+              updatePartialResourceInRetryList(item, key);
+            } else {
+              addParameterToRetryList(
+                key,
+                item,
+                searchDate,
+                selectedParameter,
+                responseData.code,
+                0,
+                "listarParcelasDeAtivos"
+              );
+            }
           }
         }
-      });
+
+        console.log(itemsProcessed);
+        var amountDone = (itemsProcessed / requestsQuantity) * 100;
+        if (amountDone !== progress) {
+          setProgress(amountDone);
+        }
+        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
+          console.log("Arr: " + requestsQuantity);
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
+        }
+      }
     } catch (e) {
       console.log("Erro ao listar parcelas de ativos");
       console.error(e);
@@ -1682,7 +1669,9 @@ export default function DataSyncView() {
 
   return (
     <Container className={styles.container}>
-      <Typography variant="h5" mb={5}>Importar Dados</Typography>
+      <Typography variant="h5" mb={5}>
+        Importar Dados
+      </Typography>
 
       <Stack sx={{ width: "50%" }} spacing={2}>
         <FormControl>
