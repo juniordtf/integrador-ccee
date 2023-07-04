@@ -523,33 +523,82 @@ export default function DataSyncView() {
         );
         itemsProcessed++;
 
-        if (responseData.code === 200) {
-          var perfis = responseData.data;
+        var totalPaginas = responseData.totalPaginas;
+        var totalPaginasNumber = totalPaginas._text
+          ? parseInt(totalPaginas._text.toString())
+          : 0;
 
-          if (perfis.length === undefined) {
-            mapResponseToProfileData(key, codAgente, perfis);
-          } else {
-            Array.prototype.forEach.call(perfis, async (item) => {
-              mapResponseToProfileData(key, codAgente, item);
-            });
-          }
+        if (totalPaginasNumber > 1) {
+          for (
+            let paginaCorrente = 1;
+            paginaCorrente <= totalPaginasNumber;
+            paginaCorrente++
+          ) {
+            // eslint-disable-next-line no-loop-func
+            var responseDataPaginated = await cadastrosService.listarPerfis(
+              authData,
+              codAgente,
+              paginaCorrente
+            );
 
-          if (fromRetryList) {
-            removeProfileFromRetryList(key, codAgente);
+            if (responseDataPaginated.code === 200) {
+              var perfisPaginated = responseDataPaginated.data;
+  
+              if (perfisPaginated.length === undefined) {
+                mapResponseToProfileData(key, codAgente, perfisPaginated);
+              } else {
+                Array.prototype.forEach.call(perfisPaginated, async (item) => {
+                  mapResponseToProfileData(key, codAgente, item);
+                });
+              }
+  
+              if (fromRetryList) {
+                removeProfileFromRetryList(key, codAgente);
+              }
+            } else {
+              if (fromRetryList) {
+                updateParticipantInRetryList(codAgente, key);
+              } else {
+                addParticipanteToRetryList(
+                  key,
+                  codAgente,
+                  responseDataPaginated.code,
+                  0,
+                  "listarPerfis"
+                );
+              }
+            }
           }
         } else {
-          if (fromRetryList) {
-            updateParticipantInRetryList(codAgente, key);
+          if (responseData.code === 200) {
+            var perfis = responseData.data;
+
+            if (perfis.length === undefined) {
+              mapResponseToProfileData(key, codAgente, perfis);
+            } else {
+              Array.prototype.forEach.call(perfis, async (item) => {
+                mapResponseToProfileData(key, codAgente, item);
+              });
+            }
+
+            if (fromRetryList) {
+              removeProfileFromRetryList(key, codAgente);
+            }
           } else {
-            addParticipanteToRetryList(
-              key,
-              codAgente,
-              responseData.code,
-              0,
-              "listarPerfis"
-            );
+            if (fromRetryList) {
+              updateParticipantInRetryList(codAgente, key);
+            } else {
+              addParticipanteToRetryList(
+                key,
+                codAgente,
+                responseData.code,
+                0,
+                "listarPerfis"
+              );
+            }
           }
         }
+
         console.log(itemsProcessed);
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
         setProgress(amountDone);
@@ -749,78 +798,36 @@ export default function DataSyncView() {
 
       const requestsQuantity = sourceItems.length;
 
-      const chunckSize = sourceItems.length >= 100 ? 100 : sourceItems.length;
-      const sourceItemsChunks = new Array(
-        Math.ceil(sourceItems.length / chunckSize)
-      )
-        .fill()
-        .map((_) => {
-          return sourceItems.splice(0, chunckSize);
-        });
+      for (const codPerfil of sourceItems) {
+        var responseData = await ativosService.listarAtivosDeMedicao(
+          authData,
+          codPerfil,
+          dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
+        );
 
-      sourceItemsChunks.forEach(async (chunckItems) => {
-        for (const codPerfil of chunckItems) {
-          var responseData = await ativosService.listarAtivosDeMedicao(
-            authData,
-            codPerfil,
-            dayjs(date).format("YYYY-MM-DDTHH:mm:ss")
-          );
+        itemsProcessed++;
 
-          itemsProcessed++;
+        var totalPaginas = responseData.totalPaginas;
+        var totalPaginasNumber = totalPaginas._text
+          ? parseInt(totalPaginas._text.toString())
+          : 0;
+        if (totalPaginasNumber > 1) {
+          for (
+            let paginaCorrente = 1;
+            paginaCorrente <= totalPaginasNumber;
+            paginaCorrente++
+          ) {
+            // eslint-disable-next-line no-loop-func
+            var responseDataPaginated =
+              await ativosService.listarAtivosDeMedicao(
+                authData,
+                codPerfil,
+                dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+                paginaCorrente
+              );
 
-          var totalPaginas = responseData.totalPaginas;
-          var totalPaginasNumber = totalPaginas._text
-            ? parseInt(totalPaginas._text.toString())
-            : 0;
-          if (totalPaginasNumber > 1) {
-            for (
-              let paginaCorrente = 1;
-              paginaCorrente <= totalPaginasNumber;
-              paginaCorrente++
-            ) {
-              // eslint-disable-next-line no-loop-func
-              var responseDataPaginated =
-                await ativosService.listarAtivosDeMedicao(
-                  authData,
-                  codPerfil,
-                  dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
-                  paginaCorrente
-                );
-
-              var ativos = responseDataPaginated.data;
-              if (responseDataPaginated.code === 200) {
-                if (ativos.length === undefined) {
-                  mapResponseToResourceData(key, codPerfil, ativos);
-                } else {
-                  Array.prototype.forEach.call(ativos, async (item) => {
-                    mapResponseToResourceData(key, codPerfil, item);
-                  });
-                }
-
-                if (fromRetryList) {
-                  removeResourceFromRetryList(key, codPerfil);
-                }
-              } else {
-                if (responseDataPaginated.code !== 500) {
-                  if (!fromRetryList) {
-                    addPerfilToRetryList(
-                      key,
-                      codPerfil,
-                      responseDataPaginated.code,
-                      0,
-                      "listarAtivosDeMedicao"
-                    );
-                  }
-                } else {
-                  if (fromRetryList) {
-                    removeResourceFromRetryList(key, codPerfil);
-                  }
-                }
-              }
-            }
-          } else {
-            var ativos = responseData.data;
-            if (responseData.code === 200) {
+            var ativos = responseDataPaginated.data;
+            if (responseDataPaginated.code === 200) {
               if (ativos.length === undefined) {
                 mapResponseToResourceData(key, codPerfil, ativos);
               } else {
@@ -833,12 +840,12 @@ export default function DataSyncView() {
                 removeResourceFromRetryList(key, codPerfil);
               }
             } else {
-              if (responseData.code !== 500) {
+              if (responseDataPaginated.code !== 500) {
                 if (!fromRetryList) {
                   addPerfilToRetryList(
                     key,
                     codPerfil,
-                    responseData.code,
+                    responseDataPaginated.code,
                     0,
                     "listarAtivosDeMedicao"
                   );
@@ -850,18 +857,49 @@ export default function DataSyncView() {
               }
             }
           }
+        } else {
+          var ativos = responseData.data;
+          if (responseData.code === 200) {
+            if (ativos.length === undefined) {
+              mapResponseToResourceData(key, codPerfil, ativos);
+            } else {
+              Array.prototype.forEach.call(ativos, async (item) => {
+                mapResponseToResourceData(key, codPerfil, item);
+              });
+            }
 
-          console.log(itemsProcessed);
-          var amountDone = (itemsProcessed / requestsQuantity) * 100;
-          setProgress(amountDone);
-          if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-            console.log("Arr: " + requestsQuantity);
-            setPendingRequests(pendingRequests - 1);
-            setProgress(0);
-            setSuccesDialogOpen(true);
+            if (fromRetryList) {
+              removeResourceFromRetryList(key, codPerfil);
+            }
+          } else {
+            if (responseData.code !== 500) {
+              if (!fromRetryList) {
+                addPerfilToRetryList(
+                  key,
+                  codPerfil,
+                  responseData.code,
+                  0,
+                  "listarAtivosDeMedicao"
+                );
+              }
+            } else {
+              if (fromRetryList) {
+                removeResourceFromRetryList(key, codPerfil);
+              }
+            }
           }
         }
-      });
+
+        console.log(itemsProcessed);
+        var amountDone = (itemsProcessed / requestsQuantity) * 100;
+        setProgress(amountDone);
+        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
+          console.log("Arr: " + requestsQuantity);
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
+        }
+      }
     } catch (e) {
       console.log("Erro ao listar ativos");
       console.error(e);

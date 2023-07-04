@@ -188,7 +188,7 @@ const listarParticipantesDeMercado_totalDePaginas = async (
   });
 };
 
-const listarPerfis = async (authData, agenteAtual): Promise<object> => {
+const listarPerfis = async (authData, agenteAtual, paginaAtual = 1): Promise<object> => {
   var options = {
     headers: {
       "Content-Type": "text/xml; charset=utf-8",
@@ -214,7 +214,7 @@ const listarPerfis = async (authData, agenteAtual): Promise<object> => {
       </oas:UsernameToken>
     </oas:Security>
     <mh:paginacao>
-      <mh:numero>1</mh:numero>
+      <mh:numero>${paginaAtual}</mh:numero>
       <mh:quantidadeItens>50</mh:quantidadeItens>
     </mh:paginacao>
   </soapenv:Header>
@@ -255,16 +255,25 @@ const listarPerfis = async (authData, agenteAtual): Promise<object> => {
             json["soapenv:Envelope"]["soapenv:Body"][
               "bmv2:listarPerfilParticipanteMercadoResponse"
             ]["bmv2:perfis"]["bov2:perfil"];
-          var responseData = { data: perfis, code: 200 };
+          const totalPaginas =
+            json["soapenv:Envelope"]["soapenv:Header"]["mh:paginacao"][
+              "mh:totalPaginas"
+            ];
+
+          var responseData = {
+            data: perfis,
+            code: response.status,
+            totalPaginas,
+          };
           resolve(responseData);
         } else {
-          var responseData = { data: agenteAtual, code: response.status };
+          var responseData = { data: agenteAtual, code: response.status, totalPaginas: 0 };
           resolve(responseData);
         }
       })
       .catch(function (error) {
         if (error.response) {
-          var responseData = { data: agenteAtual, code: error.response.status };
+          var responseData = { data: agenteAtual, code: error.response.status, totalPaginas: 0 };
           console.log(error.response.status);
           resolve(responseData);
         }
