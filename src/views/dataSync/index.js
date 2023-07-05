@@ -541,62 +541,20 @@ export default function DataSyncView() {
               paginaCorrente
             );
 
-            if (responseDataPaginated.code === 200) {
-              var perfisPaginated = responseDataPaginated.data;
-  
-              if (perfisPaginated.length === undefined) {
-                mapResponseToProfileData(key, codAgente, perfisPaginated);
-              } else {
-                Array.prototype.forEach.call(perfisPaginated, async (item) => {
-                  mapResponseToProfileData(key, codAgente, item);
-                });
-              }
-  
-              if (fromRetryList) {
-                removeProfileFromRetryList(key, codAgente);
-              }
-            } else {
-              if (fromRetryList) {
-                updateParticipantInRetryList(codAgente, key);
-              } else {
-                addParticipanteToRetryList(
-                  key,
-                  codAgente,
-                  responseDataPaginated.code,
-                  0,
-                  "listarPerfis"
-                );
-              }
-            }
+            handleProfileRespondeData(
+              responseDataPaginated,
+              key,
+              codAgente,
+              fromRetryList
+            );
           }
         } else {
-          if (responseData.code === 200) {
-            var perfis = responseData.data;
-
-            if (perfis.length === undefined) {
-              mapResponseToProfileData(key, codAgente, perfis);
-            } else {
-              Array.prototype.forEach.call(perfis, async (item) => {
-                mapResponseToProfileData(key, codAgente, item);
-              });
-            }
-
-            if (fromRetryList) {
-              removeProfileFromRetryList(key, codAgente);
-            }
-          } else {
-            if (fromRetryList) {
-              updateParticipantInRetryList(codAgente, key);
-            } else {
-              addParticipanteToRetryList(
-                key,
-                codAgente,
-                responseData.code,
-                0,
-                "listarPerfis"
-              );
-            }
-          }
+          handleProfileRespondeData(
+            responseData,
+            key,
+            codAgente,
+            fromRetryList
+          );
         }
 
         console.log(itemsProcessed);
@@ -612,6 +570,41 @@ export default function DataSyncView() {
     } catch (e) {
       console.log("Erro ao listar perfis");
       console.error(e);
+    }
+  }
+
+  function handleProfileRespondeData(
+    responseData,
+    key,
+    codAgente,
+    fromRetryList
+  ) {
+    if (responseData.code === 200) {
+      var perfis = responseData.data;
+
+      if (perfis.length === undefined) {
+        mapResponseToProfileData(key, codAgente, perfis);
+      } else {
+        Array.prototype.forEach.call(perfis, async (item) => {
+          mapResponseToProfileData(key, codAgente, item);
+        });
+      }
+
+      if (fromRetryList) {
+        removeProfileFromRetryList(key, codAgente);
+      }
+    } else {
+      if (fromRetryList) {
+        updateParticipantInRetryList(codAgente, key);
+      } else {
+        addParticipanteToRetryList(
+          key,
+          codAgente,
+          responseData.code,
+          0,
+          "listarPerfis"
+        );
+      }
     }
   }
 
@@ -1351,73 +1344,26 @@ export default function DataSyncView() {
                 paginaCorrente
               );
 
-            if (responseDataPaginated.code === 200) {
-              var parcelaAtivos = responseDataPaginated.data;
-
-              var parcelasDeAtivos = [];
-              if (parcelaAtivos.length === undefined) {
-                parcelasDeAtivos = [parcelaAtivos];
-              } else {
-                parcelasDeAtivos = parcelaAtivos;
-              }
-
-              Array.prototype.forEach.call(parcelasDeAtivos, async (x) => {
-                mapResponseToPartialMeasurementData(key, codMedidor, x);
-              });
-
-              if (fromRetryList) {
-                removeParameterFromRetryList(key, item);
-              }
-            } else {
-              if (fromRetryList) {
-                updatePartialResourceInRetryList(item, key);
-              } else {
-                addParameterToRetryList(
-                  key,
-                  item,
-                  searchDate,
-                  selectedParameter,
-                  responseDataPaginated.code,
-                  0,
-                  "listarParcelasDeAtivos"
-                );
-              }
-            }
+            handlePartialResourceResponseData(
+              responseDataPaginated,
+              key,
+              codMedidor,
+              selectedParameter,
+              searchDate,
+              item,
+              fromRetryList
+            );
           }
         } else {
-          if (responseData.code === 200) {
-            var parcelaAtivos = responseData.data;
-
-            if (parcelaAtivos.length === undefined) {
-              mapResponseToPartialMeasurementData(
-                key,
-                codMedidor,
-                parcelaAtivos
-              );
-            } else {
-              Array.prototype.forEach.call(parcelaAtivos, async (x) => {
-                mapResponseToPartialMeasurementData(key, codMedidor, x);
-              });
-            }
-
-            if (fromRetryList) {
-              removeParameterFromRetryList(key, item);
-            }
-          } else {
-            if (fromRetryList) {
-              updatePartialResourceInRetryList(item, key);
-            } else {
-              addParameterToRetryList(
-                key,
-                item,
-                searchDate,
-                selectedParameter,
-                responseData.code,
-                0,
-                "listarParcelasDeAtivos"
-              );
-            }
-          }
+          handlePartialResourceResponseData(
+            responseData,
+            key,
+            codMedidor,
+            selectedParameter,
+            searchDate,
+            item,
+            fromRetryList
+          );
         }
 
         console.log(itemsProcessed);
@@ -1435,6 +1381,46 @@ export default function DataSyncView() {
     } catch (e) {
       console.log("Erro ao listar parcelas de ativos");
       console.error(e);
+    }
+  }
+
+  function handlePartialResourceResponseData(
+    responseData,
+    key,
+    codMedidor,
+    selectedParameter,
+    searchDate,
+    item,
+    fromRetryList
+  ) {
+    if (responseData.code === 200) {
+      var parcelaAtivos = responseData.data;
+
+      if (parcelaAtivos.length === undefined) {
+        mapResponseToPartialMeasurementData(key, codMedidor, parcelaAtivos);
+      } else {
+        Array.prototype.forEach.call(parcelaAtivos, async (x) => {
+          mapResponseToPartialMeasurementData(key, codMedidor, x);
+        });
+      }
+
+      if (fromRetryList) {
+        removeParameterFromRetryList(key, item);
+      }
+    } else {
+      if (fromRetryList) {
+        updatePartialResourceInRetryList(item, key);
+      } else {
+        addParameterToRetryList(
+          key,
+          item,
+          searchDate,
+          selectedParameter,
+          responseData.code,
+          0,
+          "listarParcelasDeAtivos"
+        );
+      }
     }
   }
 

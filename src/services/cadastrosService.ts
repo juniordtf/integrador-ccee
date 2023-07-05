@@ -67,7 +67,7 @@ const listarParticipantesDeMercado = async (
   </soapenv:Envelope>`;
 
   return new Promise((resolve) => {
-    api
+    api()
       .post("/ParticipanteMercadoBSv2", xmlBodyStr, options)
       .then((response) => {
         var responseData = [];
@@ -162,7 +162,7 @@ const listarParticipantesDeMercado_totalDePaginas = async (
   </soapenv:Envelope>`;
 
   return new Promise((resolve) => {
-    api
+    api()
       .post("/ParticipanteMercadoBSv2", xmlBodyStr, options)
       .then((response) => {
         if (response.status === 200) {
@@ -244,7 +244,7 @@ const listarPerfis = async (authData, agenteAtual, paginaAtual = 1): Promise<obj
 </soapenv:Envelope>`;
 
   return new Promise((resolve) => {
-    api
+    api()
       .post("/PerfilParticipanteMercadoBSv2", xmlBodyStr, options)
       .then((response) => {
         if (response.status === 200) {

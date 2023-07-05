@@ -60,7 +60,7 @@ const listarAtivosDeMedicao = async (
 </soapenv:Envelope>`;
 
   return new Promise((resolve) => {
-    api
+    api()
       .post("/AtivoMedicaoBSv2", xmlBodyStr, options)
       .then((response) => {
         if (response.status === 200) {
@@ -170,7 +170,7 @@ const listarParcelasDeAtivosDeMedicao = async (
 </soapenv:Envelope>`;
 
   return new Promise((resolve) => {
-    api
+    api()
       .post("/ParcelaAtivoBSv2", xmlBodyStr, options)
       .then((response) => {
         if (response.status === 200) {
