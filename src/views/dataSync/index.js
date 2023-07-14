@@ -22,7 +22,6 @@ import { OutTable, ExcelRenderer } from "react-excel-renderer";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-//import { makeStyles } from "@mui/material/styles";
 import styles from "./styles.module.css";
 import { cadastrosService } from "../../services/cadastrosService.ts";
 import { ativosService } from "../../services/ativosService.ts";

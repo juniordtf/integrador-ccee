@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Typography from "@mui/material/Typography";
+import TextField from "@mui/material/TextField";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
 import TableCell from "@mui/material/TableCell";
@@ -34,6 +35,8 @@ import styles from "./styles.module.css";
 import CircularProgress from "@mui/material/CircularProgress";
 import Modal from "@mui/material/Modal";
 import Box from "@mui/material/Box";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import { useTheme } from "@mui/material/styles";
 import { db } from "../../database/db";
 
 const ParticipantsColumns = [
@@ -140,6 +143,11 @@ const PartialMeasurementColumns = [
 
 export default function DataExportView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
+  const [filteredDataSourceKeys, setFilteredDataSourceKeys] = useState([]);
+  const [participants, setParticipants] = useState([]);
+  const [profiles, setProfiles] = useState([]);
+  const [resources, setResources] = useState([]);
+  const [partialResources, setPartialResources] = useState([]);
   const [initialRows, setInitialRows] = useState([]);
   const [rows, setRows] = useState([]);
   const [rowKey, setRowKey] = useState("");
@@ -159,6 +167,54 @@ export default function DataExportView() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [inputText, setInputText] = useState("");
   const [open, setOpen] = useState(false);
+  const [actionId, setActionId] = useState(2);
+  const [datasetName, setDatasetName] = useState([]);
+  const [selectedEntity, setSelectedEntity] = useState("");
+  const [clusterName, setClusterName] = useState("");
+
+  const theme = useTheme();
+
+  const actions = [
+    { id: 1, value: "Agrupar dados" },
+    { id: 2, value: "Visualizar dados individualizados" },
+    { id: 3, value: "Comparar conjuntos de dados" },
+  ];
+
+  const entities = [
+    { id: 1, name: "Participantes", alias: "participantes" },
+    { id: 2, name: "Perfis", alias: "perfis" },
+    { id: 3, name: "Ativos de Medição", alias: "ativos" },
+    { id: 4, name: "Parcelas de Ativos", alias: "parcelasDeAtivos" },
+  ];
+
+  function getStyles(name, personName, theme) {
+    return {
+      fontWeight:
+        personName.indexOf(name) === -1
+          ? theme.typography.fontWeightRegular
+          : theme.typography.fontWeightMedium,
+    };
+  }
+
+  const handleMultiSectecDataSourceChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+
+    setDatasetName(typeof value === "string" ? value.split(",") : value);
+  };
+
+  const handleSelectedEntityChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+
+    setSelectedEntity(value);
+
+    var filteredDataSources = dataSourceKeys.filter((x) => x.includes(value));
+
+    setFilteredDataSourceKeys(filteredDataSources);
+  };
 
   const handleLoadingModalOpen = () => setOpen(true);
 
@@ -177,24 +233,35 @@ export default function DataExportView() {
       } else {
         participantes = await db.participantes.toArray();
       }
+
+      setParticipants(participantes);
+
       var perfis = await db.perfis;
       if (perfis === undefined) {
         perfis = [];
       } else {
         perfis = await db.perfis.toArray();
       }
+
+      setProfiles(perfis);
+
       var ativosMedicao = await db.ativosMedicao;
       if (ativosMedicao === undefined) {
         ativosMedicao = [];
       } else {
         ativosMedicao = await db.ativosMedicao.toArray();
       }
+
+      setResources(ativosMedicao);
+
       var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
       if (parcelasAtivosMedicao === undefined) {
         parcelasAtivosMedicao = [];
       } else {
         parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
       }
+
+      setPartialResources(parcelasAtivosMedicao);
 
       var dataSources = [];
 
@@ -292,51 +359,23 @@ export default function DataExportView() {
   };
 
   const getSelectedRows = async (dataSourceKey) => {
-    console.log(dataSourceKey);
-    var participantes = await db.participantes;
-    if (participantes === undefined) {
-      participantes = [];
-    } else {
-      participantes = await db.participantes.toArray();
-    }
-    var perfis = await db.perfis;
-    if (perfis === undefined) {
-      perfis = [];
-    } else {
-      perfis = await db.perfis.toArray();
-    }
-    var ativosMedicao = await db.ativosMedicao;
-    if (ativosMedicao === undefined) {
-      ativosMedicao = [];
-    } else {
-      ativosMedicao = await db.ativosMedicao.toArray();
-    }
-    var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
-    if (parcelasAtivosMedicao === undefined) {
-      parcelasAtivosMedicao = [];
-    } else {
-      parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
-    }
-
-    var filteredParticipants = participantes.filter(
+    var filteredParticipants = participants.filter(
       (x) => x.key === dataSourceKey
     );
-    var filteredProfiles = perfis.filter((x) => x.key === dataSourceKey);
-    var filteredResources = ativosMedicao.filter(
-      (x) => x.key === dataSourceKey
-    );
-    var filteredPartialResources = parcelasAtivosMedicao.filter(
+    var filteredProfiles = profiles.filter((x) => x.key === dataSourceKey);
+    var filteredResources = resources.filter((x) => x.key === dataSourceKey);
+    var filteredPartialResources = partialResources.filter(
       (x) => x.key === dataSourceKey
     );
 
-    if (participantes.length > 0 && filteredParticipants.length > 0) {
+    if (participants.length > 0 && filteredParticipants.length > 0) {
       return filteredParticipants;
-    } else if (perfis.length > 0 && filteredProfiles.length > 0) {
+    } else if (profiles.length > 0 && filteredProfiles.length > 0) {
       return filteredProfiles;
-    } else if (ativosMedicao.length > 0 && filteredResources.length > 0) {
+    } else if (partialResources.length > 0 && filteredResources.length > 0) {
       return filteredResources;
     } else if (
-      parcelasAtivosMedicao.length > 0 &&
+      partialResources.length > 0 &&
       filteredPartialResources.length > 0
     ) {
       return filteredPartialResources;
@@ -430,13 +469,38 @@ export default function DataExportView() {
     setInitialRows([]);
   };
 
-  const handleCompareDataSourcesChange = (event) => {
-    setCompareDataSources(event.target.checked);
-    setSelectedDataSource("");
-    setSelectedDataSourceA("");
-    setSelectedDataSourceB("");
-    setResultDataSourceText("");
+  const handleSaveCluster = () => {
+    handleLoadingModalOpen();
     setInputText("");
+
+    var dataSource = [];
+
+    if (selectedEntity === "participantes") {
+      dataSource = participants;
+      setSelectedDataSource("participantes");
+    } else if (selectedEntity === "perfis") {
+      dataSource = profiles;
+      setSelectedDataSource("perfis");
+    } else if (selectedEntity === "ativos") {
+      dataSource = resources;
+      setSelectedDataSource("ativos");
+    } else {
+      dataSource = partialResources;
+      setSelectedDataSource("parcelasDeAtivos");
+    }
+
+    var content = [];
+
+    for(const dt of datasetName) {
+      var data = dataSource.filter((x) => x.key === dt);
+      content = content.concat(data);
+    };
+
+    console.log(content.length);
+
+    setRows(content);
+    setInitialRows(content);
+    handleLoadingModalClose();
   };
 
   const handleDataSourceAChange = async (event) => {
@@ -588,6 +652,26 @@ export default function DataExportView() {
     setDialogOpen(false);
   };
 
+  const handleActionChange = (event) => {
+    setActionId(event.target.value);
+    setSelectedDataSource("");
+    setSelectedDataSourceA("");
+    setSelectedDataSourceB("");
+    setResultDataSourceText("");
+    setInputText("");
+  };
+
+  const chooseFieldsToRender = () => {
+    var option = parseInt(actionId);
+    if (option === 1) {
+      return <div>{RnederGroupDatasetsView()}</div>;
+    } else if (option === 2) {
+      return <div>{RenderSingleExporterView()}</div>;
+    } else {
+      return <div>{RenderComparatorExporterView()}</div>;
+    }
+  };
+
   function RenderTable() {
     return (
       <div>
@@ -702,10 +786,13 @@ export default function DataExportView() {
               id="data-source-simple-select"
               value={selectedDataSource}
               label="Fonte de dados"
+              input={<OutlinedInput label="Name" />}
               onChange={handleDataSourceChange}
             >
               {dataSourceKeys.map((x) => (
-                <MenuItem value={x}>{x}</MenuItem>
+                <MenuItem key={x} value={x}>
+                  {x}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -724,6 +811,7 @@ export default function DataExportView() {
             Excluir
           </Button>
         </Stack>
+
         {selectedDataSource !== "" ? <div>{RenderTable()}</div> : <div></div>}
       </div>
     );
@@ -814,13 +902,92 @@ export default function DataExportView() {
               <div>{RenderTable()}</div>
             ) : (
               <div className={styles.dataContainer}>
-                <Typography paragraph variant="h6">Sem dados para exibição</Typography>
+                <Typography paragraph variant="h6">
+                  Sem dados para exibição
+                </Typography>
               </div>
             )}
           </div>
         ) : (
           <div></div>
         )}
+      </div>
+    );
+  }
+
+  function RnederGroupDatasetsView() {
+    return (
+      <div>
+        <Stack
+          direction="row"
+          divider={<Divider orientation="vertical" flexItem />}
+          sx={{ marginTop: 2 }}
+          spacing={2}
+        >
+          <FormControl sx={{ width: "30%" }}>
+            <InputLabel id="data-source-select-label">Entidade</InputLabel>
+            <Select
+              labelId="data-source-select-label"
+              id="data-source-simple-select"
+              value={selectedEntity}
+              label="Entidades"
+              input={<OutlinedInput label="Name" />}
+              onChange={handleSelectedEntityChange}
+            >
+              {entities.map((x) => (
+                <MenuItem key={x.id} value={x.alias}>
+                  {x.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl sx={{ width: "50%" }}>
+            <InputLabel id="demo-multiple-name-label">
+              Conjunto de dados
+            </InputLabel>
+            <Select
+              labelId="demo-multiple-name-label"
+              id="demo-multiple-name"
+              multiple
+              value={datasetName}
+              onChange={handleMultiSectecDataSourceChange}
+              input={<OutlinedInput label="Name" />}
+            >
+              {filteredDataSourceKeys.map((name) => (
+                <MenuItem
+                  key={name}
+                  value={name}
+                  style={getStyles(name, datasetName, theme)}
+                >
+                  {name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
+        <Stack
+          direction="row"
+          divider={<Divider orientation="vertical" flexItem />}
+          sx={{ marginTop: 2 }}
+          spacing={2}
+        >
+          <TextField
+            id="custerName"
+            label="Nome do agrupamento"
+            sx={{ width: 450 }}
+            variant="outlined"
+            value={clusterName}
+            onChange={(event) => setClusterName(event.target.value)}
+          />
+          <Button
+            variant="outlined"
+            onClick={handleSaveCluster}
+            sx={{ marginTop: 2 }}
+          >
+            Gerar agrupamento
+          </Button>
+        </Stack>
+        {selectedDataSource !== "" ? <div>{RenderTable()}</div> : <div></div>}
       </div>
     );
   }
@@ -844,20 +1011,29 @@ export default function DataExportView() {
       <Typography variant="h5" mb={5}>
         Exportar Dados
       </Typography>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={compareDataSources}
-            onChange={handleCompareDataSourcesChange}
-            name="gilad"
-          />
-        }
-        label="Comparar fontes de dados"
-      />
+      <FormControl>
+        <FormLabel id="demo-radio-buttons-group-label">
+          Método de preparo
+        </FormLabel>
+        <RadioGroup
+          aria-labelledby="action-radio-buttons-group-label"
+          defaultValue={actions[1].id}
+          name="raction-radio-buttons-group"
+          value={actionId}
+          onChange={handleActionChange}
+        >
+          {actions.map((x) => (
+            <FormControlLabel
+              key={x.id}
+              value={x.id}
+              control={<Radio />}
+              label={x.value}
+            />
+          ))}
+        </RadioGroup>
+      </FormControl>
 
-      {compareDataSources
-        ? RenderComparatorExporterView()
-        : RenderSingleExporterView()}
+      {chooseFieldsToRender()}
 
       <Modal
         open={open}
