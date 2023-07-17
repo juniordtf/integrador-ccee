@@ -491,10 +491,10 @@ export default function DataExportView() {
 
     var content = [];
 
-    for(const dt of datasetName) {
+    for (const dt of datasetName) {
       var data = dataSource.filter((x) => x.key === dt);
       content = content.concat(data);
-    };
+    }
 
     console.log(content.length);
 
@@ -659,6 +659,9 @@ export default function DataExportView() {
     setSelectedDataSourceB("");
     setResultDataSourceText("");
     setInputText("");
+    setSelectedEntity("");
+    setDatasetName([]);
+    setClusterName("");
   };
 
   const chooseFieldsToRender = () => {
@@ -974,7 +977,7 @@ export default function DataExportView() {
           <TextField
             id="custerName"
             label="Nome do agrupamento"
-            sx={{ width: 450 }}
+            sx={{ width: 400 }}
             variant="outlined"
             value={clusterName}
             onChange={(event) => setClusterName(event.target.value)}
@@ -986,6 +989,14 @@ export default function DataExportView() {
           >
             Gerar agrupamento
           </Button>
+
+          {selectedDataSource !== "" ? (
+            <Button variant="outlined" onClick={handleExportData}>
+              Exportar
+            </Button>
+          ) : (
+            <div></div>
+          )}
         </Stack>
         {selectedDataSource !== "" ? <div>{RenderTable()}</div> : <div></div>}
       </div>

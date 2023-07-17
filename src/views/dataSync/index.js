@@ -270,14 +270,15 @@ export default function DataSyncView() {
     setParameter(event.target.value);
   };
 
-  const sendRequest_ListarParticipantes = async () => {
+  const sendRequest_ListarParticipantes = async (classId = 0) => {
     setPendingRequests(pendingRequests + 1);
+    var cat = classId === 0 ? category : classId;
     var totalPages =
       await cadastrosService.listarParticipantesDeMercado_totalDePaginas(
         authData,
         "01",
         dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
-        category
+        cat
       );
 
     if (totalPages === null) {
@@ -290,27 +291,33 @@ export default function DataSyncView() {
     }
 
     console.log(totalPages);
-    const categoryName = classes.find((x) => x.id === category).name;
-    const key =
-      "participantes_" + categoryName + "_" + dayjs(date).format("DD/MM/YY");
+    var key = "";
 
-    db.participantes
-      .where("key")
-      .equalsIgnoreCase(key)
-      .count()
-      .then(function (count) {
-        if (count > 0) {
-          console.log("Counted " + count + " objects");
-          setWarningText(
-            'Já existe uma coleção de dados com o nome "' + key + '"'
-          );
-          setPendingRequests(pendingRequests - 1);
-          setWarningDialogOpen(true);
-          return;
-        }
-      });
+    if (classId === 0) {
+      const categoryName = classes.find((x) => x.id === category).name;
+      key =
+        "participantes_" + categoryName + "_" + dayjs(date).format("DD/MM/YY");
 
-    listarParticipantes(key, totalPages, date, category);
+      db.participantes
+        .where("key")
+        .equalsIgnoreCase(key)
+        .count()
+        .then(function (count) {
+          if (count > 0) {
+            console.log("Counted " + count + " objects");
+            setWarningText(
+              'Já existe uma coleção de dados com o nome "' + key + '"'
+            );
+            setPendingRequests(pendingRequests - 1);
+            setWarningDialogOpen(true);
+            return;
+          }
+        });
+    } else {
+      key = "participantes_" + dayjs(date).format("DD/MM/YY");
+    }
+
+    listarParticipantes(key, totalPages, date, cat);
   };
 
   async function listarParticipantes(
@@ -1506,6 +1513,14 @@ export default function DataSyncView() {
 
   const sendRequest_ListarParcelasDeCarga = async () => {};
 
+  const sendRequest_FullAutomatic = async () => {
+    setPendingRequests(pendingRequests + 1);
+    for (const cl of classes) {
+      sendRequest_ListarParticipantes(cl.id);
+    }
+    setPendingRequests(pendingRequests - 1);
+  };
+
   const fileHandler = (event) => {
     let fileObj = event.target.files[0];
 
@@ -1525,28 +1540,60 @@ export default function DataSyncView() {
   };
 
   const sendRequest = () => {
-    switch (service) {
-      case 1:
-        sendRequest_ListarParticipantes();
-        break;
-      case 2:
-        sendRequest_ListarPerfis();
-        break;
-      case 3:
-        sendRequest_ListarAtivosDeMedicao();
-        break;
-      case 4:
-        sendRequest_ListarParcelasDeAtivo();
-        break;
-      default:
-        sendRequest_ListarParticipantes();
-        break;
+    if (searchMethod === "Automático") {
+      sendRequest_FullAutomatic();
+    } else {
+      switch (service) {
+        case 1:
+          sendRequest_ListarParticipantes();
+          break;
+        case 2:
+          sendRequest_ListarPerfis();
+          break;
+        case 3:
+          sendRequest_ListarAtivosDeMedicao();
+          break;
+        case 4:
+          sendRequest_ListarParcelasDeAtivo();
+          break;
+        default:
+          sendRequest_ListarParticipantes();
+          break;
+      }
     }
 
     //fetchWebWorker();
   };
 
   const chooseFieldsToRender = () => {
+    if (searchMethod === "Automático") {
+      return <div>{renderFullAutomaticFields()}</div>;
+    } else {
+      return (
+        <div>
+          <Stack spacing={2}>
+            <FormControl>
+              <InputLabel id="service-select-label">Serviço</InputLabel>
+              <Select
+                labelId="service-select-label"
+                id="service-simple-select"
+                value={service}
+                label="Serviço"
+                onChange={handleServiceChange}
+              >
+                {servicos.map((x) => (
+                  <MenuItem value={x.id}>{x.name}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {decideServiceFiledsToRender()}
+          </Stack>
+        </div>
+      );
+    }
+  };
+
+  function decideServiceFiledsToRender() {
     const serviceId = parseInt(service);
 
     if (serviceId === 1) {
@@ -1558,7 +1605,7 @@ export default function DataSyncView() {
     } else {
       return <div>{renderLoadFields()}</div>;
     }
-  };
+  }
 
   const renderParticipantsFields = () => {
     return (
@@ -1686,6 +1733,25 @@ export default function DataSyncView() {
     );
   };
 
+  const renderFullAutomaticFields = () => {
+    return (
+      <div>
+        <Stack spacing={2}>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DateTimePicker
+              label="Data & Hora"
+              value={date}
+              onChange={(newValue) => {
+                setDate(newValue);
+              }}
+              renderInput={(params) => <TextField {...params} />}
+            />
+          </LocalizationProvider>
+        </Stack>
+      </div>
+    );
+  };
+
   const renderLoadFields = () => {
     return <div></div>;
   };
@@ -1715,25 +1781,16 @@ export default function DataSyncView() {
               label="Automático"
             />
             <FormControlLabel
+              value="Semi Automático"
+              control={<Radio />}
+              label="Semi Automático"
+            />
+            <FormControlLabel
               value="Manual"
               control={<Radio />}
               label="Manual"
             />
           </RadioGroup>
-        </FormControl>
-        <FormControl>
-          <InputLabel id="service-select-label">Serviço</InputLabel>
-          <Select
-            labelId="service-select-label"
-            id="service-simple-select"
-            value={service}
-            label="Serviço"
-            onChange={handleServiceChange}
-          >
-            {servicos.map((x) => (
-              <MenuItem value={x.id}>{x.name}</MenuItem>
-            ))}
-          </Select>
         </FormControl>
         {chooseFieldsToRender()}
       </Stack>
