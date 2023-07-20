@@ -1206,7 +1206,7 @@ export default function DataSyncView() {
 
     for (const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
-      let itemsToRemove = retryData.filter((z) => z.attempts > 2);
+      let itemsToRemove = retryData.filter((z) => z.attempts > 1);
 
       if (itemsToRemove.length === 0) {
         setPendingRequests(pendingRequests - 1);

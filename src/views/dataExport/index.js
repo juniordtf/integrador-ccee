@@ -36,6 +36,8 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Modal from "@mui/material/Modal";
 import Box from "@mui/material/Box";
 import OutlinedInput from "@mui/material/OutlinedInput";
+import ListItemText from "@mui/material/ListItemText";
+import Checkbox from "@mui/material/Checkbox";
 import { useTheme } from "@mui/material/styles";
 import { db } from "../../database/db";
 
@@ -174,6 +176,17 @@ export default function DataExportView() {
 
   const theme = useTheme();
 
+  const ITEM_HEIGHT = 48;
+  const ITEM_PADDING_TOP = 8;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+        width: 250,
+      },
+    },
+  };
+
   const actions = [
     { id: 1, value: "Agrupar dados" },
     { id: 2, value: "Visualizar dados individualizados" },
@@ -186,15 +199,6 @@ export default function DataExportView() {
     { id: 3, name: "Ativos de Medição", alias: "ativos" },
     { id: 4, name: "Parcelas de Ativos", alias: "parcelasDeAtivos" },
   ];
-
-  function getStyles(name, personName, theme) {
-    return {
-      fontWeight:
-        personName.indexOf(name) === -1
-          ? theme.typography.fontWeightRegular
-          : theme.typography.fontWeightMedium,
-    };
-  }
 
   const handleMultiSectecDataSourceChange = (event) => {
     const {
@@ -955,14 +959,13 @@ export default function DataExportView() {
               value={datasetName}
               onChange={handleMultiSectecDataSourceChange}
               input={<OutlinedInput label="Name" />}
+              renderValue={(selected) => selected.join(", ")}
+              MenuProps={MenuProps}
             >
               {filteredDataSourceKeys.map((name) => (
-                <MenuItem
-                  key={name}
-                  value={name}
-                  style={getStyles(name, datasetName, theme)}
-                >
-                  {name}
+                <MenuItem key={name} value={name}>
+                  <Checkbox checked={datasetName.indexOf(name) > -1} />
+                  <ListItemText primary={name} />
                 </MenuItem>
               ))}
             </Select>
