@@ -1031,13 +1031,13 @@ export default function DataSyncView() {
   const retryFaultyRequests = async () => {
     if (retryKeys.length === 0) return;
 
-    retryKeys.forEach((key) => {
+    for(const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
 
       if (key.includes("participantes")) {
         setPendingRequests(pendingRequests + 1);
 
-        retryData.forEach((rd) => {
+        for(const rd of retryData) {
           listarParticipantes(
             key.substring(6),
             rd.page,
@@ -1045,7 +1045,7 @@ export default function DataSyncView() {
             rd.category,
             true
           );
-        });
+        };
       } else if (key.includes("perfis")) {
         const codAgentes = retryData.map((x) => x.codAgente);
         listarPerfis(key.substring(6), codAgentes, true);
@@ -1067,7 +1067,7 @@ export default function DataSyncView() {
       } else {
         return;
       }
-    });
+    };
   };
 
   const removeProfileFromRetryList = (key, codAgente) => {
@@ -1204,7 +1204,7 @@ export default function DataSyncView() {
       return;
     }
 
-    retryKeys.forEach((key) => {
+    for (const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
       let itemsToRemove = retryData.filter((z) => z.attempts > 2);
 
@@ -1214,25 +1214,25 @@ export default function DataSyncView() {
       }
 
       if (key.includes("participantes")) {
-        itemsToRemove.forEach((x) =>
-          removeParticipantsPageFromRetryList(key.substring(6), x.page)
-        );
+        for (const x of itemsToRemove) {
+          removeParticipantsPageFromRetryList(key.substring(6), x.page);
+        }
       } else if (key.includes("perfis")) {
-        itemsToRemove.forEach((x) =>
-          removeProfileFromRetryList(key.substring(6), x.codAgente)
-        );
+        for (const x of itemsToRemove) {
+          removeProfileFromRetryList(key.substring(6), x.codAgente);
+        }
       } else if (key.includes("parcelasDeAtivos")) {
-        itemsToRemove.forEach((x) =>
-          removeParameterFromRetryList(key.substring(6), x.parameterCode)
-        );
+        for (const x of itemsToRemove) {
+          removeParameterFromRetryList(key.substring(6), x.parameterCode);
+        }
       } else if (key.includes("ativos")) {
-        itemsToRemove.forEach((x) =>
-          removeResourceFromRetryList(key.substring(6), x.codPerfil)
-        );
+        for (const x of itemsToRemove) {
+          removeResourceFromRetryList(key.substring(6), x.codPerfil);
+        }
       } else {
         return;
       }
-    });
+    }
   };
 
   const sendRequest_ListarParcelasDeAtivo = async () => {
