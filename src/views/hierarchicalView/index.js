@@ -27,7 +27,7 @@ export default function HierarchicalView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [selectedDataSource, setSelectedDataSource] = useState("");
   const [participantsCode, setParticipantsCode] = useState("");
-  const [treeViewData, setTreeViewData] = useState([]);
+  const [treeViewData, setTreeViewData] = useState("");
   const [participants, setParticipants] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [partialResources, setPartialResources] = useState([]);
@@ -513,6 +513,7 @@ export default function HierarchicalView() {
 
   const renderTree = (nodes) => (
     <StyledTreeItem
+      key={nodes.id}
       nodeId={nodes.id}
       labelText={nodes.name}
       labelIcon={nodes.icon}
@@ -558,7 +559,9 @@ export default function HierarchicalView() {
             onChange={handleDataSourceChange}
           >
             {dataSourceKeys.map((x) => (
-              <MenuItem value={x}>{x}</MenuItem>
+              <MenuItem value={x} key={x}>
+                {x}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -575,22 +578,27 @@ export default function HierarchicalView() {
         </Button>
       </Stack>
 
-      <div className={styles.treeViewContainer}>
-        <TreeView
-          aria-label="rich object"
-          defaultCollapseIcon={<ExpandMoreIcon />}
-          defaultExpanded={["root"]}
-          defaultExpandIcon={<ChevronRightIcon />}
-          sx={{
-            minHeight: 250,
-            maxHeight: 500,
-            flexGrow: 1,
-            overflowY: "auto",
-          }}
-        >
-          {renderTree(treeViewData)}
-        </TreeView>
-      </div>
+      {treeViewData !== "" ? (
+        <div className={styles.treeViewContainer}>
+          <TreeView
+            aria-label="rich object"
+            defaultCollapseIcon={<ExpandMoreIcon />}
+            defaultExpanded={["root"]}
+            defaultExpandIcon={<ChevronRightIcon />}
+            sx={{
+              minHeight: 250,
+              maxHeight: 500,
+              flexGrow: 1,
+              overflowY: "auto",
+            }}
+          >
+            {renderTree(treeViewData)}
+          </TreeView>
+        </div>
+      ) : (
+        <div />
+      )}
+
       <div className={styles.detailsSection}>{chooseCardToRender()}</div>
 
       <Modal

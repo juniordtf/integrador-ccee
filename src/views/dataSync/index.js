@@ -1582,7 +1582,7 @@ export default function DataSyncView() {
                 onChange={handleServiceChange}
               >
                 {servicos.map((x) => (
-                  <MenuItem value={x.id}>{x.name}</MenuItem>
+                  <MenuItem value={x.id} key={x.id}>{x.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -1625,13 +1625,13 @@ export default function DataSyncView() {
           <InputLabel id="class-simple-select-label">Classe</InputLabel>
           <Select
             labelId="class-simple-select-label"
-            id="class-simple-select"
+            id="class-simple-select-2"
             value={category}
             label="Classe"
             onChange={handleCategoryChange}
           >
             {classes.map((x) => (
-              <MenuItem value={x.id}>{x.name}</MenuItem>
+              <MenuItem value={x.id} key={x.id}>{x.name}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -1654,16 +1654,16 @@ export default function DataSyncView() {
     return (
       <Stack spacing={2}>
         <FormControl>
-          <InputLabel id="data-source-select-label">Fonte de dados</InputLabel>
+          <InputLabel id="data-source-select-label-2">Fonte de dados</InputLabel>
           <Select
             labelId="data-source-select-label"
-            id="data-source-simple-select"
+            id="data-source-simple-select-2"
             value={selectedDataSource}
             label="Fonte de dados"
             onChange={handleDataSourceChange}
           >
             {sortedDataSourceKeys.map((x) => (
-              <MenuItem value={x}>{x}</MenuItem>
+              <MenuItem value={x} key={x}>{x}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -1697,13 +1697,13 @@ export default function DataSyncView() {
               </InputLabel>
               <Select
                 labelId="data-source-select-label"
-                id="data-source-simple-select"
+                id="data-source-simple-select-3"
                 value={parameter}
                 label="Parâmetro de entrada"
                 onChange={handleParameterChange}
               >
                 {parameters.map((x) => (
-                  <MenuItem value={x.id}>{x.name}</MenuItem>
+                  <MenuItem value={x.id} key={x.id}>{x.name}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -1712,18 +1712,18 @@ export default function DataSyncView() {
         ) : (
           <Stack spacing={2}>
             <FormControl>
-              <InputLabel id="data-source-select-label">
+              <InputLabel id="data-source-select-label-4">
                 Fonte de dados
               </InputLabel>
               <Select
                 labelId="data-source-select-label"
-                id="data-source-simple-select"
+                id="data-source-simple-select-4"
                 value={selectedDataSource}
                 label="Fonte de dados"
                 onChange={handleDataSourceChange}
               >
                 {sortedDataSourceKeys.map((x) => (
-                  <MenuItem value={x}>{x}</MenuItem>
+                  <MenuItem value={x} key={x}>{x}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -1764,7 +1764,7 @@ export default function DataSyncView() {
 
       <Stack sx={{ width: "50%" }} spacing={2}>
         <FormControl>
-          <FormLabel id="demo-radio-buttons-group-label">
+          <FormLabel id="demo-radio-buttons-group-label-x">
             Método de busca
           </FormLabel>
           <RadioGroup
@@ -1827,7 +1827,7 @@ export default function DataSyncView() {
       >
         <Box sx={style}>
           <Typography
-            id="modal-modal-title"
+            id="modal-modal-title-m"
             variant="h6"
             component="h2"
             sx={{ marginTop: "-15px" }}

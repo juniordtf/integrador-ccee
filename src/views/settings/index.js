@@ -167,7 +167,7 @@ export default function SettingsView(): React$Element<*> {
             </Box>
           ) : (
             <div>
-              <Box sx={styles.certificateSection}>
+              <Box>
                 <FormControl>
                   <FormLabel id="demo-radio-buttons-group-label">
                     Empresa
@@ -213,14 +213,14 @@ export default function SettingsView(): React$Element<*> {
                   onChange={(event) => setUsername(event.target.value)}
                 />
                 <TextField
-                  id="outlined-password-input"
+                  id="outlined-password-input-2"
                   label="Password"
                   type="password"
                   autoComplete="current-password"
                   onChange={(event) => setPassword(event.target.value)}
                 />
                 <TextField
-                  id="outlined-basic"
+                  id="outlined-basic-2"
                   label="Código de perfil"
                   variant="outlined"
                   onChange={(event) => setProfileCode(event.target.value)}

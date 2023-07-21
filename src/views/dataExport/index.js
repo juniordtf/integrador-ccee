@@ -838,19 +838,21 @@ export default function DataExportView() {
               Fonte de dados A
             </InputLabel>
             <Select
-              labelId="data-source-select-a-label"
+              labelId="data-source-select-a-label-a"
               id="data-source-simple-select-a"
               value={selectedDataSourceA}
               label="Fonte de dados"
               onChange={handleDataSourceAChange}
             >
               {dataSourceKeys.map((x) => (
-                <MenuItem value={x}>{x}</MenuItem>
+                <MenuItem value={x} key={x}>
+                  {x}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
           <FormControl sx={{ width: "50%" }}>
-            <InputLabel id="data-source-select-label">
+            <InputLabel id="data-source-select-label-b">
               Fonte de dados B
             </InputLabel>
             <Select
@@ -861,7 +863,9 @@ export default function DataExportView() {
               onChange={handleDataSourceBChange}
             >
               {dataSourceKeys.map((x) => (
-                <MenuItem value={x}>{x}</MenuItem>
+                <MenuItem value={x} key={x}>
+                  {x}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
