@@ -400,7 +400,13 @@ export default function DataExportView() {
 
   const exportData = () => {
     const data = initialRows;
-    const fileName = selectedDataSource;
+    var fileName = selectedDataSource;
+    var selectedOption = parseInt(actionId);
+
+    if(selectedOption === 1){
+      fileName = clusterName;
+    }
+
     let exportType = "";
 
     if (selectedFileFormat === "csv") {
