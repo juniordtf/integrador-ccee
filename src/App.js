@@ -16,8 +16,9 @@ import ListItemText from "@mui/material/ListItemText";
 import SettingsIcon from "@mui/icons-material/Settings";
 import FileDownload from "@mui/icons-material/FileDownload";
 import FileUpload from "@mui/icons-material/FileUpload";
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import AccountTreeIcon from "@mui/icons-material/AccountTree";
 import MenuIcon from "@mui/icons-material/Menu";
+import DescriptionIcon from "@mui/icons-material/Description";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
 import { NavLink } from "react-router-dom";
@@ -25,6 +26,7 @@ import DataSyncView from "./views/dataSync/index";
 import DataExportView from "./views/dataExport/index";
 import HierarchicalView from "./views/hierarchicalView/index";
 import SettingsView from "./views/settings/index";
+import DriReportsView from "./views/driReports/index";
 import routes from "./routes";
 
 const drawerWidth = 240;
@@ -79,6 +81,19 @@ function App(props: Props) {
             <ListItemText primary={"Visualização Hierárquica"} />
           </ListItem>
         </NavLink>
+        <Divider />
+        <NavLink
+          to="/relatoriosDRI"
+          style={{ textDecoration: "none", color: "black" }}
+        >
+          <ListItem button>
+            <ListItemIcon>
+              <DescriptionIcon />
+            </ListItemIcon>
+            <ListItemText primary={"Relatórios DRI"} />
+          </ListItem>
+        </NavLink>
+        <Divider />
         <NavLink
           to="/configuracoes"
           style={{ textDecoration: "none", color: "black" }}
@@ -172,7 +187,12 @@ function App(props: Props) {
             <Route exact path="/" element={<DataSyncView />} />
             <Route exact path="/importarDados" element={<DataSyncView />} />
             <Route exact path="/exportarDados" element={<DataExportView />} />
-            <Route exact path="/visualizacaoHierarquica" element={<HierarchicalView />} />
+            <Route
+              exact
+              path="/visualizacaoHierarquica"
+              element={<HierarchicalView />}
+            />
+            <Route exact path="/relatoriosDRI" element={<DriReportsView />} />
             <Route exact path="/configuracoes" element={<SettingsView />} />
           </Routes>
         </Box>

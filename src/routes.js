@@ -26,6 +26,10 @@ const routes: Array<RouteDefinition> = [
     name: "hierarchicalView",
   },
   {
+    path: "/relatoriosDRI",
+    name: "driReports",
+  },
+  {
     path: "/configuracoes",
     name: "settings",
   },
