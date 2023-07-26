@@ -12,6 +12,9 @@ import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import { DataGrid } from "@mui/x-data-grid";
+import CircularProgress from "@mui/material/CircularProgress";
+import Modal from "@mui/material/Modal";
+import Box from "@mui/material/Box";
 import { driService } from "../../services/driService.ts";
 
 export default function DriReportsView() {
@@ -22,6 +25,7 @@ export default function DriReportsView() {
   const [participantCode, setParticipantCode] = useState();
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [loadingModalOpen, setLoadingModalOpen] = useState(false);
 
   const reports = [
     { id: 70, name: "Liquidação de Energia de Reserva", code: "029000" },
@@ -54,11 +58,14 @@ export default function DriReportsView() {
   };
 
   const sendRequest = async () => {
+    setLoadingModalOpen(true);
+
     if (
       selectedReportId === "" ||
       selectedBoardId === "" ||
       participantCode === ""
     ) {
+      handleLoadingModalClose();
       return;
     }
 
@@ -77,7 +84,7 @@ export default function DriReportsView() {
     if (responseData.code === 200) {
       const results = responseData.data;
       mapResponseToTableData(results);
-      console.log(results);
+      handleLoadingModalClose();
     }
   };
 
@@ -119,7 +126,7 @@ export default function DriReportsView() {
         rowsArr.push(rowData);
         rowIdx++;
       }
-    } else{
+    } else {
       const valor = valores._text.toString();
       const valorArr = valor.split(",");
       const rowData = {};
@@ -135,6 +142,24 @@ export default function DriReportsView() {
 
     setRows(rowsArr);
   }
+
+  const handleLoadingModalClose = () => {
+    setLoadingModalOpen(false)
+  }
+
+  const style = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: 300,
+    bgcolor: "background.paper",
+    border: "1px solid gray",
+    borderRadius: "10px",
+    boxShadow: 24,
+    p: 4,
+    textAlign: "center",
+  };
 
   return (
     <div>
@@ -196,11 +221,62 @@ export default function DriReportsView() {
       <Button variant="outlined" onClick={sendRequest} sx={{ marginTop: 2 }}>
         Enviar
       </Button>
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        sx={{ maxHeight: 440, marginTop: 5 }}
-      />
+      {rows.length > 0 ? (
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          sx={{ maxHeight: 440, marginTop: 5 }}
+        />
+      ) : (
+        <div />
+      )}
+      <Modal
+        open={loadingModalOpen}
+        onClose={handleLoadingModalClose}
+        aria-labelledby="modal-modal-title"
+        aria-describedby="modal-modal-description"
+      >
+        <Box sx={style}>
+          <Typography
+            id="modal-modal-title"
+            variant="h6"
+            component="h2"
+            sx={{ marginTop: "-15px" }}
+          >
+            Buscando resultados
+          </Typography>
+          <Box
+            sx={{
+              position: "relative",
+              display: "inline-flex",
+              marginTop: "20px",
+            }}
+          >
+            <CircularProgress />
+            <Box
+              sx={{
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: 0,
+                position: "absolute",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            ></Box>
+          </Box>
+          <Typography
+            id="modal-modal-description"
+            sx={{
+              marginTop: "10px",
+              marginBottom: "-25px",
+            }}
+          >
+            Por favor, aguarde...
+          </Typography>
+        </Box>
+      </Modal>
     </div>
   );
 }
