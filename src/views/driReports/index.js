@@ -15,30 +15,21 @@ import { DataGrid } from "@mui/x-data-grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import Modal from "@mui/material/Modal";
 import Box from "@mui/material/Box";
+import Divider from "@mui/material/Divider";
 import { driService } from "../../services/driService.ts";
 
 export default function DriReportsView() {
   const [authData, setAuthData] = useState([]);
-  const [date, setDate] = useState(dayjs());
-  const [selectedReportId, setSelectedReportId] = useState();
-  const [selectedBoardId, setSelectedBoardId] = useState();
-  const [participantCode, setParticipantCode] = useState();
+  const [date, setDate] = useState(null);
+  const [selectedAccountingEventCode, setSelectedAccountingEventCode] =
+    useState("");
+  const [selectedBoard, setSelectedBoard] = useState("");
+  const [participantCode, setParticipantCode] = useState("");
+  const [accountingEvents, setAccountingEvents] = useState([]);
+  const [boards, setBoards] = useState([]);
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [loadingModalOpen, setLoadingModalOpen] = useState(false);
-
-  const reports = [
-    { id: 70, name: "Liquidação de Energia de Reserva", code: "029000" },
-    { id: 49, name: "Apuração de votos", code: "006000" },
-    { id: 51, name: "Contabilização", code: "001000" },
-  ];
-
-  const boards = [
-    { id: 1, name: "Q1" },
-    { id: 2, name: "Q2" },
-    { id: 3, name: "Q3" },
-    { id: 4, name: "Q4" },
-  ];
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("authData"));
@@ -47,37 +38,149 @@ export default function DriReportsView() {
     }
   }, []);
 
-  const handleReportChange = (event) => {
-    const reportId = event.target.value;
-    setSelectedReportId(reportId);
+  const getAccountingEvents = async () => {
+    setLoadingModalOpen(true);
+    var responseData = await driService.listarDivulgacaoDeEventoContabil(
+      authData,
+      dayjs(date).format("YYYY").toString() +
+        "-" +
+        dayjs(date).format("MM").toString()
+    );
+
+    var totalPaginas = responseData.totalPaginas;
+    var totalPaginasNumber = totalPaginas._text
+      ? parseInt(totalPaginas._text.toString())
+      : 0;
+
+    var eventosContabeis = [];
+
+    if (totalPaginasNumber > 1) {
+      for (
+        let paginaCorrente = 1;
+        paginaCorrente <= totalPaginasNumber;
+        paginaCorrente++
+      ) {
+        var responseDataPaginated =
+          await driService.listarDivulgacaoDeEventoContabil(
+            authData,
+            dayjs(date).format("YYYY").toString() +
+              "-" +
+              dayjs(date).format("MM").toString(),
+            paginaCorrente
+          );
+
+        if (responseDataPaginated.code === 200) {
+          eventosContabeis = responseDataPaginated.data;
+
+          if (eventosContabeis.length === undefined) {
+            mapResponseToAccountingEvent(eventosContabeis);
+          } else {
+            for (const item of eventosContabeis) {
+              mapResponseToAccountingEvent(item);
+            }
+          }
+        }
+      }
+    } else {
+      if (responseData.code === 200) {
+        eventosContabeis = responseData.data;
+
+        if (eventosContabeis.length === undefined) {
+          mapResponseToAccountingEvent(eventosContabeis);
+        } else {
+          for (const item of eventosContabeis) {
+            mapResponseToAccountingEvent(item);
+          }
+        }
+      }
+    }
+
+    handleLoadingModalClose();
+  };
+
+  const getReports = async (eventCode) => {
+    setLoadingModalOpen(true);
+    var responseData = await driService.listarRelatoriosMapeados(
+      authData,
+      eventCode
+    );
+
+    var totalPaginas = responseData.totalPaginas;
+    var totalPaginasNumber = totalPaginas._text
+      ? parseInt(totalPaginas._text.toString())
+      : 0;
+
+    var relatorios = [];
+
+    if (totalPaginasNumber > 1) {
+      for (
+        let paginaCorrente = 1;
+        paginaCorrente <= totalPaginasNumber;
+        paginaCorrente++
+      ) {
+        var responseDataPaginated = await driService.listarRelatoriosMapeados(
+          authData,
+          eventCode,
+          paginaCorrente
+        );
+
+        if (responseDataPaginated.code === 200) {
+          relatorios = responseDataPaginated.data;
+
+          if (relatorios.length === undefined) {
+            mapResponseToReport(relatorios);
+          } else {
+            for (const item of relatorios) {
+              mapResponseToReport(item);
+            }
+          }
+        }
+      }
+    } else {
+      if (responseData.code === 200) {
+        relatorios = responseData.data;
+
+        if (relatorios.length === undefined) {
+          mapResponseToReport(relatorios);
+        } else {
+          for (const item of relatorios) {
+            mapResponseToReport(item);
+          }
+        }
+      }
+    }
+
+    handleLoadingModalClose();
+  };
+
+  const handleAccountingEventChange = (event) => {
+    const eventCode = event.target.value;
+    setSelectedAccountingEventCode(eventCode);
+    getReports(eventCode);
   };
 
   const handleBoardChange = (event) => {
-    const boardId = event.target.value;
-    setSelectedBoardId(boardId);
+    const board = event.target.value;
+    setSelectedBoard(board);
   };
 
   const sendRequest = async () => {
     setLoadingModalOpen(true);
 
     if (
-      selectedReportId === "" ||
-      selectedBoardId === "" ||
+      selectedAccountingEventCode === "" ||
+      selectedBoard === "" ||
       participantCode === ""
     ) {
       handleLoadingModalClose();
       return;
     }
 
-    var selectedReport = reports.find((x) => x.id === selectedReportId);
-
     var responseData = await driService.listarResultadoDeRelatorio(
       authData,
-      dayjs(date).format("YYYY").toString() +
-        dayjs(date).format("MM").toString() +
-        selectedReport.code,
-      "251",
-      selectedReport.id,
+      selectedAccountingEventCode,
+      selectedBoard.boardId,
+      selectedBoard.reportId,
       participantCode
     );
 
@@ -88,6 +191,53 @@ export default function DriReportsView() {
     }
   };
 
+  async function mapResponseToAccountingEvent(item) {
+    const eventoContabil = item["bov2:eventoContabil"];
+    const codigo = eventoContabil["bov2:codigo"]._text.toString();
+    const nome = eventoContabil["bov2:nome"]._text.toString();
+
+    var retrievedEvent = { code: codigo, name: nome };
+    var eventsClone = accountingEvents;
+
+    if (!accountingEvents.some((x) => x.code === codigo)) {
+      eventsClone.push(retrievedEvent);
+    }
+
+    setAccountingEvents(eventsClone);
+  }
+
+  async function mapResponseToReport(item) {
+    const reportId = item["bov2:id"]._text.toString();
+    const reportName = item["bov2:nome"]._text.toString();
+    const boards = item["bov2:quadros"]["bov2:quadro"];
+
+    if (boards.length === undefined) {
+      mapResponseToBoard(boards, reportId, reportName);
+    } else {
+      for (const bd of boards) {
+        mapResponseToBoard(bd, reportId, reportName);
+      }
+    }
+  }
+
+  async function mapResponseToBoard(item, reportId, reportName) {
+    const boardId = item["bov2:id"]._text.toString();
+    const boardName = item["bov2:nome"]._text.toString();
+
+    var retrievedBoard = {
+      reportId,
+      boardId,
+      name: reportName + " | " + boardName,
+    };
+    var boardsClone = boards;
+
+    if (!boards.some((x) => x.boardId === boardId)) {
+      boardsClone.push(retrievedBoard);
+    }
+
+    setBoards(boardsClone);
+  }
+
   async function mapResponseToTableData(item) {
     const cabecalho = item["bov2:cabecalho"]._text.toString();
     const cabecalhoArr = cabecalho.split(",");
@@ -95,20 +245,17 @@ export default function DriReportsView() {
     var rowsArr = [];
     var headerFields = [];
 
-    console.log(cabecalhoArr);
-
     var colIdx = 1;
     for (const headerField of cabecalhoArr) {
       const columnAttributes = {
         field: "col" + colIdx,
-        headerName: headerField.replace(/\'/g, ""),
+        headerName: headerField.replace(/'/g, ""),
         minWidth: 200,
       };
       headerFields.push(columnAttributes);
       colIdx++;
     }
     setColumns(headerFields);
-    //console.log(headerFields);
 
     if (valores.length !== undefined) {
       var rowIdx = 1;
@@ -120,7 +267,7 @@ export default function DriReportsView() {
 
         for (let i = 0; i < valorArr.length; i++) {
           const element = valorArr[i];
-          rowData[headerFields[i].field] = element.replace(/\'/g, "");
+          rowData[headerFields[i].field] = element.replace(/'/g, "");
         }
 
         rowsArr.push(rowData);
@@ -134,7 +281,7 @@ export default function DriReportsView() {
 
       for (let i = 0; i < valorArr.length; i++) {
         const element = valorArr[i];
-        rowData[headerFields[i].field] = element.replace(/\'/g, "");
+        rowData[headerFields[i].field] = element.replace(/'/g, "");
       }
 
       rowsArr.push(rowData);
@@ -144,8 +291,8 @@ export default function DriReportsView() {
   }
 
   const handleLoadingModalClose = () => {
-    setLoadingModalOpen(false)
-  }
+    setLoadingModalOpen(false);
+  };
 
   const style = {
     position: "absolute",
@@ -166,7 +313,7 @@ export default function DriReportsView() {
       <Typography variant="h5" mb={5}>
         Relatórios do DRI
       </Typography>
-      <Stack sx={{ width: "50%" }} spacing={2}>
+      <Stack sx={{ marginTop: 2, width: "50%" }} spacing={2} direction="row">
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <DatePicker
             label="Mês & ano"
@@ -179,33 +326,43 @@ export default function DriReportsView() {
             renderInput={(params) => <TextField {...params} />}
           />
         </LocalizationProvider>
+        <Button
+          variant="outlined"
+          sx={{ flex: 1 }}
+          onClick={getAccountingEvents}
+        >
+          Enviar
+        </Button>
+      </Stack>
+      <Divider sx={{ marginTop: 2, marginBottom: 2, width: "50%" }} />
+      <Stack sx={{ width: "50%" }} spacing={2}>
         <FormControl>
-          <InputLabel id="report-select-label">Relatório</InputLabel>
+          <InputLabel id="report-select-label">Evento</InputLabel>
           <Select
             labelId="report-select-options"
             id="report-select-"
-            value={selectedReportId}
-            label="Relatório"
-            onChange={handleReportChange}
+            value={selectedAccountingEventCode}
+            label="Evento"
+            onChange={handleAccountingEventChange}
           >
-            {reports.map((x) => (
-              <MenuItem value={x.id} key={x.id}>
+            {accountingEvents.map((x) => (
+              <MenuItem value={x.code} key={x.code}>
                 {x.name}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
         <FormControl>
-          <InputLabel id="board-select-label">Quadro</InputLabel>
+          <InputLabel id="board-select-label">Relatório | Quadro</InputLabel>
           <Select
             labelId="board-select-options"
             id="board-select-"
-            value={selectedBoardId}
+            value={selectedBoard}
             label="Quadro"
             onChange={handleBoardChange}
           >
             {boards.map((x) => (
-              <MenuItem value={x.id} key={x.id}>
+              <MenuItem value={x} key={x.boardId}>
                 {x.name}
               </MenuItem>
             ))}
