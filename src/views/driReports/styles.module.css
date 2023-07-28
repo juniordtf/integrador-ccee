@@ -1,0 +1,10 @@
+.rowContainer {
+  display: flex;
+  flex-direction: row;
+  width: 50%;
+}
+
+.sendButton {
+  height: 50px;
+  margin-top: 10;
+}

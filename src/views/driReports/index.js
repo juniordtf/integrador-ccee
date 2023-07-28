@@ -11,16 +11,18 @@ import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
+import Autocomplete from "@mui/material/Autocomplete";
 import { DataGrid } from "@mui/x-data-grid";
 import CircularProgress from "@mui/material/CircularProgress";
 import Modal from "@mui/material/Modal";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import { driService } from "../../services/driService.ts";
+import styles from "./styles.module.css";
 
 export default function DriReportsView() {
   const [authData, setAuthData] = useState([]);
-  const [date, setDate] = useState(null);
+  const [date, setDate] = useState(dayjs());
   const [selectedAccountingEventCode, setSelectedAccountingEventCode] =
     useState("");
   const [selectedBoard, setSelectedBoard] = useState("");
@@ -40,6 +42,14 @@ export default function DriReportsView() {
 
   const getAccountingEvents = async () => {
     setLoadingModalOpen(true);
+
+    setAccountingEvents([]);
+    setBoards([]);
+    setSelectedAccountingEventCode("");
+    setSelectedBoard("");
+    setRows([]);
+    setColumns([]);
+
     var responseData = await driService.listarDivulgacaoDeEventoContabil(
       authData,
       dayjs(date).format("YYYY").toString() +
@@ -153,15 +163,18 @@ export default function DriReportsView() {
     handleLoadingModalClose();
   };
 
-  const handleAccountingEventChange = (event) => {
-    const eventCode = event.target.value;
+  const handleAccountingEventChange = (value) => {
+    if (value === null) {
+      return;
+    }
+
+    const eventCode = value.code;
     setSelectedAccountingEventCode(eventCode);
     getReports(eventCode);
   };
 
-  const handleBoardChange = (event) => {
-    const board = event.target.value;
-    setSelectedBoard(board);
+  const handleBoardChange = (value) => {
+    setSelectedBoard(value);
   };
 
   const sendRequest = async () => {
@@ -187,8 +200,8 @@ export default function DriReportsView() {
     if (responseData.code === 200) {
       const results = responseData.data;
       mapResponseToTableData(results);
-      handleLoadingModalClose();
     }
+    handleLoadingModalClose();
   };
 
   async function mapResponseToAccountingEvent(item) {
@@ -196,7 +209,7 @@ export default function DriReportsView() {
     const codigo = eventoContabil["bov2:codigo"]._text.toString();
     const nome = eventoContabil["bov2:nome"]._text.toString();
 
-    var retrievedEvent = { code: codigo, name: nome };
+    var retrievedEvent = { code: codigo, label: nome };
     var eventsClone = accountingEvents;
 
     if (!accountingEvents.some((x) => x.code === codigo)) {
@@ -227,7 +240,7 @@ export default function DriReportsView() {
     var retrievedBoard = {
       reportId,
       boardId,
-      name: reportName + " | " + boardName,
+      label: reportName + " | " + boardName,
     };
     var boardsClone = boards;
 
@@ -241,9 +254,16 @@ export default function DriReportsView() {
   async function mapResponseToTableData(item) {
     const cabecalho = item["bov2:cabecalho"]._text.toString();
     const cabecalhoArr = cabecalho.split(",");
-    const valores = item["bov2:valores"]["bov2:valor"];
+    const valores =
+      item["bov2:valores"] !== undefined
+        ? item["bov2:valores"]["bov2:valor"]
+        : null;
     var rowsArr = [];
     var headerFields = [];
+
+    if (valores === null) {
+      return;
+    }
 
     var colIdx = 1;
     for (const headerField of cabecalhoArr) {
@@ -321,72 +341,75 @@ export default function DriReportsView() {
             views={["year", "month"]}
             maxDate={dayjs()}
             onChange={(newValue) => {
+              setAccountingEvents([]);
               setDate(newValue);
             }}
             renderInput={(params) => <TextField {...params} />}
           />
         </LocalizationProvider>
-        <Button
-          variant="outlined"
-          sx={{ flex: 1 }}
-          onClick={getAccountingEvents}
-        >
+
+        <Button variant="outlined" onClick={getAccountingEvents}>
           Enviar
         </Button>
       </Stack>
-      <Divider sx={{ marginTop: 2, marginBottom: 2, width: "50%" }} />
-      <Stack sx={{ width: "50%" }} spacing={2}>
-        <FormControl>
-          <InputLabel id="report-select-label">Evento</InputLabel>
-          <Select
-            labelId="report-select-options"
-            id="report-select-"
-            value={selectedAccountingEventCode}
-            label="Evento"
-            onChange={handleAccountingEventChange}
-          >
-            {accountingEvents.map((x) => (
-              <MenuItem value={x.code} key={x.code}>
-                {x.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl>
-          <InputLabel id="board-select-label">Relatório | Quadro</InputLabel>
-          <Select
-            labelId="board-select-options"
-            id="board-select-"
-            value={selectedBoard}
-            label="Quadro"
-            onChange={handleBoardChange}
-          >
-            {boards.map((x) => (
-              <MenuItem value={x} key={x.boardId}>
-                {x.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <TextField
-          id="outlined-participant-input"
-          label="Cód Agente"
-          type="number"
-          onChange={(event) => setParticipantCode(event.target.value)}
-        />
-      </Stack>
-      <Button variant="outlined" onClick={sendRequest} sx={{ marginTop: 2 }}>
-        Enviar
-      </Button>
-      {rows.length > 0 ? (
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          sx={{ maxHeight: 440, marginTop: 5 }}
-        />
+      {accountingEvents.length > 0 ? (
+        <div>
+          <Divider sx={{ marginTop: 2, marginBottom: 2, width: "50%" }} />
+          <Stack sx={{ width: "50%" }} spacing={2}>
+            <Autocomplete
+              disablePortal
+              id="events-combo-box"
+              options={accountingEvents}
+              onChange={(event, value) => handleAccountingEventChange(value)}
+              renderInput={(params) => <TextField {...params} label="Evento" />}
+            />
+          </Stack>
+          {boards.length > 0 ? (
+            <div>
+              {" "}
+              <Stack sx={{ width: "50%", marginTop: 2 }} spacing={2}>
+                <Autocomplete
+                  disablePortal
+                  id="boards-combo-box"
+                  options={boards}
+                  onChange={(event, value) => handleBoardChange(value)}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Evento" />
+                  )}
+                />
+
+                <TextField
+                  id="outlined-participant-input"
+                  label="Cód Agente"
+                  type="number"
+                  onChange={(event) => setParticipantCode(event.target.value)}
+                />
+              </Stack>
+              <Button
+                variant="outlined"
+                onClick={sendRequest}
+                sx={{ marginTop: 2, height: 50 }}
+              >
+                Enviar
+              </Button>
+              {rows.length > 0 ? (
+                <DataGrid
+                  rows={rows}
+                  columns={columns}
+                  sx={{ maxHeight: 440, marginTop: 5 }}
+                />
+              ) : (
+                <div />
+              )}
+            </div>
+          ) : (
+            <div />
+          )}
+        </div>
       ) : (
         <div />
       )}
+
       <Modal
         open={loadingModalOpen}
         onClose={handleLoadingModalClose}
