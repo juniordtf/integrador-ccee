@@ -17,8 +17,14 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Modal from "@mui/material/Modal";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import FormLabel from "@mui/material/FormLabel";
+import Radio from "@mui/material/Radio";
+import RadioGroup from "@mui/material/RadioGroup";
+import { OutTable, ExcelRenderer } from "react-excel-renderer";
 import { driService } from "../../services/driService.ts";
 import styles from "./styles.module.css";
+import { constants } from "buffer";
 
 export default function DriReportsView() {
   const [authData, setAuthData] = useState([]);
@@ -32,6 +38,14 @@ export default function DriReportsView() {
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [loadingModalOpen, setLoadingModalOpen] = useState(false);
+  const [inputId, setInputId] = useState(1);
+  const [uploadFileRows, setUploadFileRows] = useState([]);
+  const [uploadFileColumns, setUploadFileColumns] = useState([]);
+
+  const inputTypes = [
+    { id: 1, name: "Simples" },
+    { id: 2, name: "Múltipla" },
+  ];
 
   useEffect(() => {
     const data = JSON.parse(localStorage.getItem("authData"));
@@ -177,31 +191,74 @@ export default function DriReportsView() {
     setSelectedBoard(value);
   };
 
+  const handleInputTypeChange = (event) => {
+    setInputId(event.target.value);
+  };
+
+  const fileHandler = (event) => {
+    let fileObj = event.target.files[0];
+
+    //just pass the fileObj as parameter
+    ExcelRenderer(fileObj, (err, resp) => {
+      if (err) {
+        console.log(err);
+      } else {
+        setUploadFileColumns(resp.cols);
+        setUploadFileRows(resp.rows);
+      }
+    });
+  };
+
   const sendRequest = async () => {
     setLoadingModalOpen(true);
+    setRows([]);
 
     if (
       selectedAccountingEventCode === "" ||
       selectedBoard === "" ||
-      participantCode === ""
+      (participantCode === "" && uploadFileRows.length === 0)
     ) {
       handleLoadingModalClose();
       return;
     }
 
+    var rowData = [];
+
+    if (inputId === 1) {
+      rowData = await getResults(participantCode);
+    } else {
+      var codes = uploadFileRows.map((x) => x[0]);
+      var idx = 1;
+      for (const code of codes) {
+        var res = await getResults(code);
+        for (const r of res) {
+          r.id = idx;
+          rowData.push(r);
+          idx++;
+        }
+      }
+    }
+
+    setRows(rowData);
+    handleLoadingModalClose();
+  };
+
+  const getResults = async (agentCode) => {
     var responseData = await driService.listarResultadoDeRelatorio(
       authData,
       selectedAccountingEventCode,
       selectedBoard.boardId,
       selectedBoard.reportId,
-      participantCode
+      agentCode
     );
 
     if (responseData.code === 200) {
       const results = responseData.data;
-      mapResponseToTableData(results);
+      var rowData = await mapResponseToTableData(results, agentCode);
+      return rowData;
+    } else {
+      return [];
     }
-    handleLoadingModalClose();
   };
 
   async function mapResponseToAccountingEvent(item) {
@@ -251,7 +308,7 @@ export default function DriReportsView() {
     setBoards(boardsClone);
   }
 
-  async function mapResponseToTableData(item) {
+  async function mapResponseToTableData(item, agentCode) {
     const cabecalho = item["bov2:cabecalho"]._text.toString();
     const cabecalhoArr = cabecalho.split(",");
     const valores =
@@ -260,10 +317,18 @@ export default function DriReportsView() {
         : null;
     var rowsArr = [];
     var headerFields = [];
+    var rowData = {};
 
     if (valores === null) {
       return;
     }
+
+    const initalColumn = {
+      field: "col0",
+      headerName: "CÓDIGO DE AGENTE",
+      minWidth: 200,
+    };
+    headerFields.push(initalColumn);
 
     var colIdx = 1;
     for (const headerField of cabecalhoArr) {
@@ -281,36 +346,53 @@ export default function DriReportsView() {
       var rowIdx = 1;
       for (const v of valores) {
         const valor = v._text.toString();
-        const valorArr = valor.split(",");
-        const rowData = {};
+        var valorArr = valor.split(",");
         rowData["id"] = rowIdx;
+
+        valorArr.unshift(agentCode);
 
         for (let i = 0; i < valorArr.length; i++) {
           const element = valorArr[i];
-          rowData[headerFields[i].field] = element.replace(/'/g, "");
+          console.log(element);
+
+          rowData[headerFields[i].field] =
+            i === 0 ? element : element.replace(/'/g, "");
         }
 
-        rowsArr.push(rowData);
+        if (rowsArr.length === 0) {
+          rowsArr = [rowData];
+        } else {
+          rowsArr.push(rowData);
+        }
         rowIdx++;
       }
     } else {
       const valor = valores._text.toString();
       const valorArr = valor.split(",");
-      const rowData = {};
       rowData["id"] = 1;
+
+      valorArr.unshift(agentCode);
 
       for (let i = 0; i < valorArr.length; i++) {
         const element = valorArr[i];
-        rowData[headerFields[i].field] = element.replace(/'/g, "");
+        rowData[headerFields[i].field] =
+          i === 0 ? element : element.replace(/'/g, "");
       }
 
-      rowsArr.push(rowData);
+      if (rowsArr.length === 0) {
+        rowsArr = [rowData];
+      } else {
+        rowsArr.push(rowData);
+      }
     }
 
-    setRows(rowsArr);
+    return rowsArr;
   }
 
-  const handleLoadingModalClose = () => {
+  const handleLoadingModalClose = (event, reason) => {
+    if (reason === "backdropClick") {
+      return;
+    }
     setLoadingModalOpen(false);
   };
 
@@ -374,16 +456,42 @@ export default function DriReportsView() {
                   options={boards}
                   onChange={(event, value) => handleBoardChange(value)}
                   renderInput={(params) => (
-                    <TextField {...params} label="Evento" />
+                    <TextField {...params} label="Relatório | Quadro" />
                   )}
                 />
-
-                <TextField
-                  id="outlined-participant-input"
-                  label="Cód Agente"
-                  type="number"
-                  onChange={(event) => setParticipantCode(event.target.value)}
-                />
+                <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
+                <FormControl>
+                  <FormLabel id="input-type-radio-buttons-label">
+                    Tipo de entrada
+                  </FormLabel>
+                  <RadioGroup
+                    row
+                    aria-labelledby="input-radio-buttons-group-label"
+                    defaultValue={inputTypes[1].id}
+                    name="input-radio-buttons-group"
+                    value={inputId}
+                    onChange={handleInputTypeChange}
+                  >
+                    {inputTypes.map((x) => (
+                      <FormControlLabel
+                        key={x.id}
+                        value={x.id}
+                        control={<Radio />}
+                        label={x.name}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                {inputId === 1 ? (
+                  <TextField
+                    id="outlined-participant-input"
+                    label="Cód Agente"
+                    type="number"
+                    onChange={(event) => setParticipantCode(event.target.value)}
+                  />
+                ) : (
+                  <input type="file" onChange={fileHandler.bind(this)} />
+                )}
               </Stack>
               <Button
                 variant="outlined"
@@ -413,8 +521,8 @@ export default function DriReportsView() {
       <Modal
         open={loadingModalOpen}
         onClose={handleLoadingModalClose}
-        aria-labelledby="modal-modal-title"
-        aria-describedby="modal-modal-description"
+        aria-labelledby="loading-Modal"
+        aria-describedby="displayed when fetching results"
       >
         <Box sx={style}>
           <Typography
