@@ -23,6 +23,12 @@ import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import { OutTable, ExcelRenderer } from "react-excel-renderer";
 import { driService } from "../../services/driService.ts";
+import exportFromJSON from "export-from-json";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
+import DialogTitle from "@mui/material/DialogTitle";
 import styles from "./styles.module.css";
 import { constants } from "buffer";
 
@@ -30,6 +36,8 @@ export default function DriReportsView() {
   const [authData, setAuthData] = useState([]);
   const [date, setDate] = useState(dayjs());
   const [selectedAccountingEventCode, setSelectedAccountingEventCode] =
+    useState("");
+  const [selectedAccountingEventName, setSelectedAccountingEventName] =
     useState("");
   const [selectedBoard, setSelectedBoard] = useState("");
   const [participantCode, setParticipantCode] = useState("");
@@ -41,6 +49,10 @@ export default function DriReportsView() {
   const [inputId, setInputId] = useState(1);
   const [uploadFileRows, setUploadFileRows] = useState([]);
   const [uploadFileColumns, setUploadFileColumns] = useState([]);
+  const [selectedFileFormat, setSelectedFileFormat] = useState("csv");
+  const [openDialog, setDialogOpen] = useState(false);
+  const [requestSent, setrequestSent] = useState(false);
+  const [exportData, setExportData] = useState([]);
 
   const inputTypes = [
     { id: 1, name: "Simples" },
@@ -63,6 +75,7 @@ export default function DriReportsView() {
     setSelectedBoard("");
     setRows([]);
     setColumns([]);
+    setrequestSent(false);
 
     var responseData = await driService.listarDivulgacaoDeEventoContabil(
       authData,
@@ -182,17 +195,21 @@ export default function DriReportsView() {
       return;
     }
 
-    const eventCode = value.code;
+    var eventCode = value.code;
+
+    setrequestSent(false);
     setSelectedAccountingEventCode(eventCode);
+    setSelectedAccountingEventName(value.label);
     getReports(eventCode);
   };
 
   const handleBoardChange = (value) => {
+    setrequestSent(false);
     setSelectedBoard(value);
   };
 
   const handleInputTypeChange = (event) => {
-    setInputId(event.target.value);
+    setInputId(parseInt(event.target.value));
   };
 
   const fileHandler = (event) => {
@@ -237,6 +254,10 @@ export default function DriReportsView() {
           idx++;
         }
       }
+    }
+
+    if (rowData.length > 0) {
+      setrequestSent(true);
     }
 
     setRows(rowData);
@@ -293,15 +314,22 @@ export default function DriReportsView() {
   async function mapResponseToBoard(item, reportId, reportName) {
     const boardId = item["bov2:id"]._text.toString();
     const boardName = item["bov2:nome"]._text.toString();
+    const label = reportName + " | " + boardName;
 
     var retrievedBoard = {
       reportId,
       boardId,
-      label: reportName + " | " + boardName,
+      label,
     };
     var boardsClone = boards;
 
     if (!boards.some((x) => x.boardId === boardId)) {
+      var count = boards.filter((x) => x.label === label).length;
+      if (count > 0) {
+        var repeatedTimes = count + 1;
+        retrievedBoard.label = retrievedBoard.label + "(" + repeatedTimes + ")";
+      }
+
       boardsClone.push(retrievedBoard);
     }
 
@@ -345,6 +373,7 @@ export default function DriReportsView() {
     if (valores.length !== undefined) {
       var rowIdx = 1;
       for (const v of valores) {
+        rowData = {};
         const valor = v._text.toString();
         var valorArr = valor.split(",");
         rowData["id"] = rowIdx;
@@ -353,7 +382,6 @@ export default function DriReportsView() {
 
         for (let i = 0; i < valorArr.length; i++) {
           const element = valorArr[i];
-          console.log(element);
 
           rowData[headerFields[i].field] =
             i === 0 ? element : element.replace(/'/g, "");
@@ -396,6 +424,54 @@ export default function DriReportsView() {
     setLoadingModalOpen(false);
   };
 
+  const handleCancelDialog = () => {
+    handleCloseDialog();
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+  };
+
+  const handleFileFormatChange = (event) => {
+    setSelectedFileFormat(event.target.value);
+  };
+
+  const handleExportData = () => {
+    setLoadingModalOpen(true);
+
+    var correctedRows = rows;
+
+    for (const rowData of correctedRows) {
+      for (const col of columns) {
+        rowData[col.headerName] = rowData[col.field];
+        delete rowData[col.field];
+        delete rowData["id"];
+      }
+    }
+
+    setExportData(correctedRows);
+    handleLoadingModalClose();
+    setDialogOpen(true);
+  };
+
+  const handleConfirmDialog = () => {
+    setLoadingModalOpen(true);
+    var fileName = selectedAccountingEventName + "_" + selectedBoard.label;
+    let exportType = "";
+
+    if (selectedFileFormat === "csv") {
+      exportType = exportFromJSON.types.csv;
+    } else if (selectedFileFormat === "xls") {
+      exportType = exportFromJSON.types.xls;
+    } else {
+      exportType = exportFromJSON.types.json;
+    }
+
+    exportFromJSON({ data: exportData, fileName, exportType });
+    handleCloseDialog();
+    handleLoadingModalClose();
+  };
+
   const style = {
     position: "absolute",
     top: "50%",
@@ -421,6 +497,7 @@ export default function DriReportsView() {
             label="Mês & ano"
             value={date}
             views={["year", "month"]}
+            openTo="month"
             maxDate={dayjs()}
             onChange={(newValue) => {
               setAccountingEvents([]);
@@ -493,14 +570,29 @@ export default function DriReportsView() {
                   <input type="file" onChange={fileHandler.bind(this)} />
                 )}
               </Stack>
-              <Button
-                variant="outlined"
-                onClick={sendRequest}
-                sx={{ marginTop: 2, height: 50 }}
+              <Stack
+                sx={{ width: "50%", marginTop: 5 }}
+                spacing={2}
+                direction="row"
               >
-                Enviar
-              </Button>
-              {rows.length > 0 ? (
+                <Button variant="outlined" onClick={sendRequest}>
+                  Enviar
+                </Button>
+
+                {rows !== undefined && rows.length > 0 ? (
+                  <div>
+                    <Button
+                      variant="outlined"
+                      onClick={() => handleExportData()}
+                    >
+                      Exportar
+                    </Button>
+                  </div>
+                ) : (
+                  <div />
+                )}
+              </Stack>
+              {rows !== undefined && rows.length > 0 ? (
                 <DataGrid
                   rows={rows}
                   columns={columns}
@@ -565,6 +657,38 @@ export default function DriReportsView() {
           </Typography>
         </Box>
       </Modal>
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">
+          Escolha o formato de arquivo para exportação dos dados
+        </DialogTitle>
+        <DialogContent>
+          <FormControl>
+            <FormLabel id="demo-radio-buttons-group-label">Formato</FormLabel>
+            <RadioGroup
+              aria-labelledby="demo-radio-buttons-group-label"
+              defaultValue="csv"
+              name="radio-buttons-group"
+              value={selectedFileFormat}
+              onChange={handleFileFormatChange}
+            >
+              <FormControlLabel value="csv" control={<Radio />} label="csv" />
+              <FormControlLabel value="xls" control={<Radio />} label="xls" />
+              <FormControlLabel value="json" control={<Radio />} label="json" />
+            </RadioGroup>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDialog}>Cancelar</Button>
+          <Button onClick={handleConfirmDialog} autoFocus>
+            Confirmar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
