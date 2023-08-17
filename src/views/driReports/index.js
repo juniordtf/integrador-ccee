@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import dayjs from "dayjs";
@@ -51,8 +51,10 @@ export default function DriReportsView() {
   const [uploadFileColumns, setUploadFileColumns] = useState([]);
   const [selectedFileFormat, setSelectedFileFormat] = useState("csv");
   const [openDialog, setDialogOpen] = useState(false);
-  const [requestSent, setrequestSent] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
   const [exportData, setExportData] = useState([]);
+
+  const dataGridEnd = useRef(null);
 
   const inputTypes = [
     { id: 1, name: "Simples" },
@@ -75,7 +77,7 @@ export default function DriReportsView() {
     setSelectedBoard("");
     setRows([]);
     setColumns([]);
-    setrequestSent(false);
+    setRequestSent(false);
 
     var responseData = await driService.listarDivulgacaoDeEventoContabil(
       authData,
@@ -197,14 +199,14 @@ export default function DriReportsView() {
 
     var eventCode = value.code;
 
-    setrequestSent(false);
+    setRequestSent(false);
     setSelectedAccountingEventCode(eventCode);
     setSelectedAccountingEventName(value.label);
     getReports(eventCode);
   };
 
   const handleBoardChange = (value) => {
-    setrequestSent(false);
+    setRequestSent(false);
     setSelectedBoard(value);
   };
 
@@ -256,12 +258,13 @@ export default function DriReportsView() {
       }
     }
 
-    if (rowData.length > 0) {
-      setrequestSent(true);
+    if (rowData !== undefined && rowData.length > 0) {
+      setRequestSent(true);
     }
 
     setRows(rowData);
     handleLoadingModalClose();
+    scrollToBottom();
   };
 
   const getResults = async (agentCode) => {
@@ -338,7 +341,7 @@ export default function DriReportsView() {
 
   async function mapResponseToTableData(item, agentCode) {
     const cabecalho = item["bov2:cabecalho"]._text.toString();
-    const cabecalhoArr = cabecalho.split(",");
+    const cabecalhoArr = cabecalho.split("','");
     const valores =
       item["bov2:valores"] !== undefined
         ? item["bov2:valores"]["bov2:valor"]
@@ -375,7 +378,7 @@ export default function DriReportsView() {
       for (const v of valores) {
         rowData = {};
         const valor = v._text.toString();
-        var valorArr = valor.split(",");
+        var valorArr = valor.split("','");
         rowData["id"] = rowIdx;
 
         valorArr.unshift(agentCode);
@@ -384,7 +387,7 @@ export default function DriReportsView() {
           const element = valorArr[i];
 
           rowData[headerFields[i].field] =
-            i === 0 ? element : element.replace(/'/g, "");
+            i === 0 ? element : element.replace(/'/g, "").replace(/\./g, ",");
         }
 
         if (rowsArr.length === 0) {
@@ -396,7 +399,7 @@ export default function DriReportsView() {
       }
     } else {
       const valor = valores._text.toString();
-      const valorArr = valor.split(",");
+      const valorArr = valor.split("','");
       rowData["id"] = 1;
 
       valorArr.unshift(agentCode);
@@ -404,7 +407,7 @@ export default function DriReportsView() {
       for (let i = 0; i < valorArr.length; i++) {
         const element = valorArr[i];
         rowData[headerFields[i].field] =
-          i === 0 ? element : element.replace(/'/g, "");
+          i === 0 ? element : element.replace(/'/g, "").replace(/\./g, ",");
       }
 
       if (rowsArr.length === 0) {
@@ -470,6 +473,11 @@ export default function DriReportsView() {
     exportFromJSON({ data: exportData, fileName, exportType });
     handleCloseDialog();
     handleLoadingModalClose();
+  };
+
+  const scrollToBottom = () => {
+    dataGridEnd.current?.scrollIntoView({ behavior: "smooth" });
+    console.log(dataGridEnd.current);
   };
 
   const style = {
@@ -593,11 +601,18 @@ export default function DriReportsView() {
                 )}
               </Stack>
               {rows !== undefined && rows.length > 0 ? (
-                <DataGrid
-                  rows={rows}
-                  columns={columns}
-                  sx={{ maxHeight: 440, marginTop: 5 }}
-                />
+                <div>
+                  <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    ref={dataGridEnd}
+                    sx={{ maxHeight: 440, marginTop: 5 }}
+                  />
+                  <div
+                    style={{ float: "left", clear: "both" }}
+                    ref={dataGridEnd}
+                  />
+                </div>
               ) : (
                 <div />
               )}
