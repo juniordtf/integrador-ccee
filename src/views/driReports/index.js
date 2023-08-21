@@ -29,6 +29,10 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
+import ListItemText from "@mui/material/ListItemText";
+import OutlinedInput from "@mui/material/OutlinedInput";
+import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
 import styles from "./styles.module.css";
 import { constants } from "buffer";
 
@@ -39,10 +43,12 @@ export default function DriReportsView() {
     useState("");
   const [selectedAccountingEventName, setSelectedAccountingEventName] =
     useState("");
-  const [selectedBoard, setSelectedBoard] = useState("");
+  const [selectedReport, setSelectedReport] = useState("");
   const [participantCode, setParticipantCode] = useState("");
   const [accountingEvents, setAccountingEvents] = useState([]);
+  const [reports, setReports] = useState([]);
   const [boards, setBoards] = useState([]);
+  const [filteredBoards, setFilteredBoards] = useState([]);
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
   const [loadingModalOpen, setLoadingModalOpen] = useState(false);
@@ -53,8 +59,24 @@ export default function DriReportsView() {
   const [openDialog, setDialogOpen] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [exportData, setExportData] = useState([]);
+  const [selectedBoardIds, setSelectedBoardIds] = useState([]);
+  const [selectedBoardName, setSelectedBoarName] = useState([]);
+  const [queryKeys, setQueryKeys] = useState([]);
+  const [queryResultHeaders, setQueryResultHeaders] = useState([]);
+  const [queryResultRows, setQueryResultRows] = useState([]);
 
   const dataGridEnd = useRef(null);
+
+  const ITEM_HEIGHT = 48;
+  const ITEM_PADDING_TOP = 8;
+  const MenuProps = {
+    PaperProps: {
+      style: {
+        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
+        width: 250,
+      },
+    },
+  };
 
   const inputTypes = [
     { id: 1, name: "Simples" },
@@ -74,7 +96,7 @@ export default function DriReportsView() {
     setAccountingEvents([]);
     setBoards([]);
     setSelectedAccountingEventCode("");
-    setSelectedBoard("");
+    setSelectedReport("");
     setRows([]);
     setColumns([]);
     setRequestSent(false);
@@ -193,6 +215,9 @@ export default function DriReportsView() {
   };
 
   const handleAccountingEventChange = (value) => {
+    setReports([]);
+    setFilteredBoards([]);
+
     if (value === null) {
       return;
     }
@@ -205,9 +230,28 @@ export default function DriReportsView() {
     getReports(eventCode);
   };
 
-  const handleBoardChange = (value) => {
+  const handleReportChange = (value) => {
     setRequestSent(false);
-    setSelectedBoard(value);
+
+    if (value === null) {
+      setFilteredBoards([]);
+      return;
+    }
+
+    setSelectedReport(value);
+
+    var selectedReportId = value.reportId;
+    var availableBoards = boards.filter((x) => x.reportId === selectedReportId);
+    setFilteredBoards(availableBoards);
+  };
+
+  const handleMultiSelectBoardChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+
+    console.log(value);
+    setSelectedBoardIds(typeof value === "string" ? value.split(",") : value);
   };
 
   const handleInputTypeChange = (event) => {
@@ -231,55 +275,84 @@ export default function DriReportsView() {
   const sendRequest = async () => {
     setLoadingModalOpen(true);
     setRows([]);
+    setColumns([]);
+    setQueryKeys([]);
+    setQueryResultHeaders([]);
+    setQueryResultRows([]);
 
     if (
       selectedAccountingEventCode === "" ||
-      selectedBoard === "" ||
+      selectedBoardIds.length === 0 ||
       (participantCode === "" && uploadFileRows.length === 0)
     ) {
       handleLoadingModalClose();
       return;
     }
 
-    var rowData = [];
+    for (const boardId of selectedBoardIds) {
+      var tableData,
+        columnData,
+        rowData = [];
 
-    if (inputId === 1) {
-      rowData = await getResults(participantCode);
-    } else {
-      var codes = uploadFileRows.map((x) => x[0]);
-      var idx = 1;
-      for (const code of codes) {
-        var res = await getResults(code);
-        for (const r of res) {
-          r.id = idx;
-          rowData.push(r);
-          idx++;
+      if (inputId === 1) {
+        tableData = await getResults(participantCode, boardId);
+        columnData = tableData.columns;
+        rowData = tableData.rows;
+      } else {
+        var codes = uploadFileRows.map((x) => x[0]);
+        var idx = 1;
+        for (const code of codes) {
+          var res = await getResults(code, boardId);
+          for (const r of res) {
+            r.id = idx;
+            tableData.push(r);
+            idx++;
+          }
         }
+      }
+
+      if (rowData !== undefined && rowData.length > 0) {
+        var resultRowsArrClone = queryResultRows;
+        resultRowsArrClone.push(rowData);
+        setQueryResultRows(resultRowsArrClone);
+
+        var resultHeaderArrClone = queryResultHeaders;
+        resultHeaderArrClone.push(columnData);
+        setQueryResultHeaders(resultHeaderArrClone);
+
+        var queryParams = {
+          eventDate:
+            dayjs(date).format("YYYY").toString() +
+            "/" +
+            dayjs(date).format("MM").toString(),
+          eventName: selectedAccountingEventName,
+          reportName: selectedReport.label,
+          boardName: boards.find((x) => x.boardId === boardId).label,
+        };
+        var queryKeysArrClone = queryKeys;
+        queryKeysArrClone.push(queryParams);
+        setQueryKeys(queryKeysArrClone);
       }
     }
 
-    if (rowData !== undefined && rowData.length > 0) {
-      setRequestSent(true);
-    }
-
-    setRows(rowData);
+    setRequestSent(true);
     handleLoadingModalClose();
     scrollToBottom();
   };
 
-  const getResults = async (agentCode) => {
+  const getResults = async (agentCode, boardId) => {
     var responseData = await driService.listarResultadoDeRelatorio(
       authData,
       selectedAccountingEventCode,
-      selectedBoard.boardId,
-      selectedBoard.reportId,
+      boardId,
+      selectedReport.reportId,
       agentCode
     );
 
     if (responseData.code === 200) {
       const results = responseData.data;
-      var rowData = await mapResponseToTableData(results, agentCode);
-      return rowData;
+      var tableData = await mapResponseToTableData(results, agentCode);
+      return tableData;
     } else {
       return [];
     }
@@ -304,6 +377,19 @@ export default function DriReportsView() {
     const reportId = item["bov2:id"]._text.toString();
     const reportName = item["bov2:nome"]._text.toString();
     const boards = item["bov2:quadros"]["bov2:quadro"];
+
+    var retrievedReport = {
+      reportId,
+      label: reportName,
+    };
+
+    var reportsClone = reports;
+
+    if (!reports.some((x) => x.reportId === reportId)) {
+      reportsClone.push(retrievedReport);
+    }
+
+    setReports(reportsClone);
 
     if (boards.length === undefined) {
       mapResponseToBoard(boards, reportId, reportName);
@@ -371,7 +457,6 @@ export default function DriReportsView() {
       headerFields.push(columnAttributes);
       colIdx++;
     }
-    setColumns(headerFields);
 
     if (valores.length !== undefined) {
       var rowIdx = 1;
@@ -417,8 +502,19 @@ export default function DriReportsView() {
       }
     }
 
-    return rowsArr;
+    return { columns: headerFields, rows: rowsArr };
   }
+
+  const handleChipClick = (idx, label) => {
+    setLoadingModalOpen(true);
+    var headerToDisplay = queryResultHeaders[idx];
+    var rowsToDisplay = queryResultRows[idx];
+
+    setColumns(headerToDisplay);
+    setRows(rowsToDisplay);
+    setSelectedBoarName(label);
+    handleLoadingModalClose();
+  };
 
   const handleLoadingModalClose = (event, reason) => {
     if (reason === "backdropClick") {
@@ -459,7 +555,7 @@ export default function DriReportsView() {
 
   const handleConfirmDialog = () => {
     setLoadingModalOpen(true);
-    var fileName = selectedAccountingEventName + "_" + selectedBoard.label;
+    var fileName = selectedAccountingEventName + "_" + selectedReport.label;
     let exportType = "";
 
     if (selectedFileFormat === "csv") {
@@ -477,7 +573,6 @@ export default function DriReportsView() {
 
   const scrollToBottom = () => {
     dataGridEnd.current?.scrollIntoView({ behavior: "smooth" });
-    console.log(dataGridEnd.current);
   };
 
   const style = {
@@ -537,14 +632,39 @@ export default function DriReportsView() {
               <Stack sx={{ width: "50%", marginTop: 2 }} spacing={2}>
                 <Autocomplete
                   disablePortal
-                  id="boards-combo-box"
-                  options={boards}
-                  onChange={(event, value) => handleBoardChange(value)}
+                  id="reports-combo-box"
+                  options={reports}
+                  onChange={(event, value) => handleReportChange(value)}
                   renderInput={(params) => (
-                    <TextField {...params} label="Relatório | Quadro" />
+                    <TextField {...params} label="Relatório" />
                   )}
                 />
+                <FormControl>
+                  <InputLabel id="demo-multiple-board-label">
+                    Quadro(s)
+                  </InputLabel>
+                  <Select
+                    labelId="demo-multiple-board-label"
+                    id="multiple-board-select"
+                    multiple
+                    value={selectedBoardIds}
+                    onChange={handleMultiSelectBoardChange}
+                    input={<OutlinedInput label="label" />}
+                    renderValue={(selected) => selected.join(", ")}
+                    MenuProps={MenuProps}
+                  >
+                    {filteredBoards.map((x) => (
+                      <MenuItem key={x.boardId} value={x.boardId}>
+                        <Checkbox
+                          checked={selectedBoardIds.indexOf(x.boardId) > -1}
+                        />
+                        <ListItemText primary={x.label} />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
+
                 <FormControl>
                   <FormLabel id="input-type-radio-buttons-label">
                     Tipo de entrada
@@ -600,13 +720,30 @@ export default function DriReportsView() {
                   <div />
                 )}
               </Stack>
-              {rows !== undefined && rows.length > 0 ? (
+              {queryKeys !== undefined && queryKeys.length > 0 ? (
                 <div>
+                  <Divider sx={{ marginTop: 2 }} />
+                  <Typography variant="h6">Resultados</Typography>
+                  <Stack direction="row" spacing={1} sx={{ marginTop: 5 }}>
+                    {queryKeys.map((x) => (
+                      <Chip
+                        key={queryKeys.indexOf(x)}
+                        label={x.boardName}
+                        variant="outlined"
+                        onClick={() =>
+                          handleChipClick(queryKeys.indexOf(x), x.boardName)
+                        }
+                        style={{
+                          backgroundColor:
+                            selectedBoardName === x.boardName ? "lightGray" : "white",
+                        }}
+                      />
+                    ))}
+                  </Stack>
                   <DataGrid
                     rows={rows}
                     columns={columns}
-                    ref={dataGridEnd}
-                    sx={{ maxHeight: 440, marginTop: 5 }}
+                    sx={{ maxHeight: 440, marginTop: 2 }}
                   />
                   <div
                     style={{ float: "left", clear: "both" }}
