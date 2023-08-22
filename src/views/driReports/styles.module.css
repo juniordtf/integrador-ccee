@@ -17,3 +17,7 @@
   margin-left: auto;
   margin-right: auto;
 }
+
+.pdfReportTableText {
+  font-size: 10px;
+}

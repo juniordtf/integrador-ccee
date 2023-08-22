@@ -33,6 +33,14 @@ import ListItemText from "@mui/material/ListItemText";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  StyleSheet,
+  PDFViewer,
+} from "@react-pdf/renderer";
 import styles from "./styles.module.css";
 import { constants } from "buffer";
 
@@ -77,6 +85,23 @@ export default function DriReportsView() {
       },
     },
   };
+
+  // Create PDF styles
+  const pdfStyles = StyleSheet.create({
+    page: {
+      backgroundColor: "white",
+      color: "black",
+    },
+    section: {
+      margin: 5,
+      padding: 5,
+    },
+    viewer: {
+      width: "95%",
+      height: window.innerHeight,
+    },
+    rowContainer: { display: "flex", flexDirection: "row" },
+  });
 
   const inputTypes = [
     { id: 1, name: "Simples" },
@@ -250,7 +275,6 @@ export default function DriReportsView() {
       target: { value },
     } = event;
 
-    console.log(value);
     setSelectedBoardIds(typeof value === "string" ? value.split(",") : value);
   };
 
@@ -296,17 +320,27 @@ export default function DriReportsView() {
 
       if (inputId === 1) {
         tableData = await getResults(participantCode, boardId);
-        columnData = tableData.columns;
-        rowData = tableData.rows;
+        if (tableData !== undefined) {
+          columnData = tableData.columns;
+          rowData = tableData.rows;
+        }
       } else {
         var codes = uploadFileRows.map((x) => x[0]);
         var idx = 1;
         for (const code of codes) {
           var res = await getResults(code, boardId);
-          for (const r of res) {
-            r.id = idx;
-            tableData.push(r);
-            idx++;
+
+          if (res !== undefined) {
+            columnData = res.columns;
+            var rowsValues = res.rows;
+
+            if (rowsValues !== undefined && rowsValues.length > 0) {
+              for (const r of rowsValues) {
+                r.id = idx;
+                rowData.push(r);
+                idx++;
+              }
+            }
           }
         }
       }
@@ -337,7 +371,6 @@ export default function DriReportsView() {
 
     setRequestSent(true);
     handleLoadingModalClose();
-    scrollToBottom();
   };
 
   const getResults = async (agentCode, boardId) => {
@@ -514,6 +547,7 @@ export default function DriReportsView() {
     setRows(rowsToDisplay);
     setSelectedBoarName(label);
     handleLoadingModalClose();
+    scrollToBottom();
   };
 
   const handleLoadingModalClose = (event, reason) => {
@@ -589,11 +623,185 @@ export default function DriReportsView() {
     textAlign: "center",
   };
 
+  function RenderReport() {
+    var selectedQueryKey = queryKeys.find(
+      (x) => x.boardName === selectedBoardName
+    );
+
+    return (
+      <PDFViewer style={pdfStyles.viewer}>
+        {/* Start of the document*/}
+        <Document>
+          {/*render a single page*/}
+          <Page size="A4" style={pdfStyles.page}>
+            <View style={pdfStyles.section}>
+              <Text>{selectedQueryKey.eventName}</Text>
+            </View>
+            <View style={pdfStyles.section}>
+              <div
+                style={{
+                  borderWidth: 1,
+                  borderStyle: "solid",
+                  padding: 5,
+                  width: 300,
+                }}
+              >
+                <div style={pdfStyles.rowContainer}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                    }}
+                  >
+                    Ano/mês:{" "}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                    }}
+                  >
+                    {selectedQueryKey.eventDate}
+                  </Text>
+                </div>
+              </div>
+            </View>
+            {queryKeys.map((x) => RenderReportBoard(x, queryKeys.indexOf(x)))}
+          </Page>
+        </Document>
+      </PDFViewer>
+    );
+  }
+
+  function RenderReportBoard(reportKeys, reportIdx) {
+    var headerToDisplay = queryResultHeaders[reportIdx];
+    var rowsToDisplay = queryResultRows[reportIdx];
+
+    return (
+      <div>
+        <View style={pdfStyles.section}>
+          <Text
+            style={{
+              fontSize: 15,
+            }}
+          >
+            {reportKeys.boardName}
+          </Text>
+          <div
+            style={{
+              backgroundColor: "#3399FF",
+              width: 250,
+              height: 2,
+              marginTop: 2,
+              marginBottom: 7,
+            }}
+          />
+          {rowsToDisplay.length > 1
+            ? RenderBiDimensionalTableRow(headerToDisplay, rowsToDisplay)
+            : headerToDisplay.map((x) =>
+                RenderUniDimensionalTableRow(x, rowsToDisplay)
+              )}
+        </View>
+      </div>
+    );
+  }
+
+  function RenderBiDimensionalTableRow(headerToDisplay, rowsToDisplay) {
+    return (
+      <div>
+        <div style={pdfStyles.rowContainer}>
+          {headerToDisplay.slice(2).map((h) => (
+            <div
+              style={{
+                borderWidth: 1,
+                borderStyle: "solid",
+                width: rowsToDisplay[headerToDisplay.indexOf(h)][h.field].length > 13 ? 250 : 150,
+                padding: 2,
+                justifyContent: "center",
+                alignContent: "center",
+                backgroundColor: "#E0E0E0",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 8,
+                  textAlign: "center",
+                }}
+              >
+                {h.headerName}
+              </Text>
+            </div>
+          ))}
+        </div>
+
+        {rowsToDisplay.map((rw) => (
+          <div style={pdfStyles.rowContainer}>
+            {headerToDisplay.slice(2).map((x) => (
+              <div
+                style={{
+                  borderWidth: 1,
+                  borderStyle: "solid",
+                  width: rw[x.field].length > 13 ? 250 : 150,
+                  padding: 2,
+                  justifyContent: "center",
+                  alignContent: "center",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 8,
+                    textAlign: "center",
+                  }}
+                >
+                  {rw[x.field]}
+                </Text>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  function RenderUniDimensionalTableRow(col, rowsToDisplay) {
+    return (
+      <div>
+        {rowsToDisplay.map((x) => (
+          <div style={pdfStyles.rowContainer}>
+            <Text
+              style={{
+                fontSize: 8,
+                borderWidth: 1,
+                borderStyle: "solid",
+                width: 400,
+                height: "auto",
+                padding: 2,
+              }}
+            >
+              {col.headerName}
+            </Text>
+            <Text
+              style={{
+                fontSize: 8,
+                borderWidth: 1,
+                borderStyle: "solid",
+                width: 120,
+                padding: 2,
+                textAlign: "right",
+              }}
+            >
+              {x[col.field]}
+            </Text>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div>
       <Typography variant="h5" mb={5}>
         Relatórios do DRI
       </Typography>
+
       <Stack sx={{ marginTop: 2, width: "50%" }} spacing={2} direction="row">
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <DatePicker
@@ -722,7 +930,7 @@ export default function DriReportsView() {
               </Stack>
               {queryKeys !== undefined && queryKeys.length > 0 ? (
                 <div>
-                  <Divider sx={{ marginTop: 2 }} />
+                  <Divider sx={{ marginTop: 2, marginBottom: 1 }} />
                   <Typography variant="h6">Resultados</Typography>
                   <Stack direction="row" spacing={1} sx={{ marginTop: 5 }}>
                     {queryKeys.map((x) => (
@@ -735,20 +943,29 @@ export default function DriReportsView() {
                         }
                         style={{
                           backgroundColor:
-                            selectedBoardName === x.boardName ? "lightGray" : "white",
+                            selectedBoardName === x.boardName
+                              ? "lightGray"
+                              : "white",
                         }}
                       />
                     ))}
                   </Stack>
-                  <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    sx={{ maxHeight: 440, marginTop: 2 }}
-                  />
-                  <div
-                    style={{ float: "left", clear: "both" }}
-                    ref={dataGridEnd}
-                  />
+                  {rows !== undefined && rows.length > 0 ? (
+                    <div>
+                      <DataGrid
+                        rows={rows}
+                        columns={columns}
+                        sx={{ maxHeight: 440, marginTop: 2 }}
+                      />
+                      <div
+                        style={{ float: "left", clear: "both" }}
+                        ref={dataGridEnd}
+                      />
+                      {RenderReport()}
+                    </div>
+                  ) : (
+                    <div />
+                  )}
                 </div>
               ) : (
                 <div />
