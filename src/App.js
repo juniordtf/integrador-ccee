@@ -44,7 +44,7 @@ function App(props: Props) {
 
   const drawer = (
     <div>
-      <Toolbar />
+      <Toolbar sx={{backgroundColor: "#00C080"}} />
       <Divider />
       <List>
         <NavLink
@@ -120,7 +120,7 @@ function App(props: Props) {
             ml: { sm: `${drawerWidth}px` },
           }}
         >
-          <Toolbar>
+          <Toolbar sx={{backgroundColor: "#008357"}}>
             <IconButton
               color="inherit"
               aria-label="open drawer"
@@ -130,7 +130,7 @@ function App(props: Props) {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div">
+            <Typography variant="h6" noWrap component="div" sx={{letterSpacing: 3}}>
               Integrador CCEE
             </Typography>
           </Toolbar>

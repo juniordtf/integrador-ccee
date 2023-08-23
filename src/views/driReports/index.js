@@ -33,6 +33,8 @@ import ListItemText from "@mui/material/ListItemText";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
+import FormGroup from "@mui/material/FormGroup";
+import Switch from "@mui/material/Switch";
 import {
   Document,
   Page,
@@ -40,7 +42,11 @@ import {
   View,
   StyleSheet,
   PDFViewer,
+  PDFDownloadLink,
+  pdf,
 } from "@react-pdf/renderer";
+import { db } from "../../database/db";
+import { saveAs } from "file-saver";
 import styles from "./styles.module.css";
 import { constants } from "buffer";
 
@@ -72,6 +78,11 @@ export default function DriReportsView() {
   const [queryKeys, setQueryKeys] = useState([]);
   const [queryResultHeaders, setQueryResultHeaders] = useState([]);
   const [queryResultRows, setQueryResultRows] = useState([]);
+  const [pdfSwitchChecked, setPdfSwitchChecked] = useState(false);
+  const [participants, setParticipants] = useState([]);
+  const [participantsQueryCodes, setParticipantsQueryCodes] = useState([]);
+  const [selectedReportParticipant, setSelectedReportParticipant] =
+    useState("");
 
   const dataGridEnd = useRef(null);
 
@@ -99,8 +110,20 @@ export default function DriReportsView() {
     viewer: {
       width: "95%",
       height: window.innerHeight,
+      marginTop: 15,
     },
     rowContainer: { display: "flex", flexDirection: "row" },
+    blueLine: {
+      backgroundColor: "#3399FF",
+      width: 250,
+      height: 2,
+      marginTop: 2,
+      marginBottom: 7,
+    },
+    reportTitleText: { fontSize: 17 },
+    headerText: { fontSize: 12 },
+    boardTitleText: { fontSize: 15 },
+    biDimensionalCellText: { fontSize: 8, textAlign: "center" },
   });
 
   const inputTypes = [
@@ -113,6 +136,19 @@ export default function DriReportsView() {
     if (data) {
       setAuthData(data);
     }
+
+    async function fetchData() {
+      var participantes = await db.participantes;
+      if (participantes === undefined) {
+        participantes = [];
+      } else {
+        participantes = await db.participantes.toArray();
+      }
+
+      setParticipants(participantes);
+    }
+
+    fetchData();
   }, []);
 
   const getAccountingEvents = async () => {
@@ -323,9 +359,11 @@ export default function DriReportsView() {
         if (tableData !== undefined) {
           columnData = tableData.columns;
           rowData = tableData.rows;
+          setParticipantsQueryCodes([participantCode]);
         }
       } else {
         var codes = uploadFileRows.map((x) => x[0]);
+        var participantsCodes = [];
         var idx = 1;
         for (const code of codes) {
           var res = await getResults(code, boardId);
@@ -333,6 +371,7 @@ export default function DriReportsView() {
           if (res !== undefined) {
             columnData = res.columns;
             var rowsValues = res.rows;
+            participantsCodes.push(code);
 
             if (rowsValues !== undefined && rowsValues.length > 0) {
               for (const r of rowsValues) {
@@ -343,6 +382,7 @@ export default function DriReportsView() {
             }
           }
         }
+        setParticipantsQueryCodes(participantsCodes);
       }
 
       if (rowData !== undefined && rowData.length > 0) {
@@ -572,7 +612,7 @@ export default function DriReportsView() {
   const handleExportData = () => {
     setLoadingModalOpen(true);
 
-    var correctedRows = rows;
+    const correctedRows = [...rows];
 
     for (const rowData of correctedRows) {
       for (const col of columns) {
@@ -589,7 +629,8 @@ export default function DriReportsView() {
 
   const handleConfirmDialog = () => {
     setLoadingModalOpen(true);
-    var fileName = selectedAccountingEventName + "_" + selectedReport.label;
+    var boardLabel = selectedBoardName.replace(" | ", "_");
+    var fileName = selectedAccountingEventName + "_" + boardLabel;
     let exportType = "";
 
     if (selectedFileFormat === "csv") {
@@ -609,6 +650,11 @@ export default function DriReportsView() {
     dataGridEnd.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleReportParticipantChange = (event) => {
+    const selectedParticipant = event.target.value;
+    setSelectedReportParticipant(selectedParticipant);
+  };
+
   const style = {
     position: "absolute",
     top: "50%",
@@ -623,6 +669,38 @@ export default function DriReportsView() {
     textAlign: "center",
   };
 
+  const savePDFs = () => {
+    setLoadingModalOpen(true);
+
+    for (var code of participantsQueryCodes) {
+      var retrievedParticipant = participants.find(
+        (x) => x.codigo === code.toString()
+      );
+      savePdfToFile(retrievedParticipant);
+    }
+    handleLoadingModalClose();
+  };
+
+  const savePdfToFile = async (currentParticipant) => {
+    var selectedQueryKey = queryKeys.find(
+      (x) => x.boardName === selectedBoardName
+    );
+    const fileName =
+      currentParticipant.sigla + "_" + selectedQueryKey.eventName;
+
+    const blob = await pdf(
+      <PdfDocument
+        eventData={selectedQueryKey}
+        agentData={currentParticipant}
+      />
+    ).toBlob();
+    saveAs(blob, fileName);
+  };
+
+  const handleShowAsPdfSwitchChange = () => {
+    setPdfSwitchChecked(!pdfSwitchChecked);
+  };
+
   function RenderReport() {
     var selectedQueryKey = queryKeys.find(
       (x) => x.boardName === selectedBoardName
@@ -630,75 +708,68 @@ export default function DriReportsView() {
 
     return (
       <PDFViewer style={pdfStyles.viewer}>
-        {/* Start of the document*/}
-        <Document>
-          {/*render a single page*/}
-          <Page size="A4" style={pdfStyles.page}>
-            <View style={pdfStyles.section}>
-              <Text>{selectedQueryKey.eventName}</Text>
-            </View>
-            <View style={pdfStyles.section}>
-              <div
-                style={{
-                  borderWidth: 1,
-                  borderStyle: "solid",
-                  padding: 5,
-                  width: 300,
-                }}
-              >
-                <div style={pdfStyles.rowContainer}>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                    }}
-                  >
-                    Ano/mês:{" "}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 15,
-                    }}
-                  >
-                    {selectedQueryKey.eventDate}
-                  </Text>
-                </div>
-              </div>
-            </View>
-            {queryKeys.map((x) => RenderReportBoard(x, queryKeys.indexOf(x)))}
-          </Page>
-        </Document>
+        <PdfDocument
+          eventData={selectedQueryKey}
+          agentData={selectedReportParticipant}
+        />
       </PDFViewer>
     );
   }
 
+  const PdfDocument = ({ eventData, agentData }) => (
+    <Document>
+      <Page size="A4" style={pdfStyles.page}>
+        <View style={pdfStyles.section}>
+          <Text style={pdfStyles.reportTitleText}>{eventData.eventName}</Text>
+        </View>
+        <View style={pdfStyles.section}>
+          <div
+            style={{
+              borderWidth: 1,
+              borderStyle: "solid",
+              padding: 5,
+              width: 300,
+            }}
+          >
+            <div style={pdfStyles.rowContainer}>
+              <Text style={pdfStyles.headerText}>Ano/mês: </Text>
+              <Text style={pdfStyles.headerText}>{eventData.eventDate}</Text>
+            </div>
+            <div style={{ marginTop: 2 }}>
+              <div style={pdfStyles.rowContainer}>
+                <Text style={pdfStyles.headerText}>Agente: </Text>
+                <Text style={pdfStyles.headerText}>{agentData.sigla}</Text>
+              </div>
+            </div>
+          </div>
+        </View>
+        {queryKeys.map((x) => RenderReportBoard(x, queryKeys.indexOf(x)))}
+      </Page>
+    </Document>
+  );
+
   function RenderReportBoard(reportKeys, reportIdx) {
     var headerToDisplay = queryResultHeaders[reportIdx];
     var rowsToDisplay = queryResultRows[reportIdx];
+    var filteredRowsToDisplay = rowsToDisplay.filter(
+      (x) => x.col0.toString() === selectedReportParticipant.codigo.toString()
+    );
 
     return (
       <div>
         <View style={pdfStyles.section}>
-          <Text
-            style={{
-              fontSize: 15,
-            }}
-          >
-            {reportKeys.boardName}
-          </Text>
-          <div
-            style={{
-              backgroundColor: "#3399FF",
-              width: 250,
-              height: 2,
-              marginTop: 2,
-              marginBottom: 7,
-            }}
-          />
-          {rowsToDisplay.length > 1
-            ? RenderBiDimensionalTableRow(headerToDisplay, rowsToDisplay)
-            : headerToDisplay.map((x) =>
-                RenderUniDimensionalTableRow(x, rowsToDisplay)
-              )}
+          <Text style={pdfStyles.boardTitleText}>{reportKeys.boardName}</Text>
+          <div style={pdfStyles.blueLine} />
+          {filteredRowsToDisplay.length > 1
+            ? RenderBiDimensionalTableRow(
+                headerToDisplay,
+                filteredRowsToDisplay
+              )
+            : headerToDisplay
+                .slice(2)
+                .map((x) =>
+                  RenderUniDimensionalTableRow(x, filteredRowsToDisplay)
+                )}
         </View>
       </div>
     );
@@ -713,19 +784,17 @@ export default function DriReportsView() {
               style={{
                 borderWidth: 1,
                 borderStyle: "solid",
-                width: rowsToDisplay[headerToDisplay.indexOf(h)][h.field].length > 13 ? 250 : 150,
+                width:
+                  rowsToDisplay[headerToDisplay.indexOf(h)][h.field].length > 13
+                    ? 250
+                    : 150,
                 padding: 2,
                 justifyContent: "center",
                 alignContent: "center",
                 backgroundColor: "#E0E0E0",
               }}
             >
-              <Text
-                style={{
-                  fontSize: 8,
-                  textAlign: "center",
-                }}
-              >
+              <Text style={pdfStyles.biDimensionalCellText}>
                 {h.headerName}
               </Text>
             </div>
@@ -745,12 +814,7 @@ export default function DriReportsView() {
                   alignContent: "center",
                 }}
               >
-                <Text
-                  style={{
-                    fontSize: 8,
-                    textAlign: "center",
-                  }}
-                >
+                <Text style={pdfStyles.biDimensionalCellText}>
                   {rw[x.field]}
                 </Text>
               </div>
@@ -792,6 +856,39 @@ export default function DriReportsView() {
             </Text>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  function RenderReportByParticipant() {
+    var retrievedParticipants = [];
+
+    for (const code of participantsQueryCodes) {
+      var retrievedParticipant = participants.find(
+        (x) => x.codigo === code.toString()
+      );
+      retrievedParticipants.push(retrievedParticipant);
+    }
+
+    return (
+      <div>
+        <FormControl sx={{ width: "50%", marginTop: 2 }}>
+          <InputLabel id="agent-select-label">Agente</InputLabel>
+          <Select
+            labelId="agent-select-input-label"
+            id="agent-simple-select"
+            value={selectedReportParticipant}
+            label="Agente"
+            input={<OutlinedInput label="Agente" />}
+            onChange={handleReportParticipantChange}
+          >
+            {retrievedParticipants.map((x) => (
+              <MenuItem key={x.codigo} value={x}>
+                {x.sigla}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </div>
     );
   }
@@ -906,28 +1003,13 @@ export default function DriReportsView() {
                   <input type="file" onChange={fileHandler.bind(this)} />
                 )}
               </Stack>
-              <Stack
-                sx={{ width: "50%", marginTop: 5 }}
-                spacing={2}
-                direction="row"
+              <Button
+                sx={{ marginTop: 5 }}
+                variant="outlined"
+                onClick={sendRequest}
               >
-                <Button variant="outlined" onClick={sendRequest}>
-                  Enviar
-                </Button>
-
-                {rows !== undefined && rows.length > 0 ? (
-                  <div>
-                    <Button
-                      variant="outlined"
-                      onClick={() => handleExportData()}
-                    >
-                      Exportar
-                    </Button>
-                  </div>
-                ) : (
-                  <div />
-                )}
-              </Stack>
+                Enviar
+              </Button>
               {queryKeys !== undefined && queryKeys.length > 0 ? (
                 <div>
                   <Divider sx={{ marginTop: 2, marginBottom: 1 }} />
@@ -957,11 +1039,51 @@ export default function DriReportsView() {
                         columns={columns}
                         sx={{ maxHeight: 440, marginTop: 2 }}
                       />
+                      {rows !== undefined && rows.length > 0 ? (
+                        <div style={{ marginTop: 7 }}>
+                          <Button
+                            variant="outlined"
+                            onClick={() => handleExportData()}
+                          >
+                            Exportar quadro
+                          </Button>
+                        </div>
+                      ) : (
+                        <div />
+                      )}
                       <div
                         style={{ float: "left", clear: "both" }}
                         ref={dataGridEnd}
                       />
-                      {RenderReport()}
+                      <FormControlLabel
+                        sx={{ marginTop: 5 }}
+                        control={
+                          <Switch
+                            checked={pdfSwitchChecked}
+                            onChange={handleShowAsPdfSwitchChange}
+                          />
+                        }
+                        label="Exibir relatório em formato PDF"
+                      />
+                      {pdfSwitchChecked ? (
+                        <div style={{ marginTop: 5 }}>
+                          {RenderReportByParticipant()}
+                          {selectedReportParticipant !== "" ? (
+                            <div>{RenderReport()}</div>
+                          ) : (
+                            <div />
+                          )}
+                        </div>
+                      ) : (
+                        <div />
+                      )}
+                      <Button
+                        sx={{ marginTop: 2 }}
+                        variant="outlined"
+                        onClick={() => savePDFs()}
+                      >
+                        Salvar relatórios em PDF
+                      </Button>
                     </div>
                   ) : (
                     <div />

@@ -20,6 +20,7 @@
     "dexie": "^3.2.3",
     "dexie-react-hooks": "^1.1.1",
     "export-from-json": "^1.7.0",
+    "file-saver": "^2.0.5",
     "firebase": "^9.22.2",
     "firebase-tools": "^12.4.0",
     "format-string-by-pattern": "^1.2.2",
