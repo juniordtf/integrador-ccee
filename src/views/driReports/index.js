@@ -79,6 +79,7 @@ export default function DriReportsView() {
   const [queryResultHeaders, setQueryResultHeaders] = useState([]);
   const [queryResultRows, setQueryResultRows] = useState([]);
   const [pdfSwitchChecked, setPdfSwitchChecked] = useState(false);
+  const [allBoardsChecked, setAllBoardsChecked] = useState(false);
   const [participants, setParticipants] = useState([]);
   const [participantsQueryCodes, setParticipantsQueryCodes] = useState([]);
   const [selectedReportParticipant, setSelectedReportParticipant] =
@@ -304,6 +305,15 @@ export default function DriReportsView() {
     var selectedReportId = value.reportId;
     var availableBoards = boards.filter((x) => x.reportId === selectedReportId);
     setFilteredBoards(availableBoards);
+  };
+
+  const handleAllBoardsSwitchChange = () => {
+    if (!allBoardsChecked) {
+      var boardsCodes = filteredBoards.map((x) => x.boardId);
+      setSelectedBoardIds(boardsCodes);
+    }
+
+    setAllBoardsChecked(!allBoardsChecked);
   };
 
   const handleMultiSelectBoardChange = (event) => {
@@ -682,9 +692,7 @@ export default function DriReportsView() {
   };
 
   const savePdfToFile = async (currentParticipant) => {
-    var selectedQueryKey = queryKeys.find(
-      (x) => x.boardName === selectedBoardName
-    );
+    var selectedQueryKey = queryKeys[0];
     const fileName =
       currentParticipant.sigla + "_" + selectedQueryKey.eventName;
 
@@ -702,9 +710,7 @@ export default function DriReportsView() {
   };
 
   function RenderReport() {
-    var selectedQueryKey = queryKeys.find(
-      (x) => x.boardName === selectedBoardName
-    );
+    var selectedQueryKey = queryKeys[0];
 
     return (
       <PDFViewer style={pdfStyles.viewer}>
@@ -743,51 +749,54 @@ export default function DriReportsView() {
             </div>
           </div>
         </View>
-        {queryKeys.map((x) => RenderReportBoard(x, queryKeys.indexOf(x)))}
+        {queryKeys.map((x) =>
+          RenderReportBoard(x, queryKeys.indexOf(x), agentData)
+        )}
       </Page>
     </Document>
   );
 
-  function RenderReportBoard(reportKeys, reportIdx) {
+  function RenderReportBoard(reportKeys, reportIdx, agentData) {
     var headerToDisplay = queryResultHeaders[reportIdx];
     var rowsToDisplay = queryResultRows[reportIdx];
     var filteredRowsToDisplay = rowsToDisplay.filter(
-      (x) => x.col0.toString() === selectedReportParticipant.codigo.toString()
+      (x) => x.col0.toString() === agentData.codigo.toString()
     );
 
-    return (
-      <div>
-        <View style={pdfStyles.section}>
-          <Text style={pdfStyles.boardTitleText}>{reportKeys.boardName}</Text>
-          <div style={pdfStyles.blueLine} />
-          {filteredRowsToDisplay.length > 1
-            ? RenderBiDimensionalTableRow(
-                headerToDisplay,
-                filteredRowsToDisplay
-              )
-            : headerToDisplay
-                .slice(2)
-                .map((x) =>
+    console.log(filteredRowsToDisplay.length);
+
+    if (filteredRowsToDisplay.length === 0) {
+      return <div />;
+    } else {
+      return (
+        <div>
+          <View style={pdfStyles.section}>
+            <Text style={pdfStyles.boardTitleText}>{reportKeys.boardName}</Text>
+            <div style={pdfStyles.blueLine} />
+            {filteredRowsToDisplay.length > 1
+              ? RenderBiDimensionalTableRow(
+                  headerToDisplay.slice(2),
+                  filteredRowsToDisplay
+                )
+              : headerToDisplay.slice(2).map((x) =>
                   RenderUniDimensionalTableRow(x, filteredRowsToDisplay)
                 )}
-        </View>
-      </div>
-    );
+          </View>
+        </div>
+      );
+    }
   }
 
   function RenderBiDimensionalTableRow(headerToDisplay, rowsToDisplay) {
     return (
       <div>
         <div style={pdfStyles.rowContainer}>
-          {headerToDisplay.slice(2).map((h) => (
+          {headerToDisplay.map((h) => (
             <div
               style={{
                 borderWidth: 1,
                 borderStyle: "solid",
-                width:
-                  rowsToDisplay[headerToDisplay.indexOf(h)][h.field].length > 13
-                    ? 250
-                    : 150,
+                width: h.headerName.length > 13 ? 250 : 150,
                 padding: 2,
                 justifyContent: "center",
                 alignContent: "center",
@@ -803,12 +812,12 @@ export default function DriReportsView() {
 
         {rowsToDisplay.map((rw) => (
           <div style={pdfStyles.rowContainer}>
-            {headerToDisplay.slice(2).map((x) => (
+            {headerToDisplay.map((x) => (
               <div
                 style={{
                   borderWidth: 1,
                   borderStyle: "solid",
-                  width: rw[x.field].length > 13 ? 250 : 150,
+                  width: x.headerName.length > 13 ? 250 : 150,
                   padding: 2,
                   justifyContent: "center",
                   alignContent: "center",
@@ -944,30 +953,44 @@ export default function DriReportsView() {
                     <TextField {...params} label="Relatório" />
                   )}
                 />
-                <FormControl>
-                  <InputLabel id="demo-multiple-board-label">
-                    Quadro(s)
-                  </InputLabel>
-                  <Select
-                    labelId="demo-multiple-board-label"
-                    id="multiple-board-select"
-                    multiple
-                    value={selectedBoardIds}
-                    onChange={handleMultiSelectBoardChange}
-                    input={<OutlinedInput label="label" />}
-                    renderValue={(selected) => selected.join(", ")}
-                    MenuProps={MenuProps}
-                  >
-                    {filteredBoards.map((x) => (
-                      <MenuItem key={x.boardId} value={x.boardId}>
-                        <Checkbox
-                          checked={selectedBoardIds.indexOf(x.boardId) > -1}
-                        />
-                        <ListItemText primary={x.label} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={allBoardsChecked}
+                      onChange={handleAllBoardsSwitchChange}
+                    />
+                  }
+                  label="Usar todos os quadros"
+                />
+                {allBoardsChecked ? (
+                  <div />
+                ) : (
+                  <FormControl>
+                    <InputLabel id="demo-multiple-board-label">
+                      Quadro(s)
+                    </InputLabel>
+                    <Select
+                      labelId="demo-multiple-board-label"
+                      id="multiple-board-select"
+                      multiple
+                      value={selectedBoardIds}
+                      onChange={handleMultiSelectBoardChange}
+                      input={<OutlinedInput label="label" />}
+                      renderValue={(selected) => selected.join(", ")}
+                      MenuProps={MenuProps}
+                    >
+                      {filteredBoards.map((x) => (
+                        <MenuItem key={x.boardId} value={x.boardId}>
+                          <Checkbox
+                            checked={selectedBoardIds.indexOf(x.boardId) > -1}
+                          />
+                          <ListItemText primary={x.label} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
                 <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
 
                 <FormControl>
