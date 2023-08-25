@@ -84,6 +84,7 @@ export default function DriReportsView() {
   const [participantsQueryCodes, setParticipantsQueryCodes] = useState([]);
   const [selectedReportParticipant, setSelectedReportParticipant] =
     useState("");
+  const [selectedReportProfile, setSelectedReportProfile] = useState("");
 
   const dataGridEnd = useRef(null);
 
@@ -96,6 +97,20 @@ export default function DriReportsView() {
         width: 250,
       },
     },
+  };
+
+  const style = {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    width: 300,
+    bgcolor: "background.paper",
+    border: "1px solid gray",
+    borderRadius: "10px",
+    boxShadow: 24,
+    p: 4,
+    textAlign: "center",
   };
 
   // Create PDF styles
@@ -665,18 +680,9 @@ export default function DriReportsView() {
     setSelectedReportParticipant(selectedParticipant);
   };
 
-  const style = {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    width: 300,
-    bgcolor: "background.paper",
-    border: "1px solid gray",
-    borderRadius: "10px",
-    boxShadow: 24,
-    p: 4,
-    textAlign: "center",
+  const handleReportProfileChange = (event) => {
+    const selectedProfile = event.target.value;
+    setSelectedReportProfile(selectedProfile);
   };
 
   const savePDFs = () => {
@@ -686,20 +692,26 @@ export default function DriReportsView() {
       var retrievedParticipant = participants.find(
         (x) => x.codigo === code.toString()
       );
-      savePdfToFile(retrievedParticipant);
+      var profileMatches = getRetrievedProfiles().filter(
+        (x) => x.agentCode.toString() === retrievedParticipant.codigo.toString()
+      );
+
+      for (var pf of profileMatches) {
+        savePdfToFile(retrievedParticipant, pf.name);
+      }
     }
     handleLoadingModalClose();
   };
 
-  const savePdfToFile = async (currentParticipant) => {
+  const savePdfToFile = async (currentParticipant, profileName) => {
     var selectedQueryKey = queryKeys[0];
-    const fileName =
-      currentParticipant.sigla + "_" + selectedQueryKey.eventName;
+    const fileName = profileName + "_" + selectedQueryKey.eventName;
 
     const blob = await pdf(
       <PdfDocument
         eventData={selectedQueryKey}
         agentData={currentParticipant}
+        profileName={profileName}
       />
     ).toBlob();
     saveAs(blob, fileName);
@@ -717,12 +729,13 @@ export default function DriReportsView() {
         <PdfDocument
           eventData={selectedQueryKey}
           agentData={selectedReportParticipant}
+          profileName={selectedReportProfile}
         />
       </PDFViewer>
     );
   }
 
-  const PdfDocument = ({ eventData, agentData }) => (
+  const PdfDocument = ({ eventData, agentData, profileName }) => (
     <Document>
       <Page size="A4" style={pdfStyles.page}>
         <View style={pdfStyles.section}>
@@ -747,23 +760,33 @@ export default function DriReportsView() {
                 <Text style={pdfStyles.headerText}>{agentData.sigla}</Text>
               </div>
             </div>
+            <div style={{ marginTop: 2 }}>
+              <div style={pdfStyles.rowContainer}>
+                <Text style={pdfStyles.headerText}>Perfil: </Text>
+                <Text style={pdfStyles.headerText}>{profileName}</Text>
+              </div>
+            </div>
           </div>
         </View>
         {queryKeys.map((x) =>
-          RenderReportBoard(x, queryKeys.indexOf(x), agentData)
+          RenderReportBoard(x, queryKeys.indexOf(x), agentData, profileName)
         )}
       </Page>
     </Document>
   );
 
-  function RenderReportBoard(reportKeys, reportIdx, agentData) {
+  function RenderReportBoard(reportKeys, reportIdx, agentData, profileName) {
     var headerToDisplay = queryResultHeaders[reportIdx];
     var rowsToDisplay = queryResultRows[reportIdx];
     var filteredRowsToDisplay = rowsToDisplay.filter(
       (x) => x.col0.toString() === agentData.codigo.toString()
     );
 
-    console.log(filteredRowsToDisplay.length);
+    if (headerToDisplay[4].headerName.includes("PERFIL")) {
+      var filteredRowsToDisplay = filteredRowsToDisplay.filter(
+        (x) => x.col4.toString() === profileName.toString()
+      );
+    }
 
     if (filteredRowsToDisplay.length === 0) {
       return <div />;
@@ -778,9 +801,11 @@ export default function DriReportsView() {
                   headerToDisplay.slice(2),
                   filteredRowsToDisplay
                 )
-              : headerToDisplay.slice(2).map((x) =>
-                  RenderUniDimensionalTableRow(x, filteredRowsToDisplay)
-                )}
+              : headerToDisplay
+                  .slice(2)
+                  .map((x) =>
+                    RenderUniDimensionalTableRow(x, filteredRowsToDisplay)
+                  )}
           </View>
         </div>
       );
@@ -869,35 +894,93 @@ export default function DriReportsView() {
     );
   }
 
+  function getRetrievedProfiles() {
+    var idxs = [];
+    for (var hd of queryResultHeaders) {
+      if (hd[4].headerName.includes("PERFIL")) {
+        idxs.push(queryResultHeaders.indexOf(hd));
+      }
+    }
+
+    var profilesArr = [];
+    for (var i of idxs) {
+      var results = queryResultRows[i];
+      var profiles = results.map((x) => ({ name: x.col4, agentCode: x.col0 }));
+      if (profilesArr.length === 0) {
+        profilesArr = profiles;
+      } else {
+        profilesArr.concat(profiles);
+      }
+    }
+
+    return [...new Set(profilesArr)];
+  }
+
   function RenderReportByParticipant() {
     var retrievedParticipants = [];
 
-    for (const code of participantsQueryCodes) {
+    for (var code of participantsQueryCodes) {
       var retrievedParticipant = participants.find(
         (x) => x.codigo === code.toString()
       );
-      retrievedParticipants.push(retrievedParticipant);
+      if (retrievedParticipant !== undefined) {
+        retrievedParticipants.push(retrievedParticipant);
+      }
+    }
+
+    var distinctProfiles = [];
+    if (selectedReportParticipant !== "") {
+      distinctProfiles = getRetrievedProfiles()
+        .filter(
+          (x) =>
+            x.agentCode.toString() ===
+            selectedReportParticipant.codigo.toString()
+        )
+        .map((x) => x.name);
     }
 
     return (
       <div>
-        <FormControl sx={{ width: "50%", marginTop: 2 }}>
-          <InputLabel id="agent-select-label">Agente</InputLabel>
-          <Select
-            labelId="agent-select-input-label"
-            id="agent-simple-select"
-            value={selectedReportParticipant}
-            label="Agente"
-            input={<OutlinedInput label="Agente" />}
-            onChange={handleReportParticipantChange}
-          >
-            {retrievedParticipants.map((x) => (
-              <MenuItem key={x.codigo} value={x}>
-                {x.sigla}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Stack spacing={2}>
+          <FormControl sx={{ width: "50%", marginTop: 2 }}>
+            <InputLabel id="agent-select-label">Agente</InputLabel>
+            <Select
+              labelId="agent-select-input-label"
+              id="agent-simple-select"
+              value={selectedReportParticipant}
+              label="Agente"
+              input={<OutlinedInput label="Agente" />}
+              onChange={handleReportParticipantChange}
+            >
+              {retrievedParticipants.map((x) => (
+                <MenuItem key={x.codigo} value={x}>
+                  {x.sigla}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {selectedReportParticipant !== "" ? (
+            <FormControl sx={{ width: "50%", marginTop: 2 }}>
+              <InputLabel id="agent-select-label">Perfil</InputLabel>
+              <Select
+                labelId="agent-select-input-label"
+                id="agent-simple-select"
+                value={selectedReportProfile}
+                label="Agente"
+                input={<OutlinedInput label="Agente" />}
+                onChange={handleReportProfileChange}
+              >
+                {distinctProfiles.map((x) => (
+                  <MenuItem key={x} value={x}>
+                    {x}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <div />
+          )}
+        </Stack>
       </div>
     );
   }
@@ -1078,39 +1161,40 @@ export default function DriReportsView() {
                         style={{ float: "left", clear: "both" }}
                         ref={dataGridEnd}
                       />
-                      <FormControlLabel
-                        sx={{ marginTop: 5 }}
-                        control={
-                          <Switch
-                            checked={pdfSwitchChecked}
-                            onChange={handleShowAsPdfSwitchChange}
-                          />
-                        }
-                        label="Exibir relatório em formato PDF"
-                      />
-                      {pdfSwitchChecked ? (
-                        <div style={{ marginTop: 5 }}>
-                          {RenderReportByParticipant()}
-                          {selectedReportParticipant !== "" ? (
-                            <div>{RenderReport()}</div>
-                          ) : (
-                            <div />
-                          )}
-                        </div>
-                      ) : (
-                        <div />
-                      )}
-                      <Button
-                        sx={{ marginTop: 2 }}
-                        variant="outlined"
-                        onClick={() => savePDFs()}
-                      >
-                        Salvar relatórios em PDF
-                      </Button>
                     </div>
                   ) : (
                     <div />
                   )}
+                  <FormControlLabel
+                    sx={{ marginTop: 5 }}
+                    control={
+                      <Switch
+                        checked={pdfSwitchChecked}
+                        onChange={handleShowAsPdfSwitchChange}
+                      />
+                    }
+                    label="Exibir relatório em formato PDF"
+                  />
+                  {pdfSwitchChecked ? (
+                    <div style={{ marginTop: 5 }}>
+                      {RenderReportByParticipant()}
+                      {selectedReportParticipant !== "" &&
+                      selectedReportProfile !== "" ? (
+                        <div>{RenderReport()}</div>
+                      ) : (
+                        <div />
+                      )}
+                    </div>
+                  ) : (
+                    <div />
+                  )}
+                  <Button
+                    sx={{ marginTop: 2 }}
+                    variant="outlined"
+                    onClick={() => savePDFs()}
+                  >
+                    Salvar relatórios em PDF
+                  </Button>
                 </div>
               ) : (
                 <div />
