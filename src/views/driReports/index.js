@@ -22,7 +22,6 @@ import FormLabel from "@mui/material/FormLabel";
 import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import { OutTable, ExcelRenderer } from "react-excel-renderer";
-import { driService } from "../../services/driService.ts";
 import exportFromJSON from "export-from-json";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -35,6 +34,7 @@ import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import FormGroup from "@mui/material/FormGroup";
 import Switch from "@mui/material/Switch";
+import Paper from "@mui/material/Paper";
 import {
   Document,
   Page,
@@ -45,6 +45,8 @@ import {
   PDFDownloadLink,
   pdf,
 } from "@react-pdf/renderer";
+import { driService } from "../../services/driService.ts";
+import { cadastrosService } from "../../services/cadastrosService.ts";
 import { db } from "../../database/db";
 import { saveAs } from "file-saver";
 import styles from "./styles.module.css";
@@ -85,6 +87,7 @@ export default function DriReportsView() {
   const [selectedReportParticipant, setSelectedReportParticipant] =
     useState("");
   const [selectedReportProfile, setSelectedReportProfile] = useState("");
+  const [representedAgentsIds, setRepresentedAgentsIds] = useState([]);
 
   const dataGridEnd = useRef(null);
 
@@ -117,7 +120,6 @@ export default function DriReportsView() {
   const pdfStyles = StyleSheet.create({
     page: {
       backgroundColor: "white",
-      color: "black",
     },
     section: {
       margin: 5,
@@ -145,6 +147,7 @@ export default function DriReportsView() {
   const inputTypes = [
     { id: 1, name: "Simples" },
     { id: 2, name: "Múltipla" },
+    { id: 3, name: "Representados" },
   ];
 
   useEffect(() => {
@@ -291,6 +294,43 @@ export default function DriReportsView() {
     handleLoadingModalClose();
   };
 
+  const listarRepresentados = async () => {
+    setLoadingModalOpen(true);
+    var responseData = await cadastrosService.listarRepresentacao(authData, 1);
+    var totalPaginas = responseData.totalPaginas;
+    var totalPaginasNumber = totalPaginas._text
+      ? parseInt(totalPaginas._text.toString())
+      : 0;
+
+    var agentCodes = [];
+    if (totalPaginasNumber > 1) {
+      for (
+        let paginaCorrente = 1;
+        paginaCorrente < totalPaginasNumber;
+        paginaCorrente++
+      ) {
+        var responseDataPaginated = await cadastrosService.listarRepresentacao(
+          authData,
+          paginaCorrente
+        );
+        if (responseDataPaginated.code === 200) {
+          const results = responseDataPaginated.data;
+          var codes = await mapResponseToRepresentation(results);
+          codes.forEach((x) => agentCodes.push(x));
+        }
+      }
+    } else {
+      if (responseData.code === 200) {
+        const results = responseData.data;
+        var codes = await mapResponseToRepresentation(results);
+        codes.forEach((x) => agentCodes.push(x));
+      }
+    }
+
+    setRepresentedAgentsIds(agentCodes);
+    handleLoadingModalClose();
+  };
+
   const handleAccountingEventChange = (value) => {
     setReports([]);
     setFilteredBoards([]);
@@ -340,7 +380,16 @@ export default function DriReportsView() {
   };
 
   const handleInputTypeChange = (event) => {
-    setInputId(parseInt(event.target.value));
+    var actionId = parseInt(event.target.value);
+    setInputId(actionId);
+
+    if (
+      actionId === 3 &&
+      representedAgentsIds !== undefined &&
+      representedAgentsIds.length === 0
+    ) {
+      listarRepresentados();
+    }
   };
 
   const fileHandler = (event) => {
@@ -357,6 +406,30 @@ export default function DriReportsView() {
     });
   };
 
+  const getMultipleResults = async (codes, boardId) => {
+    var participantsCodes = [];
+    var rowData = [];
+    var idx = 1;
+    for (const code of codes) {
+      var res = await getResults(code, boardId);
+      if (res !== undefined) {
+        var columnData = res.columns;
+        var rowsValues = res.rows;
+        participantsCodes.push(code);
+
+        if (rowsValues !== undefined && rowsValues.length > 0) {
+          for (var r of rowsValues) {
+            r.id = idx;
+            rowData.push(r);
+            idx++;
+          }
+        }
+      }
+    }
+    setParticipantsQueryCodes(participantsCodes);
+    return { rowData, columnData };
+  };
+
   const sendRequest = async () => {
     setLoadingModalOpen(true);
     setRows([]);
@@ -368,13 +441,15 @@ export default function DriReportsView() {
     if (
       selectedAccountingEventCode === "" ||
       selectedBoardIds.length === 0 ||
-      (participantCode === "" && uploadFileRows.length === 0)
+      (participantCode === "" &&
+        uploadFileRows.length === 0 &&
+        representedAgentsIds.length === 0)
     ) {
       handleLoadingModalClose();
       return;
     }
 
-    for (const boardId of selectedBoardIds) {
+    for (var boardId of selectedBoardIds) {
       var tableData,
         columnData,
         rowData = [];
@@ -386,28 +461,15 @@ export default function DriReportsView() {
           rowData = tableData.rows;
           setParticipantsQueryCodes([participantCode]);
         }
-      } else {
+      } else if (inputId === 2) {
         var codes = uploadFileRows.map((x) => x[0]);
-        var participantsCodes = [];
-        var idx = 1;
-        for (const code of codes) {
-          var res = await getResults(code, boardId);
-
-          if (res !== undefined) {
-            columnData = res.columns;
-            var rowsValues = res.rows;
-            participantsCodes.push(code);
-
-            if (rowsValues !== undefined && rowsValues.length > 0) {
-              for (const r of rowsValues) {
-                r.id = idx;
-                rowData.push(r);
-                idx++;
-              }
-            }
-          }
-        }
-        setParticipantsQueryCodes(participantsCodes);
+        var results = await getMultipleResults(codes, boardId);
+        rowData = results.rowData;
+        columnData = results.columnData;
+      } else {
+        var results = await getMultipleResults(representedAgentsIds, boardId);
+        rowData = results.rowData;
+        columnData = results.columnData;
       }
 
       if (rowData !== undefined && rowData.length > 0) {
@@ -455,6 +517,16 @@ export default function DriReportsView() {
       return [];
     }
   };
+
+  async function mapResponseToRepresentation(representados) {
+    var codes = [];
+    for (var rep of representados) {
+      const representado = rep["bov2:representado"];
+      const codigo = representado["bov2:id"]._text.toString();
+      codes.push(codigo);
+    }
+    return codes;
+  }
 
   async function mapResponseToAccountingEvent(item) {
     const eventoContabil = item["bov2:eventoContabil"];
@@ -546,7 +618,7 @@ export default function DriReportsView() {
     headerFields.push(initalColumn);
 
     var colIdx = 1;
-    for (const headerField of cabecalhoArr) {
+    for (var headerField of cabecalhoArr) {
       const columnAttributes = {
         field: "col" + colIdx,
         headerName: headerField.replace(/'/g, ""),
@@ -558,7 +630,7 @@ export default function DriReportsView() {
 
     if (valores.length !== undefined) {
       var rowIdx = 1;
-      for (const v of valores) {
+      for (var v of valores) {
         rowData = {};
         const valor = v._text.toString();
         var valorArr = valor.split("','");
@@ -695,9 +767,14 @@ export default function DriReportsView() {
       var profileMatches = getRetrievedProfiles().filter(
         (x) => x.agentCode.toString() === retrievedParticipant.codigo.toString()
       );
+      profileMatches = [...new Set(profileMatches)];
 
-      for (var pf of profileMatches) {
-        savePdfToFile(retrievedParticipant, pf.name);
+      if (profileMatches.length === 0) {
+        savePdfToFile(retrievedParticipant, retrievedParticipant.sigla);
+      } else {
+        for (var pf of profileMatches) {
+          savePdfToFile(retrievedParticipant, pf.name);
+        }
       }
     }
     handleLoadingModalClose();
@@ -737,7 +814,7 @@ export default function DriReportsView() {
 
   const PdfDocument = ({ eventData, agentData, profileName }) => (
     <Document>
-      <Page size="A4" style={pdfStyles.page}>
+      <Page size="A4" orientation="landscape" style={pdfStyles.page}>
         <View style={pdfStyles.section}>
           <Text style={pdfStyles.reportTitleText}>{eventData.eventName}</Text>
         </View>
@@ -754,13 +831,13 @@ export default function DriReportsView() {
               <Text style={pdfStyles.headerText}>Ano/mês: </Text>
               <Text style={pdfStyles.headerText}>{eventData.eventDate}</Text>
             </div>
-            <div style={{ marginTop: 2 }}>
+            <div style={{ marginTop: 3 }}>
               <div style={pdfStyles.rowContainer}>
                 <Text style={pdfStyles.headerText}>Agente: </Text>
                 <Text style={pdfStyles.headerText}>{agentData.sigla}</Text>
               </div>
             </div>
-            <div style={{ marginTop: 2 }}>
+            <div style={{ marginTop: 3 }}>
               <div style={pdfStyles.rowContainer}>
                 <Text style={pdfStyles.headerText}>Perfil: </Text>
                 <Text style={pdfStyles.headerText}>{profileName}</Text>
@@ -821,7 +898,8 @@ export default function DriReportsView() {
               style={{
                 borderWidth: 1,
                 borderStyle: "solid",
-                width: h.headerName.length > 13 ? 250 : 150,
+                width: h.headerName.length > 13 ? 300 : 200,
+                height: 70,
                 padding: 2,
                 justifyContent: "center",
                 alignContent: "center",
@@ -842,7 +920,8 @@ export default function DriReportsView() {
                 style={{
                   borderWidth: 1,
                   borderStyle: "solid",
-                  width: x.headerName.length > 13 ? 250 : 150,
+                  width: x.headerName.length > 13 ? 300 : 200,
+                  minHeight: 30,
                   padding: 2,
                   justifyContent: "center",
                   alignContent: "center",
@@ -930,13 +1009,18 @@ export default function DriReportsView() {
 
     var distinctProfiles = [];
     if (selectedReportParticipant !== "") {
-      distinctProfiles = getRetrievedProfiles()
-        .filter(
-          (x) =>
-            x.agentCode.toString() ===
-            selectedReportParticipant.codigo.toString()
-        )
-        .map((x) => x.name);
+      if (getRetrievedProfiles().length === 0) {
+        distinctProfiles.push(selectedReportParticipant.sigla);
+      } else {
+        distinctProfiles = getRetrievedProfiles()
+          .filter(
+            (x) =>
+              x.agentCode.toString() ===
+              selectedReportParticipant.codigo.toString()
+          )
+          .map((x) => x.name);
+      }
+      distinctProfiles = [...new Set(distinctProfiles)];
     }
 
     return (
@@ -984,6 +1068,31 @@ export default function DriReportsView() {
       </div>
     );
   }
+
+  const chooseFieldsToRender = (actionId) => {
+    var option = parseInt(actionId);
+    if (option === 1) {
+      return (
+        <div>
+          <TextField
+            id="outlined-participant-input"
+            label="Cód Agente"
+            type="number"
+            onChange={(event) => setParticipantCode(event.target.value)}
+            sx={{ width: 250 }}
+          />
+        </div>
+      );
+    } else if (option === 2) {
+      return (
+        <div>
+          <input type="file" onChange={fileHandler.bind(this)} />
+        </div>
+      );
+    } else {
+      return <div></div>;
+    }
+  };
 
   return (
     <div>
@@ -1075,39 +1184,37 @@ export default function DriReportsView() {
                 )}
 
                 <Divider sx={{ marginTop: 2, marginBottom: 2 }} />
-
-                <FormControl>
-                  <FormLabel id="input-type-radio-buttons-label">
-                    Tipo de entrada
-                  </FormLabel>
-                  <RadioGroup
-                    row
-                    aria-labelledby="input-radio-buttons-group-label"
-                    defaultValue={inputTypes[1].id}
-                    name="input-radio-buttons-group"
-                    value={inputId}
-                    onChange={handleInputTypeChange}
-                  >
-                    {inputTypes.map((x) => (
-                      <FormControlLabel
-                        key={x.id}
-                        value={x.id}
-                        control={<Radio />}
-                        label={x.name}
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                {inputId === 1 ? (
-                  <TextField
-                    id="outlined-participant-input"
-                    label="Cód Agente"
-                    type="number"
-                    onChange={(event) => setParticipantCode(event.target.value)}
-                  />
-                ) : (
-                  <input type="file" onChange={fileHandler.bind(this)} />
-                )}
+                <Paper elevation={3}>
+                  <Stack spacing={1} sx={{ marginLeft: 1 }}>
+                    <Typography variant="h7" mb={1} mt={1}>
+                      Agente
+                    </Typography>
+                    <FormControl>
+                      <FormLabel id="input-type-radio-buttons-label">
+                        Tipo de entrada
+                      </FormLabel>
+                      <RadioGroup
+                        row
+                        aria-labelledby="input-radio-buttons-group-label"
+                        defaultValue={inputTypes[1].id}
+                        name="input-radio-buttons-group"
+                        value={inputId}
+                        onChange={handleInputTypeChange}
+                      >
+                        {inputTypes.map((x) => (
+                          <FormControlLabel
+                            key={x.id}
+                            value={x.id}
+                            control={<Radio />}
+                            label={x.name}
+                          />
+                        ))}
+                      </RadioGroup>
+                    </FormControl>
+                    {chooseFieldsToRender(inputId)}
+                    <div style={{ marginBottom: 5 }} />
+                  </Stack>
+                </Paper>
               </Stack>
               <Button
                 sx={{ marginTop: 5 }}

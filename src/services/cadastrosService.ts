@@ -188,7 +188,11 @@ const listarParticipantesDeMercado_totalDePaginas = async (
   });
 };
 
-const listarPerfis = async (authData, agenteAtual, paginaAtual = 1): Promise<object> => {
+const listarPerfis = async (
+  authData,
+  agenteAtual,
+  paginaAtual = 1
+): Promise<object> => {
   var options = {
     headers: {
       "Content-Type": "text/xml; charset=utf-8",
@@ -267,13 +271,99 @@ const listarPerfis = async (authData, agenteAtual, paginaAtual = 1): Promise<obj
           };
           resolve(responseData);
         } else {
-          var responseData = { data: agenteAtual, code: response.status, totalPaginas: 0 };
+          var responseData = {
+            data: agenteAtual,
+            code: response.status,
+            totalPaginas: 0,
+          };
           resolve(responseData);
         }
       })
       .catch(function (error) {
         if (error.response) {
-          var responseData = { data: agenteAtual, code: error.response.status, totalPaginas: 0 };
+          var responseData = {
+            data: agenteAtual,
+            code: error.response.status,
+            totalPaginas: 0,
+          };
+          console.log(error.response.status);
+          resolve(responseData);
+        }
+      });
+  });
+};
+
+const listarRepresentacao = async (
+  authData,
+  paginaAtual = 1
+): Promise<object> => {
+  var options = {
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: "listarRepresentacao",
+    },
+  };
+
+  var xmlBodyStr = `<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap-env:Header>
+   <ns2:messageHeader xsi:type="ns2:MessageHeaderType" xmlns:ns2="http://xmlns.energia.org.br/MH/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <ns2:codigoPerfilAgente>${authData.AuthCodigoPerfilAgente}</ns2:codigoPerfilAgente>
+     </ns2:messageHeader>
+   <ns1:Security xsi:type="ns1:SecurityHeaderType" xmlns:ns1="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <ns1:UsernameToken>
+           <ns1:Username>${authData.AuthUsername}</ns1:Username>
+           <ns1:Password>${authData.AuthPassword}</ns1:Password>
+        </ns1:UsernameToken>
+     </ns1:Security>
+   <ns0:paginacao xsi:type="ns0:Pagina" xmlns:ns0="http://xmlns.energia.org.br/MH/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+        <ns0:numero>${paginaAtual}</ns0:numero>
+        <ns0:quantidadeItens>50</ns0:quantidadeItens>
+     </ns0:paginacao> 
+  </soap-env:Header>
+  <soap-env:Body>
+     <ns0:listarRepresentacaoRequest xmlns:ns0="http://xmlns.energia.org.br/BM/v2"/>
+  </soap-env:Body>
+</soap-env:Envelope>`;
+
+  return new Promise((resolve) => {
+    api()
+      .post("/RepresentacaoBSv2", xmlBodyStr, options)
+      .then((response) => {
+        if (response.status === 200) {
+          let resBody = new Buffer.from(response.data).toString();
+          var xml = xml2json(resBody, { compact: true, spaces: 4 });
+          var json = JSON.parse(xml);
+          var representacoes =
+            json["soapenv:Envelope"]["soapenv:Body"][
+              "bmv2:listarRepresentacaoResponse"
+            ]["bmv2:representacoes"]["bov2:representacao"];
+          const totalPaginas =
+            json["soapenv:Envelope"]["soapenv:Header"]["mhv2:paginacao"][
+              "mhv2:totalPaginas"
+            ];
+
+          var responseData = {
+            data: representacoes,
+            code: response.status,
+            totalPaginas,
+          };
+          resolve(responseData);
+        } else {
+          var responseData = {
+            data: 0,
+            code: response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      })
+      .catch(function (error) {
+        if (error.response) {
+          var responseData = {
+            data: 0,
+            code: error.response.status,
+            totalPaginas: 0,
+          };
           console.log(error.response.status);
           resolve(responseData);
         }
@@ -285,4 +375,5 @@ export const cadastrosService = {
   listarParticipantesDeMercado,
   listarParticipantesDeMercado_totalDePaginas,
   listarPerfis,
+  listarRepresentacao,
 };
