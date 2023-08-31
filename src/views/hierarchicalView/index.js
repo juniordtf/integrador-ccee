@@ -116,7 +116,11 @@ export default function HierarchicalView() {
     }
 
     var relatedProfiles = profiles.filter(
-      (x) => x.codAgente === participantsCode
+      (x) =>
+        x.codAgente === participantsCode &&
+        selectedParticipant.key
+          .substring(selectedParticipant.key.length - 8)
+          .toString() === x.key.substring(x.key.length - 8).toString()
     );
 
     if (relatedProfiles.length === 0) {
@@ -130,7 +134,10 @@ export default function HierarchicalView() {
 
     for (const x of relatedProfiles) {
       var relatedPartialResource = partialResources.filter(
-        (y) => y.codPerfil === x.codPerfil
+        (y) =>
+          y.codPerfil === x.codPerfil &&
+          x.key.substring(x.key.length - 8).toString() ===
+            y.key.substring(y.key.length - 8).toString()
       );
 
       if (relatedPartialResource.length > 0) {
@@ -440,7 +447,6 @@ export default function HierarchicalView() {
       "XX.XXX.XXX/XXXX-XX",
       selectedPartialResourceData.cnpj
     );
-
     return (
       <div>
         <Box className={styles.detailsCard}>

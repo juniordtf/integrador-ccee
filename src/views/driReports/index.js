@@ -88,6 +88,8 @@ export default function DriReportsView() {
     useState("");
   const [selectedReportProfile, setSelectedReportProfile] = useState("");
   const [representedAgentsIds, setRepresentedAgentsIds] = useState([]);
+  const [listAcronymChecked, setListAcronymChecked] = useState(false);
+  const [acronomiesInfos, setAcronomiesInfos] = useState([]);
 
   const dataGridEnd = useRef(null);
 
@@ -294,6 +296,43 @@ export default function DriReportsView() {
     handleLoadingModalClose();
   };
 
+  const listarAcronimos = async () => {
+    setLoadingModalOpen(true);
+    var responseData = await driService.listarAcronimos(authData, 1);
+    var totalPaginas = responseData.totalPaginas;
+    var totalPaginasNumber = totalPaginas._text
+      ? parseInt(totalPaginas._text.toString())
+      : 0;
+
+    var acronomiesList = [];
+    if (totalPaginasNumber > 1) {
+      for (
+        let paginaCorrente = 1;
+        paginaCorrente <= totalPaginasNumber;
+        paginaCorrente++
+      ) {
+        var responseDataPaginated = await driService.listarAcronimos(
+          authData,
+          paginaCorrente
+        );
+        if (responseDataPaginated.code === 200) {
+          const results = responseDataPaginated.data;
+          var acronomys = await mapResponseToAcronomy(results);
+          acronomys.forEach((x) => acronomiesList.push(x));
+        }
+      }
+    } else {
+      if (responseData.code === 200) {
+        const results = responseData.data;
+        var acronomys = await mapResponseToAcronomy(results);
+        acronomys.forEach((x) => acronomiesList.push(x));
+      }
+    }
+
+    setAcronomiesInfos(acronomiesList);
+    handleLoadingModalClose();
+  };
+
   const listarRepresentados = async () => {
     setLoadingModalOpen(true);
     var responseData = await cadastrosService.listarRepresentacao(authData, 1);
@@ -306,7 +345,7 @@ export default function DriReportsView() {
     if (totalPaginasNumber > 1) {
       for (
         let paginaCorrente = 1;
-        paginaCorrente < totalPaginasNumber;
+        paginaCorrente <= totalPaginasNumber;
         paginaCorrente++
       ) {
         var responseDataPaginated = await cadastrosService.listarRepresentacao(
@@ -371,6 +410,18 @@ export default function DriReportsView() {
     setAllBoardsChecked(!allBoardsChecked);
   };
 
+  const handleListAcronymChange = () => {
+    if (
+      !listAcronymChecked &&
+      acronomiesInfos !== undefined &&
+      acronomiesInfos.length === 0
+    ) {
+      listarAcronimos();
+    }
+
+    setListAcronymChecked(!listAcronymChecked);
+  };
+
   const handleMultiSelectBoardChange = (event) => {
     const {
       target: { value },
@@ -410,7 +461,7 @@ export default function DriReportsView() {
     var participantsCodes = [];
     var rowData = [];
     var idx = 1;
-    for (const code of codes) {
+    for (var code of codes) {
       var res = await getResults(code, boardId);
       if (res !== undefined) {
         var columnData = res.columns;
@@ -449,7 +500,7 @@ export default function DriReportsView() {
       return;
     }
 
-    for (var boardId of selectedBoardIds) {
+    for (const boardId of selectedBoardIds) {
       var tableData,
         columnData,
         rowData = [];
@@ -464,22 +515,33 @@ export default function DriReportsView() {
       } else if (inputId === 2) {
         var codes = uploadFileRows.map((x) => x[0]);
         var results = await getMultipleResults(codes, boardId);
-        rowData = results.rowData;
-        columnData = results.columnData;
+        if (results !== undefined) {
+          rowData = results.rowData;
+          columnData = results.columnData;
+        }
       } else {
-        var results = await getMultipleResults(representedAgentsIds, boardId);
-        rowData = results.rowData;
-        columnData = results.columnData;
+        var results = await getMultipleResults(
+          representedAgentsIds.slice(170, 190),
+          boardId
+        );
+        if (results !== undefined) {
+          rowData = results.rowData;
+          columnData = results.columnData;
+        }
       }
 
       if (rowData !== undefined && rowData.length > 0) {
         var resultRowsArrClone = queryResultRows;
-        resultRowsArrClone.push(rowData);
-        setQueryResultRows(resultRowsArrClone);
+        if (rowData !== undefined) {
+          resultRowsArrClone.push(rowData);
+          setQueryResultRows(resultRowsArrClone);
+        }
 
         var resultHeaderArrClone = queryResultHeaders;
-        resultHeaderArrClone.push(columnData);
-        setQueryResultHeaders(resultHeaderArrClone);
+        if (columnData !== undefined) {
+          resultHeaderArrClone.push(columnData);
+          setQueryResultHeaders(resultHeaderArrClone);
+        }
 
         var queryParams = {
           eventDate:
@@ -498,6 +560,7 @@ export default function DriReportsView() {
 
     setRequestSent(true);
     handleLoadingModalClose();
+    scrollToBottom();
   };
 
   const getResults = async (agentCode, boardId) => {
@@ -517,6 +580,19 @@ export default function DriReportsView() {
       return [];
     }
   };
+
+  async function mapResponseToAcronomy(acronomy) {
+    var acsDatas = [];
+
+    for (var ac of acronomy) {
+      const nome = ac["bov2:nome"]._text.toString();
+      const descricao = ac["bov2:descricao"]._text.toString();
+      const tipo = ac["bov2:tipo"]["bov2:descricao"]._text.toString();
+      var acronomyData = { nome, descricao, tipo };
+      acsDatas.push(acronomyData);
+    }
+    return acsDatas;
+  }
 
   async function mapResponseToRepresentation(representados) {
     var codes = [];
@@ -564,7 +640,7 @@ export default function DriReportsView() {
     if (boards.length === undefined) {
       mapResponseToBoard(boards, reportId, reportName);
     } else {
-      for (const bd of boards) {
+      for (var bd of boards) {
         mapResponseToBoard(bd, reportId, reportName);
       }
     }
@@ -684,7 +760,6 @@ export default function DriReportsView() {
     setRows(rowsToDisplay);
     setSelectedBoarName(label);
     handleLoadingModalClose();
-    scrollToBottom();
   };
 
   const handleLoadingModalClose = (event, reason) => {
@@ -995,6 +1070,121 @@ export default function DriReportsView() {
     return [...new Set(profilesArr)];
   }
 
+  function RenderAcronimiesInPdf() {
+    return (
+      <PDFViewer style={pdfStyles.viewer}>
+        <Document>
+          <Page size="A4" style={pdfStyles.page}>
+            <View style={pdfStyles.section}>
+              <Text style={pdfStyles.reportTitleText}>Acrônimos</Text>
+              <div style={{ marginTop: 10 }}>
+                {RenderAcronomyBoardHeader()}
+                {acronomiesInfos.map((x) => RenderAcronomyBoard(x))}
+              </div>
+            </View>
+          </Page>
+        </Document>
+      </PDFViewer>
+    );
+  }
+
+  function RenderAcronomyBoardHeader() {
+    return (
+      <div style={pdfStyles.rowContainer}>
+        <div
+          style={{
+            borderWidth: 1,
+            borderStyle: "solid",
+            width: 130,
+            minHeight: 20,
+            padding: 2,
+            justifyContent: "center",
+            alignContent: "center",
+            backgroundColor: "#E0E0E0",
+          }}
+        >
+          <Text style={pdfStyles.biDimensionalCellText}>Nome</Text>
+        </div>
+        <div
+          style={{
+            borderWidth: 1,
+            borderStyle: "solid",
+            width: 80,
+            minHeight: 20,
+            padding: 2,
+            justifyContent: "center",
+            alignContent: "center",
+            backgroundColor: "#E0E0E0",
+          }}
+        >
+          <Text style={pdfStyles.biDimensionalCellText}>Tipo</Text>
+        </div>
+        <div
+          style={{
+            borderWidth: 1,
+            borderStyle: "solid",
+            width: 200,
+            minHeight: 20,
+            padding: 2,
+            justifyContent: "center",
+            alignContent: "center",
+            backgroundColor: "#E0E0E0",
+          }}
+        >
+          <Text style={pdfStyles.biDimensionalCellText}>Descrição</Text>
+        </div>
+      </div>
+    );
+  }
+
+  function RenderAcronomyBoard(acronomy) {
+    return (
+      <div style={pdfStyles.rowContainer}>
+        <div
+          style={{
+            borderWidth: 1,
+            borderStyle: "solid",
+            width: 130,
+            minHeight: 30,
+            padding: 2,
+            justifyContent: "center",
+            alignContent: "center",
+          }}
+        >
+          <Text style={pdfStyles.biDimensionalCellText}>{acronomy.nome}</Text>
+        </div>
+        <div
+          style={{
+            borderWidth: 1,
+            borderStyle: "solid",
+            width: 80,
+            minHeight: 30,
+            padding: 2,
+            justifyContent: "center",
+            alignContent: "center",
+          }}
+        >
+          <Text style={pdfStyles.biDimensionalCellText}>{acronomy.tipo}</Text>
+        </div>
+        <div
+          style={{
+            borderWidth: 1,
+            borderStyle: "solid",
+            width: 200,
+            minHeight: 30,
+            padding: 2,
+            justifyContent: "center",
+            alignContent: "center",
+          }}
+        >
+          <Text style={pdfStyles.biDimensionalCellText}>
+            {acronomy.descricao}
+          </Text>
+        </div>
+      </div>
+    );
+  }
+
   function RenderReportByParticipant() {
     var retrievedParticipants = [];
 
@@ -1223,6 +1413,22 @@ export default function DriReportsView() {
               >
                 Enviar
               </Button>
+              <Divider sx={{ marginTop: 2, marginBottom: 1 }} />
+              <Typography variant="h6">Acrônimos</Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={listAcronymChecked}
+                    onChange={handleListAcronymChange}
+                  />
+                }
+                label="Listar acrônimos"
+              />
+              {listAcronymChecked && acronomiesInfos.length > 0 ? (
+                RenderAcronimiesInPdf()
+              ) : (
+                <div />
+              )}
               {queryKeys !== undefined && queryKeys.length > 0 ? (
                 <div>
                   <Divider sx={{ marginTop: 2, marginBottom: 1 }} />
@@ -1264,10 +1470,6 @@ export default function DriReportsView() {
                       ) : (
                         <div />
                       )}
-                      <div
-                        style={{ float: "left", clear: "both" }}
-                        ref={dataGridEnd}
-                      />
                     </div>
                   ) : (
                     <div />
@@ -1314,6 +1516,7 @@ export default function DriReportsView() {
       ) : (
         <div />
       )}
+      <div style={{ float: "left", clear: "both" }} ref={dataGridEnd} />
 
       <Modal
         open={loadingModalOpen}
