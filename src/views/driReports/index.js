@@ -90,7 +90,7 @@ export default function DriReportsView() {
   const [representedAgentsIds, setRepresentedAgentsIds] = useState([]);
   const [listAcronymChecked, setListAcronymChecked] = useState(false);
   const [acronomiesInfos, setAcronomiesInfos] = useState([]);
-  const [boardsQuantity, setBoardsQuantity] = useState(0);
+  const [loadingText, setLoadingText] = useState("");
 
   const dataGridEnd = useRef(null);
 
@@ -174,6 +174,7 @@ export default function DriReportsView() {
   }, []);
 
   const getAccountingEvents = async () => {
+    setLoadingText("Buscando eventos");
     setLoadingModalOpen(true);
 
     setAccountingEvents([]);
@@ -243,6 +244,7 @@ export default function DriReportsView() {
   };
 
   const getReports = async (eventCode) => {
+    setLoadingText("Buscando relatórios");
     setLoadingModalOpen(true);
     var responseData = await driService.listarRelatoriosMapeados(
       authData,
@@ -298,6 +300,7 @@ export default function DriReportsView() {
   };
 
   const listarAcronimos = async () => {
+    setLoadingText("Buscando acrônimos");
     setLoadingModalOpen(true);
     var responseData = await driService.listarAcronimos(authData, 1);
     var totalPaginas = responseData.totalPaginas;
@@ -335,6 +338,7 @@ export default function DriReportsView() {
   };
 
   const listarRepresentados = async () => {
+    setLoadingText("Buscando representados");
     setLoadingModalOpen(true);
     var responseData = await cadastrosService.listarRepresentacao(authData, 1);
     var totalPaginas = responseData.totalPaginas;
@@ -467,6 +471,7 @@ export default function DriReportsView() {
     var rowsValues = [];
     var idx = 1;
 
+    setLoadingText("Buscando resultados");
     setLoadingModalOpen(true);
 
     getIndividualResults(codes, boardId).then((res) => {
@@ -541,6 +546,7 @@ export default function DriReportsView() {
     }
 
     if (inputId === 1) {
+      setLoadingText("Buscando resultados");
       setLoadingModalOpen(true);
     }
 
@@ -789,6 +795,7 @@ export default function DriReportsView() {
   }
 
   const handleChipClick = (idx, label) => {
+    setLoadingText("Carregando quadros");
     setLoadingModalOpen(true);
     var headerToDisplay = queryResultHeaders[idx];
     var rowsToDisplay = queryResultRows[idx];
@@ -819,6 +826,7 @@ export default function DriReportsView() {
   };
 
   const handleExportData = () => {
+    setLoadingText("Exportando quadro");
     setLoadingModalOpen(true);
 
     const correctedRows = [...rows];
@@ -837,6 +845,7 @@ export default function DriReportsView() {
   };
 
   const handleConfirmDialog = () => {
+    setLoadingText("Exportando quadro");
     setLoadingModalOpen(true);
     var boardLabel = selectedBoardName.replace(" | ", "_");
     var fileName = selectedAccountingEventName + "_" + boardLabel;
@@ -870,16 +879,22 @@ export default function DriReportsView() {
   };
 
   const savePDFs = () => {
+    setLoadingText("Salvando PDFs");
     setLoadingModalOpen(true);
 
     for (var code of participantsQueryCodes) {
       var retrievedParticipant = participants.find(
         (x) => x.codigo === code.toString()
       );
-      var profileMatches = getRetrievedProfiles().filter(
-        (x) => x.agentCode.toString() === retrievedParticipant.codigo.toString()
-      );
-      profileMatches = [...new Set(profileMatches)];
+      var profileMatches = [];
+
+      if (profileMatches.length > 0) {
+        profileMatches = getRetrievedProfiles().filter(
+          (x) =>
+            x.agentCode.toString() === retrievedParticipant.codigo.toString()
+        );
+        profileMatches = [...new Set(profileMatches)];
+      }
 
       if (profileMatches.length === 0) {
         savePdfToFile(retrievedParticipant, retrievedParticipant.sigla);
@@ -1239,7 +1254,13 @@ export default function DriReportsView() {
     if (selectedReportParticipant !== "") {
       if (getRetrievedProfiles().length === 0) {
         if (retrievedParticipants.length > 1) {
-          retrievedParticipants.forEach((x) => distinctProfiles.push(x.sigla));
+          var allPosibleProfiles = [];
+          retrievedParticipants.forEach((x) =>
+            allPosibleProfiles.push(x.sigla)
+          );
+          distinctProfiles = allPosibleProfiles.filter(
+            (x) => x === selectedReportParticipant.sigla
+          );
         } else {
           distinctProfiles.push(selectedReportParticipant.sigla);
         }
@@ -1573,7 +1594,7 @@ export default function DriReportsView() {
             component="h2"
             sx={{ marginTop: "-15px" }}
           >
-            Buscando resultados
+            {loadingText}
           </Typography>
           <Box
             sx={{
