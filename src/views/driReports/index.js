@@ -74,7 +74,6 @@ export default function DriReportsView() {
   const [selectedFileFormat, setSelectedFileFormat] = useState("csv");
   const [openDialog, setDialogOpen] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
-  const [exportData, setExportData] = useState([]);
   const [selectedBoardIds, setSelectedBoardIds] = useState([]);
   const [selectedBoardName, setSelectedBoarName] = useState([]);
   const [queryKeys, setQueryKeys] = useState([]);
@@ -825,11 +824,9 @@ export default function DriReportsView() {
     setSelectedFileFormat(event.target.value);
   };
 
-  const handleExportData = () => {
-    setLoadingText("Exportando quadro");
-    setLoadingModalOpen(true);
-
-    const correctedRows = [...rows];
+  const getExportData = () => {
+    const correctedRows = [];
+    rows.forEach((val) => correctedRows.push(Object.assign({}, val)));
 
     for (const rowData of correctedRows) {
       for (const col of columns) {
@@ -839,14 +836,13 @@ export default function DriReportsView() {
       }
     }
 
-    setExportData(correctedRows);
-    handleLoadingModalClose();
-    setDialogOpen(true);
+    return correctedRows;
   };
 
   const handleConfirmDialog = () => {
     setLoadingText("Exportando quadro");
     setLoadingModalOpen(true);
+
     var boardLabel = selectedBoardName.replace(" | ", "_");
     var fileName = selectedAccountingEventName + "_" + boardLabel;
     let exportType = "";
@@ -859,7 +855,7 @@ export default function DriReportsView() {
       exportType = exportFromJSON.types.json;
     }
 
-    exportFromJSON({ data: exportData, fileName, exportType });
+    exportFromJSON({ data: getExportData(), fileName, exportType });
     handleCloseDialog();
     handleLoadingModalClose();
   };
@@ -1525,7 +1521,7 @@ export default function DriReportsView() {
                         <div style={{ marginTop: 7 }}>
                           <Button
                             variant="outlined"
-                            onClick={() => handleExportData()}
+                            onClick={() => setDialogOpen(true)}
                           >
                             Exportar quadro
                           </Button>
