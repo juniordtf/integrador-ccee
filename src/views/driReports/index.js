@@ -90,6 +90,7 @@ export default function DriReportsView() {
   const [representedAgentsIds, setRepresentedAgentsIds] = useState([]);
   const [listAcronymChecked, setListAcronymChecked] = useState(false);
   const [acronomiesInfos, setAcronomiesInfos] = useState([]);
+  const [boardsQuantity, setBoardsQuantity] = useState(0);
 
   const dataGridEnd = useRef(null);
 
@@ -457,32 +458,72 @@ export default function DriReportsView() {
     });
   };
 
+  var qte = 0;
+
   const getMultipleResults = async (codes, boardId) => {
     var participantsCodes = [];
     var rowData = [];
+    var columnData = [];
+    var rowsValues = [];
     var idx = 1;
-    for (var code of codes) {
-      var res = await getResults(code, boardId);
-      if (res !== undefined) {
-        var columnData = res.columns;
-        var rowsValues = res.rows;
-        participantsCodes.push(code);
 
-        if (rowsValues !== undefined && rowsValues.length > 0) {
-          for (var r of rowsValues) {
-            r.id = idx;
-            rowData.push(r);
-            idx++;
+    setLoadingModalOpen(true);
+
+    getIndividualResults(codes, boardId).then((res) => {
+      if (res !== undefined && res.length > 0) {
+        res.forEach((resValue, resIdx) => {
+          if (
+            (resValue !== undefined && resValue.rows !== undefined) ||
+            (Array.isArray(resValue) && resValue.length > 0)
+          ) {
+            columnData = resValue.columns;
+            rowsValues = resValue.rows;
+
+            if (rowsValues !== undefined && rowsValues.length > 0) {
+              if (rowsValues[0] !== undefined) {
+                participantsCodes.push(rowsValues[0].col0);
+                setParticipantsQueryCodes(participantsCodes);
+              }
+
+              for (var r of rowsValues) {
+                r.id = idx;
+                rowData.push(r);
+                idx++;
+              }
+            }
           }
-        }
+
+          if (resIdx === codes.length - 1) {
+            if (rowData !== undefined && rowData.length > 0) {
+              addReportData(rowData, columnData, boardId);
+            }
+          }
+        });
       }
-    }
-    setParticipantsQueryCodes(participantsCodes);
-    return { rowData, columnData };
+
+      qte++;
+      console.log(qte);
+
+      if (qte === selectedBoardIds.length) {
+        setRequestSent(true);
+        handleLoadingModalClose();
+        scrollToBottom();
+        qte = 0;
+      }
+    });
+  };
+
+  const getIndividualResults = async (codes, boardId) => {
+    const requests = codes.map((code) => {
+      return getResults(code, boardId).then((res) => {
+        return res;
+      });
+    });
+
+    return Promise.all(requests);
   };
 
   const sendRequest = async () => {
-    setLoadingModalOpen(true);
     setRows([]);
     setColumns([]);
     setQueryKeys([]);
@@ -496,8 +537,11 @@ export default function DriReportsView() {
         uploadFileRows.length === 0 &&
         representedAgentsIds.length === 0)
     ) {
-      handleLoadingModalClose();
       return;
+    }
+
+    if (inputId === 1) {
+      setLoadingModalOpen(true);
     }
 
     for (const boardId of selectedBoardIds) {
@@ -511,56 +555,24 @@ export default function DriReportsView() {
           columnData = tableData.columns;
           rowData = tableData.rows;
           setParticipantsQueryCodes([participantCode]);
+
+          if (rowData !== undefined && rowData.length > 0) {
+            addReportData(rowData, columnData, boardId);
+          }
         }
       } else if (inputId === 2) {
         var codes = uploadFileRows.map((x) => x[0]);
-        var results = await getMultipleResults(codes, boardId);
-        if (results !== undefined) {
-          rowData = results.rowData;
-          columnData = results.columnData;
-        }
+        getMultipleResults(codes, boardId);
       } else {
-        var results = await getMultipleResults(
-          representedAgentsIds.slice(170, 190),
-          boardId
-        );
-        if (results !== undefined) {
-          rowData = results.rowData;
-          columnData = results.columnData;
-        }
-      }
-
-      if (rowData !== undefined && rowData.length > 0) {
-        var resultRowsArrClone = queryResultRows;
-        if (rowData !== undefined) {
-          resultRowsArrClone.push(rowData);
-          setQueryResultRows(resultRowsArrClone);
-        }
-
-        var resultHeaderArrClone = queryResultHeaders;
-        if (columnData !== undefined) {
-          resultHeaderArrClone.push(columnData);
-          setQueryResultHeaders(resultHeaderArrClone);
-        }
-
-        var queryParams = {
-          eventDate:
-            dayjs(date).format("YYYY").toString() +
-            "/" +
-            dayjs(date).format("MM").toString(),
-          eventName: selectedAccountingEventName,
-          reportName: selectedReport.label,
-          boardName: boards.find((x) => x.boardId === boardId).label,
-        };
-        var queryKeysArrClone = queryKeys;
-        queryKeysArrClone.push(queryParams);
-        setQueryKeys(queryKeysArrClone);
+        getMultipleResults(representedAgentsIds, boardId);
       }
     }
 
-    setRequestSent(true);
-    handleLoadingModalClose();
-    scrollToBottom();
+    if (inputId === 1) {
+      setRequestSent(true);
+      handleLoadingModalClose();
+      scrollToBottom();
+    }
   };
 
   const getResults = async (agentCode, boardId) => {
@@ -580,6 +592,31 @@ export default function DriReportsView() {
       return [];
     }
   };
+
+  function addReportData(rowData, columnData, boardId) {
+    var resultRowsArrClone = queryResultRows;
+    resultRowsArrClone.push(rowData);
+    setQueryResultRows(resultRowsArrClone);
+
+    if (columnData !== undefined) {
+      var resultHeaderArrClone = queryResultHeaders;
+      resultHeaderArrClone.push(columnData);
+      setQueryResultHeaders(resultHeaderArrClone);
+    }
+
+    var queryParams = {
+      eventDate:
+        dayjs(date).format("YYYY").toString() +
+        "/" +
+        dayjs(date).format("MM").toString(),
+      eventName: selectedAccountingEventName,
+      reportName: selectedReport.label,
+      boardName: boards.find((x) => x.boardId === boardId).label,
+    };
+    var queryKeysArrClone = queryKeys;
+    queryKeysArrClone.push(queryParams);
+    setQueryKeys(queryKeysArrClone);
+  }
 
   async function mapResponseToAcronomy(acronomy) {
     var acsDatas = [];
@@ -1059,6 +1096,7 @@ export default function DriReportsView() {
     var profilesArr = [];
     for (var i of idxs) {
       var results = queryResultRows[i];
+      console.log(results);
       var profiles = results.map((x) => ({ name: x.col4, agentCode: x.col0 }));
       if (profilesArr.length === 0) {
         profilesArr = profiles;
@@ -1190,7 +1228,7 @@ export default function DriReportsView() {
 
     for (var code of participantsQueryCodes) {
       var retrievedParticipant = participants.find(
-        (x) => x.codigo === code.toString()
+        (x) => x.codigo.toString() === code.toString()
       );
       if (retrievedParticipant !== undefined) {
         retrievedParticipants.push(retrievedParticipant);
@@ -1200,7 +1238,11 @@ export default function DriReportsView() {
     var distinctProfiles = [];
     if (selectedReportParticipant !== "") {
       if (getRetrievedProfiles().length === 0) {
-        distinctProfiles.push(selectedReportParticipant.sigla);
+        if (retrievedParticipants.length > 1) {
+          retrievedParticipants.forEach((x) => distinctProfiles.push(x.sigla));
+        } else {
+          distinctProfiles.push(selectedReportParticipant.sigla);
+        }
       } else {
         distinctProfiles = getRetrievedProfiles()
           .filter(
