@@ -25,11 +25,13 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import styles from "./styles.module.css";
 import { cadastrosService } from "../../services/cadastrosService.ts";
 import { ativosService } from "../../services/ativosService.ts";
+import { medicaoService } from "../../services/medicaoService.ts";
 import { workers } from "../../webWorkers/workers.js";
 import WebWorker from "../../webWorkers/workerSetup";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../database/db";
 import { setWeekYearWithOptions } from "date-fns/fp";
+import exportFromJSON from "export-from-json";
 
 export default function DataSyncView() {
   const [authData, setAuthData] = useState([]);
@@ -50,6 +52,9 @@ export default function DataSyncView() {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [scdeCode, setScdeCode] = useState("");
+  const [measurementsValues, setMeasurementsValues] = useState([]);
+
   const timerRef = useRef(null);
 
   const servicos = [
@@ -58,6 +63,7 @@ export default function DataSyncView() {
     { id: 3, name: "Listar ativos de medição" },
     { id: 4, name: "Listar parcelas de ativos" },
     { id: 5, name: "Listar parcelas de carga" },
+    { id: 6, name: "Listar medidas - 5 minutos" },
   ];
   const classes = [
     { id: 1, name: "Autoprodutor" },
@@ -1031,13 +1037,13 @@ export default function DataSyncView() {
   const retryFaultyRequests = async () => {
     if (retryKeys.length === 0) return;
 
-    for(const key of retryKeys) {
+    for (const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
 
       if (key.includes("participantes")) {
         setPendingRequests(pendingRequests + 1);
 
-        for(const rd of retryData) {
+        for (const rd of retryData) {
           listarParticipantes(
             key.substring(6),
             rd.page,
@@ -1045,7 +1051,7 @@ export default function DataSyncView() {
             rd.category,
             true
           );
-        };
+        }
       } else if (key.includes("perfis")) {
         const codAgentes = retryData.map((x) => x.codAgente);
         listarPerfis(key.substring(6), codAgentes, true);
@@ -1067,7 +1073,7 @@ export default function DataSyncView() {
       } else {
         return;
       }
-    };
+    }
   };
 
   const removeProfileFromRetryList = (key, codAgente) => {
@@ -1233,6 +1239,13 @@ export default function DataSyncView() {
         return;
       }
     }
+  };
+
+  const exportMeasurementData = async () => {
+    var fileName = "medidasCincoMinutos" + "_" + scdeCode;
+    let exportType = exportFromJSON.types.xls;
+
+    exportFromJSON({ data: measurementsValues, fileName, exportType });
   };
 
   const sendRequest_ListarParcelasDeAtivo = async () => {
@@ -1513,6 +1526,175 @@ export default function DataSyncView() {
 
   const sendRequest_ListarParcelasDeCarga = async () => {};
 
+  const sendRequest_ListarMedidasCincoMinutos = async () => {
+    setPendingRequests(pendingRequests + 1);
+
+    var daysArr = [];
+    const initialDate = dayjs(date);
+
+    let i = 0;
+    while (i <= 30) {
+      const calculatedDate = initialDate.add(i, "day");
+      daysArr.push(calculatedDate.format("YYYY-MM-DDTHH:mm:ss"));
+      i++;
+    }
+
+    var resultArr = [];
+
+    getIndividualResults_listarMedidasCincoMinutos(daysArr).then((res) => {
+      if (res !== undefined && res.length > 0) {
+        res.forEach((resValue, resIdx) => {
+          if (resValue !== undefined && resValue.length > 0) {
+            resValue.forEach((rs) => {
+              resultArr.push(rs);
+            });
+          }
+        });
+        setMeasurementsValues(resultArr);
+        setPendingRequests(pendingRequests - 1);
+      }
+    });
+  };
+
+  const getIndividualResults_listarMedidasCincoMinutos = async (dates) => {
+    const requests = dates.map((d) => {
+      return listarMedidasCincoMinutos(d).then((res) => {
+        return res;
+      });
+    });
+
+    return Promise.all(requests);
+  };
+
+  async function listarMedidasCincoMinutos(currentDate) {
+    var responseData = await medicaoService.listarMedidasCincoMinutos(
+      authData,
+      scdeCode,
+      currentDate
+    );
+
+    var totalPaginas = responseData.totalPaginas;
+    var totalPaginasNumber = totalPaginas._text
+      ? parseInt(totalPaginas._text.toString())
+      : 0;
+
+    var measurementsArr = [];
+
+    if (totalPaginasNumber > 1) {
+      for (
+        let paginaCorrente = 1;
+        paginaCorrente <= totalPaginasNumber;
+        paginaCorrente++
+      ) {
+        var responseDataPaginated =
+          await medicaoService.listarMedidasCincoMinutos(
+            authData,
+            scdeCode,
+            currentDate,
+            paginaCorrente
+          );
+
+        if (responseDataPaginated.code === 200) {
+          const results = responseDataPaginated.data;
+          results.forEach((r) => {
+            var measurements = mapResponseToMeasurementData(r);
+            measurementsArr.push(measurements);
+          });
+        }
+      }
+    } else {
+      if (responseData.code === 200) {
+        const results = responseData.data;
+        results.forEach((r) => {
+          var measurements = mapResponseToMeasurementData(r);
+          measurementsArr.push(measurements);
+        });
+      }
+    }
+
+    return measurementsArr;
+  }
+
+  function mapResponseToMeasurementData(item) {
+    const coletaMedicao =
+      item["bov2:coletaMedicao"] !== undefined
+        ? item["bov2:coletaMedicao"]["bov2:tipo"]["bov2:nome"]._text.toString()
+        : "";
+    const dataPesquisada =
+      item["bov2:data"] !== undefined ? item["bov2:data"]._text.toString() : "";
+    const energiaAtiva_ConsumoUnd =
+      item["bov2:energiaAtiva"] !== undefined
+        ? item["bov2:energiaAtiva"]["bov2:consumo"][
+            "bov2:unidadeMedida"
+          ]._text.toString()
+        : "";
+    const energiaAtiva_ConsumoValor =
+      item["bov2:energiaAtiva"] !== undefined
+        ? item["bov2:energiaAtiva"]["bov2:consumo"][
+            "bov2:valor"
+          ]._text.toString()
+        : "";
+    const energiaAtiva_GeracaoUnd =
+      item["bov2:energiaAtiva"] !== undefined
+        ? item["bov2:energiaAtiva"]["bov2:geracao"][
+            "bov2:unidadeMedida"
+          ]._text.toString()
+        : "";
+    const energiaAtiva_GeracaoValor =
+      item["bov2:energiaAtiva"] !== undefined
+        ? item["bov2:energiaAtiva"]["bov2:geracao"][
+            "bov2:valor"
+          ]._text.toString()
+        : "";
+    const energiaReativa_ConsumoUnd =
+      item["bov2:energiaReativa"] !== undefined
+        ? item["bov2:energiaReativa"]["bov2:consumo"][
+            "bov2:unidadeMedida"
+          ]._text.toString()
+        : "";
+    const energiaReativa_ConsumoValor =
+      item["bov2:energiaReativa"] !== undefined
+        ? item["bov2:energiaReativa"]["bov2:consumo"][
+            "bov2:valor"
+          ]._text.toString()
+        : "";
+    const energiaReativa_GeracaoUnd =
+      item["bov2:energiaReativa"] !== undefined
+        ? item["bov2:energiaReativa"]["bov2:geracao"][
+            "bov2:unidadeMedida"
+          ]._text.toString()
+        : "";
+    const energiaReativa_GeracaoValor =
+      item["bov2:energiaReativa"] !== undefined
+        ? item["bov2:energiaReativa"]["bov2:geracao"][
+            "bov2:valor"
+          ]._text.toString()
+        : "";
+    const medidor =
+      item["bov2:medidor"] !== undefined
+        ? item["bov2:medidor"]["bov2:codigo"]._text.toString()
+        : "";
+    const tipoEnergia =
+      item["bov2:tipoEnergia"] !== undefined
+        ? item["bov2:tipoEnergia"]["bov2:codigo"]._text.toString()
+        : "";
+
+    return {
+      coletaMedicao,
+      dataPesquisada,
+      energiaAtiva_ConsumoUnd,
+      energiaAtiva_ConsumoValor,
+      energiaAtiva_GeracaoUnd,
+      energiaAtiva_GeracaoValor,
+      energiaReativa_ConsumoUnd,
+      energiaReativa_ConsumoValor,
+      energiaReativa_GeracaoUnd,
+      energiaReativa_GeracaoValor,
+      medidor,
+      tipoEnergia,
+    };
+  }
+
   const sendRequest_FullAutomatic = async () => {
     setPendingRequests(pendingRequests + 1);
     for (const cl of classes) {
@@ -1556,6 +1738,9 @@ export default function DataSyncView() {
         case 4:
           sendRequest_ListarParcelasDeAtivo();
           break;
+        case 6:
+          sendRequest_ListarMedidasCincoMinutos();
+          break;
         default:
           sendRequest_ListarParticipantes();
           break;
@@ -1582,7 +1767,9 @@ export default function DataSyncView() {
                 onChange={handleServiceChange}
               >
                 {servicos.map((x) => (
-                  <MenuItem value={x.id} key={x.id}>{x.name}</MenuItem>
+                  <MenuItem value={x.id} key={x.id}>
+                    {x.name}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -1602,6 +1789,8 @@ export default function DataSyncView() {
       return <div>{RenderProfileOrMeasurementFields(serviceId)}</div>;
     } else if (serviceId === 4) {
       return <div>{renderFractionalMeasurementFields()}</div>;
+    } else if (serviceId === 6) {
+      return <div>{renderMeasureFields()}</div>;
     } else {
       return <div>{renderLoadFields()}</div>;
     }
@@ -1631,7 +1820,9 @@ export default function DataSyncView() {
             onChange={handleCategoryChange}
           >
             {classes.map((x) => (
-              <MenuItem value={x.id} key={x.id}>{x.name}</MenuItem>
+              <MenuItem value={x.id} key={x.id}>
+                {x.name}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -1654,7 +1845,9 @@ export default function DataSyncView() {
     return (
       <Stack spacing={2}>
         <FormControl>
-          <InputLabel id="data-source-select-label-2">Fonte de dados</InputLabel>
+          <InputLabel id="data-source-select-label-2">
+            Fonte de dados
+          </InputLabel>
           <Select
             labelId="data-source-select-label"
             id="data-source-simple-select-2"
@@ -1663,7 +1856,9 @@ export default function DataSyncView() {
             onChange={handleDataSourceChange}
           >
             {sortedDataSourceKeys.map((x) => (
-              <MenuItem value={x} key={x}>{x}</MenuItem>
+              <MenuItem value={x} key={x}>
+                {x}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -1703,7 +1898,9 @@ export default function DataSyncView() {
                 onChange={handleParameterChange}
               >
                 {parameters.map((x) => (
-                  <MenuItem value={x.id} key={x.id}>{x.name}</MenuItem>
+                  <MenuItem value={x.id} key={x.id}>
+                    {x.name}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -1723,7 +1920,9 @@ export default function DataSyncView() {
                 onChange={handleDataSourceChange}
               >
                 {sortedDataSourceKeys.map((x) => (
-                  <MenuItem value={x} key={x}>{x}</MenuItem>
+                  <MenuItem value={x} key={x}>
+                    {x}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -1749,6 +1948,29 @@ export default function DataSyncView() {
           </LocalizationProvider>
         </Stack>
       </div>
+    );
+  };
+
+  const renderMeasureFields = () => {
+    return (
+      <Stack spacing={2}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DateTimePicker
+            label="Data & Hora"
+            value={date}
+            onChange={(newValue) => {
+              setDate(newValue);
+            }}
+            renderInput={(params) => <TextField {...params} />}
+          />
+        </LocalizationProvider>
+
+        <TextField
+          id="outlined-password-input"
+          label="Cód Medidor"
+          onChange={(event) => setScdeCode(event.target.value)}
+        />
+      </Stack>
     );
   };
 
@@ -1813,6 +2035,19 @@ export default function DataSyncView() {
             sx={{ marginTop: 7, marginLeft: 5 }}
           >
             Remover dados expirados
+          </Button>
+        </div>
+      ) : (
+        <div></div>
+      )}
+      {measurementsValues.length > 0 ? (
+        <div>
+          <Button
+            variant="outlined"
+            onClick={exportMeasurementData}
+            sx={{ marginTop: 7 }}
+          >
+            Exportar medições
           </Button>
         </div>
       ) : (
