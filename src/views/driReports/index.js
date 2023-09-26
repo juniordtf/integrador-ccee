@@ -90,6 +90,7 @@ export default function DriReportsView() {
   const [listAcronymChecked, setListAcronymChecked] = useState(false);
   const [acronomiesInfos, setAcronomiesInfos] = useState([]);
   const [loadingText, setLoadingText] = useState("");
+  const [progress, setProgress] = useState(0);
 
   const dataGridEnd = useRef(null);
 
@@ -173,6 +174,7 @@ export default function DriReportsView() {
   }, []);
 
   const getAccountingEvents = async () => {
+    setProgress(25);
     setLoadingText("Buscando eventos");
     setLoadingModalOpen(true);
 
@@ -239,10 +241,12 @@ export default function DriReportsView() {
       }
     }
 
+    setProgress(100);
     handleLoadingModalClose();
   };
 
   const getReports = async (eventCode) => {
+    setProgress(25);
     setLoadingText("Buscando relatórios");
     setLoadingModalOpen(true);
     var responseData = await driService.listarRelatoriosMapeados(
@@ -295,10 +299,12 @@ export default function DriReportsView() {
       }
     }
 
+    setProgress(100);
     handleLoadingModalClose();
   };
 
   const listarAcronimos = async () => {
+    setProgress(25);
     setLoadingText("Buscando acrônimos");
     setLoadingModalOpen(true);
     var responseData = await driService.listarAcronimos(authData, 1);
@@ -333,10 +339,12 @@ export default function DriReportsView() {
     }
 
     setAcronomiesInfos(acronomiesList);
+    setProgress(100);
     handleLoadingModalClose();
   };
 
   const listarRepresentados = async () => {
+    setProgress(25);
     setLoadingText("Buscando representados");
     setLoadingModalOpen(true);
     var responseData = await cadastrosService.listarRepresentacao(authData, 1);
@@ -371,6 +379,7 @@ export default function DriReportsView() {
     }
 
     setRepresentedAgentsIds(agentCodes);
+    setProgress(100);
     handleLoadingModalClose();
   };
 
@@ -470,6 +479,7 @@ export default function DriReportsView() {
     var rowsValues = [];
     var idx = 1;
 
+    setProgress(0);
     setLoadingText("Buscando resultados");
     setLoadingModalOpen(true);
 
@@ -507,6 +517,10 @@ export default function DriReportsView() {
 
       qte++;
       console.log(qte);
+
+      var requestsQuantity = selectedBoardIds.length;
+      var amountDone = (qte / requestsQuantity) * 100;
+      setProgress(amountDone);
 
       if (qte === selectedBoardIds.length) {
         setRequestSent(true);
@@ -1621,7 +1635,15 @@ export default function DriReportsView() {
                 alignItems: "center",
                 justifyContent: "center",
               }}
-            ></Box>
+            >
+              <Typography
+                variant="caption"
+                component="div"
+                color="text.secondary"
+              >
+                {`${Math.round(progress)}%`}
+              </Typography>
+            </Box>
           </Box>
           <Typography
             id="modal-modal-description"
