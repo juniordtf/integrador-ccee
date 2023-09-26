@@ -638,11 +638,21 @@ export default function DriReportsView() {
 
   async function mapResponseToRepresentation(representados) {
     var codes = [];
-    for (var rep of representados) {
-      const representado = rep["bov2:representado"];
-      const codigo = representado["bov2:id"]._text.toString();
+    var representado = "";
+    var codigo = "";
+
+    if (representados.length === undefined) {
+      representado = representados["bov2:representado"];
+      codigo = representado["bov2:id"]._text.toString();
       codes.push(codigo);
+    } else {
+      for (var rep of representados) {
+        representado = rep["bov2:representado"];
+        codigo = representado["bov2:id"]._text.toString();
+        codes.push(codigo);
+      }
     }
+
     return codes;
   }
 
