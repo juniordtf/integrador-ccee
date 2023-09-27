@@ -20,6 +20,7 @@ import Radio from "@mui/material/Radio";
 import RadioGroup from "@mui/material/RadioGroup";
 import { OutTable, ExcelRenderer } from "react-excel-renderer";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import styles from "./styles.module.css";
@@ -1530,10 +1531,12 @@ export default function DataSyncView() {
     setPendingRequests(pendingRequests + 1);
 
     var daysArr = [];
-    const initialDate = dayjs(date);
+    const initialDate = dayjs(date).startOf('month');
+    const endDate = initialDate.endOf("month");
+    const totalDays = endDate.date() - 1;
 
     let i = 0;
-    while (i <= 30) {
+    while (i <= totalDays) {
       const calculatedDate = initialDate.add(i, "day");
       daysArr.push(calculatedDate.format("YYYY-MM-DDTHH:mm:ss"));
       i++;
@@ -1955,9 +1958,12 @@ export default function DataSyncView() {
     return (
       <Stack spacing={2}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <DateTimePicker
-            label="Data & Hora"
+          <DatePicker
+            label="Mês & ano"
             value={date}
+            views={["year", "month"]}
+            openTo="month"
+            maxDate={dayjs()}
             onChange={(newValue) => {
               setDate(newValue);
             }}

@@ -51,6 +51,7 @@ import { db } from "../../database/db";
 import { saveAs } from "file-saver";
 import styles from "./styles.module.css";
 import { constants } from "buffer";
+import Integration from "./assets/Integration.png";
 
 export default function DriReportsView() {
   const [authData, setAuthData] = useState([]);
@@ -124,6 +125,17 @@ export default function DriReportsView() {
     page: {
       backgroundColor: "white",
     },
+    sloganContainer: {
+      marginLeft: "80%",
+      height: 20,
+      marginTop: 7,
+      display: "flex",
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center"
+    },
+    sloganText: { fontSize: 12, letterSpacing: 3 },
+    sloganImage: {  width: 16, height: 16 },
     section: {
       margin: 5,
       padding: 5,
@@ -962,6 +974,10 @@ export default function DriReportsView() {
   const PdfDocument = ({ eventData, agentData, profileName }) => (
     <Document>
       <Page size="A4" orientation="landscape" style={pdfStyles.page}>
+        <View style={pdfStyles.sloganContainer}>
+          <img src={Integration} style={pdfStyles.sloganImage} />
+          <Text style={pdfStyles.sloganText}>Integrador CCEE</Text>
+        </View>
         <View style={pdfStyles.section}>
           <Text style={pdfStyles.reportTitleText}>{eventData.eventName}</Text>
         </View>
