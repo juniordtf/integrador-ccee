@@ -133,18 +133,22 @@ export default function HierarchicalView() {
     var relatedProfileNodes = [];
 
     for (const x of relatedProfiles) {
-      var relatedPartialResource = partialResources.filter(
+      const relatedPartialResource = partialResources.filter(
         (y) =>
           y.codPerfil === x.codPerfil &&
           x.key.substring(x.key.length - 8).toString() ===
             y.key.substring(y.key.length - 8).toString()
       );
 
+      if (x.codPerfil === "111698") {
+        console.log(relatedPartialResource);
+        console.log(relatedPartialResource.length);
+      }
+
       if (relatedPartialResource.length > 0) {
         var relatedPartialResourceNodes = [];
 
         for (const z of relatedPartialResource) {
-          partialResourceInitialCode++;
           var innerItem = {
             id: partialResourceInitialCode.toString(),
             name: z.nome,
@@ -155,6 +159,7 @@ export default function HierarchicalView() {
             bgColor: "#e6f4ea",
           };
           relatedPartialResourceNodes.push(innerItem);
+          partialResourceInitialCode++;
         }
       }
 
@@ -163,13 +168,13 @@ export default function HierarchicalView() {
         name: x.sigla,
         code: x.codPerfil,
         category: 2,
-        children: relatedPartialResourceNodes,
+        children:
+          relatedPartialResource.length > 0 ? relatedPartialResourceNodes : [],
         icon: PersonIcon,
         color: "#e3742f",
         bgColor: "#fcefe3",
       };
       relatedProfileNodes.push(item);
-
       profileInitialCode++;
     }
 
