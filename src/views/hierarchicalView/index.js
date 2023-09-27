@@ -140,11 +140,6 @@ export default function HierarchicalView() {
             y.key.substring(y.key.length - 8).toString()
       );
 
-      if (x.codPerfil === "111698") {
-        console.log(relatedPartialResource);
-        console.log(relatedPartialResource.length);
-      }
-
       if (relatedPartialResource.length > 0) {
         var relatedPartialResourceNodes = [];
 
