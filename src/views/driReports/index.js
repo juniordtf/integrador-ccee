@@ -132,10 +132,10 @@ export default function DriReportsView() {
       display: "flex",
       flexDirection: "row",
       justifyContent: "center",
-      alignItems: "center"
+      alignItems: "center",
     },
     sloganText: { fontSize: 12, letterSpacing: 3 },
-    sloganImage: {  width: 16, height: 16 },
+    sloganImage: { width: 16, height: 16 },
     section: {
       margin: 5,
       padding: 5,
@@ -929,10 +929,13 @@ export default function DriReportsView() {
       }
 
       if (profileMatches.length === 0) {
-        savePdfToFile(retrievedParticipant, retrievedParticipant.sigla);
+        savePdfToFile(
+          retrievedParticipant,
+          retrievedParticipant !== undefined ? retrievedParticipant.sigla : ""
+        );
       } else {
         for (var pf of profileMatches) {
-          savePdfToFile(retrievedParticipant, pf.name);
+          savePdfToFile(retrievedParticipant, pf !== undefined ? pf.name : "");
         }
       }
     }
@@ -997,7 +1000,9 @@ export default function DriReportsView() {
             <div style={{ marginTop: 3 }}>
               <div style={pdfStyles.rowContainer}>
                 <Text style={pdfStyles.headerText}>Agente: </Text>
-                <Text style={pdfStyles.headerText}>{agentData.sigla}</Text>
+                <Text style={pdfStyles.headerText}>
+                  {agentData !== undefined ? agentData.sigla : ""}
+                </Text>
               </div>
             </div>
             <div style={{ marginTop: 3 }}>
@@ -1399,6 +1404,15 @@ export default function DriReportsView() {
             maxDate={dayjs()}
             onChange={(newValue) => {
               setAccountingEvents([]);
+              setRows([]);
+              setColumns([]);
+              setQueryKeys([]);
+              setQueryResultHeaders([]);
+              setQueryResultRows([]);
+              setSelectedBoardIds([]);
+              setSelectedBoarName([]);
+              setInputId(1);
+              setAllBoardsChecked(false);
               setDate(newValue);
             }}
             renderInput={(params) => <TextField {...params} />}
@@ -1485,7 +1499,7 @@ export default function DriReportsView() {
                       <RadioGroup
                         row
                         aria-labelledby="input-radio-buttons-group-label"
-                        defaultValue={inputTypes[1].id}
+                        defaultValue={inputTypes[0].id}
                         name="input-radio-buttons-group"
                         value={inputId}
                         onChange={handleInputTypeChange}
