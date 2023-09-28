@@ -23,6 +23,7 @@ import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import Switch from "@mui/material/Switch";
 import styles from "./styles.module.css";
 import { cadastrosService } from "../../services/cadastrosService.ts";
 import { ativosService } from "../../services/ativosService.ts";
@@ -55,6 +56,7 @@ export default function DataSyncView() {
   const [columns, setColumns] = useState([]);
   const [scdeCode, setScdeCode] = useState("");
   const [measurementsValues, setMeasurementsValues] = useState([]);
+  const [onlyRepresentedAgents, setOnlyRepresentedAgents] = useState(false);
 
   const timerRef = useRef(null);
 
@@ -275,6 +277,10 @@ export default function DataSyncView() {
 
   const handleParameterChange = (event) => {
     setParameter(event.target.value);
+  };
+
+  const handleOnlyRepresentedAgentsSwitchChange = () => {
+    setOnlyRepresentedAgents(!onlyRepresentedAgents);
   };
 
   const sendRequest_ListarParticipantes = async (classId = 0) => {
@@ -1531,7 +1537,7 @@ export default function DataSyncView() {
     setPendingRequests(pendingRequests + 1);
 
     var daysArr = [];
-    const initialDate = dayjs(date).startOf('month');
+    const initialDate = dayjs(date).startOf("month");
     const endDate = initialDate.endOf("month");
     const totalDays = endDate.date() - 1;
 
@@ -1698,11 +1704,117 @@ export default function DataSyncView() {
     };
   }
 
+  const listarRepresentados = async () => {
+    var responseData = await cadastrosService.listarRepresentacao(authData, 1);
+    var totalPaginas = responseData.totalPaginas;
+    var totalPaginasNumber = totalPaginas._text
+      ? parseInt(totalPaginas._text.toString())
+      : 0;
+
+    var agentCodes = [];
+    if (totalPaginasNumber > 1) {
+      for (
+        let paginaCorrente = 1;
+        paginaCorrente <= totalPaginasNumber;
+        paginaCorrente++
+      ) {
+        var responseDataPaginated = await cadastrosService.listarRepresentacao(
+          authData,
+          paginaCorrente
+        );
+        if (responseDataPaginated.code === 200) {
+          const results = responseDataPaginated.data;
+          var codes = await mapResponseToRepresentation(results);
+          codes.forEach((x) => agentCodes.push(x));
+        }
+      }
+    } else {
+      if (responseData.code === 200) {
+        const results = responseData.data;
+        var codes = await mapResponseToRepresentation(results);
+        codes.forEach((x) => agentCodes.push(x));
+      }
+    }
+
+    return agentCodes;
+  };
+
+  async function mapResponseToRepresentation(representados) {
+    var codes = [];
+    var representado = "";
+    var codigo = "";
+
+    if (representados.length === undefined) {
+      representado = representados["bov2:representado"];
+      codigo = representado["bov2:id"]._text.toString();
+      codes.push(codigo);
+    } else {
+      for (var rep of representados) {
+        representado = rep["bov2:representado"];
+        codigo = representado["bov2:id"]._text.toString();
+        codes.push(codigo);
+      }
+    }
+
+    return codes;
+  }
+
+  async function listarParticipantePorCodigo(agentCode) {
+    try {
+      const key = "participantes_representados_" + dayjs(date).format("DD/MM/YY");
+
+      var responseData =
+        await cadastrosService.listarParticipantesDeMercadoPorAgente(
+          authData,
+          dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+          agentCode
+        );
+
+      if (responseData.code === 200) {
+        const participantes = responseData.data;
+
+        var participantesData = [];
+        if (participantes.length === undefined) {
+          participantesData = [participantes];
+        } else {
+          participantesData = participantes;
+        }
+
+        Array.prototype.forEach.call(participantesData, async (item) => {
+          mapResponseToParticipantsData(key, item);
+        });
+      }
+    } catch (e) {
+      console.log("Erro ao listar participantes");
+      console.error(e);
+    }
+  }
+
   const sendRequest_FullAutomatic = async () => {
     setPendingRequests(pendingRequests + 1);
-    for (const cl of classes) {
-      sendRequest_ListarParticipantes(cl.id);
+    var itemsProcessed = 0;
+
+    if (onlyRepresentedAgents) {
+      //sendRequest_ListarParticipantes(cl.id);
+      var representedAgentCodes = await listarRepresentados();
+      for (const code of representedAgentCodes) {
+        await listarParticipantePorCodigo(code);
+        itemsProcessed++;
+        var totalAmount = representedAgentCodes.length;
+        var amountDone = (itemsProcessed / totalAmount) * 100;
+        setProgress(amountDone);
+        // if (itemsProcessed === totalAmount) {
+        //   setPendingRequests(pendingRequests - 1);
+        //   setProgress(0);
+        //   setSuccesDialogOpen(true);
+        // }
+      }
+    } else {
+      for (const cl of classes) {
+        sendRequest_ListarParticipantes(cl.id);
+      }
     }
+
     setPendingRequests(pendingRequests - 1);
   };
 
@@ -1939,6 +2051,15 @@ export default function DataSyncView() {
     return (
       <div>
         <Stack spacing={2}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={onlyRepresentedAgents}
+                onChange={handleOnlyRepresentedAgentsSwitchChange}
+              />
+            }
+            label="Apenas representados"
+          />
           <LocalizationProvider dateAdapter={AdapterDayjs}>
             <DateTimePicker
               label="Data & Hora"
