@@ -1761,7 +1761,8 @@ export default function DataSyncView() {
 
   async function listarParticipantePorCodigo(agentCode) {
     try {
-      const key = "participantes_representados_" + dayjs(date).format("DD/MM/YY");
+      const key =
+        "participantes_representados_" + dayjs(date).format("DD/MM/YY");
 
       var responseData =
         await cadastrosService.listarParticipantesDeMercadoPorAgente(
@@ -1795,7 +1796,6 @@ export default function DataSyncView() {
     var itemsProcessed = 0;
 
     if (onlyRepresentedAgents) {
-      //sendRequest_ListarParticipantes(cl.id);
       var representedAgentCodes = await listarRepresentados();
       for (const code of representedAgentCodes) {
         await listarParticipantePorCodigo(code);
@@ -1803,11 +1803,6 @@ export default function DataSyncView() {
         var totalAmount = representedAgentCodes.length;
         var amountDone = (itemsProcessed / totalAmount) * 100;
         setProgress(amountDone);
-        // if (itemsProcessed === totalAmount) {
-        //   setPendingRequests(pendingRequests - 1);
-        //   setProgress(0);
-        //   setSuccesDialogOpen(true);
-        // }
       }
     } else {
       for (const cl of classes) {

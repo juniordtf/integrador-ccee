@@ -903,6 +903,9 @@ export default function DriReportsView() {
   const handleReportParticipantChange = (event) => {
     const selectedParticipant = event.target.value;
     setSelectedReportParticipant(selectedParticipant);
+
+    var distinctProfiles = retriveFilteredProfiles([selectedParticipant]);
+    setSelectedReportProfile(distinctProfiles[0]);
   };
 
   const handleReportProfileChange = (event) => {
@@ -1023,11 +1026,22 @@ export default function DriReportsView() {
   function RenderReportBoard(reportKeys, reportIdx, agentData, profileName) {
     var headerToDisplay = queryResultHeaders[reportIdx];
     var rowsToDisplay = queryResultRows[reportIdx];
-    var filteredRowsToDisplay = rowsToDisplay.filter(
-      (x) => x.col0.toString() === agentData.codigo.toString()
-    );
 
-    if (headerToDisplay[4].headerName.includes("PERFIL")) {
+    var filteredRowsToDisplay = [];
+
+    console.log(agentData);
+
+    if (agentData !== undefined) {
+      filteredRowsToDisplay = rowsToDisplay.filter(
+        (x) => x.col0.toString() === agentData.codigo.toString()
+      );
+    }
+
+    if (
+      filteredRowsToDisplay.length > 0 &&
+      headerToDisplay[4].headerName.includes("PERFIL") &&
+      profileName !== undefined
+    ) {
       var filteredRowsToDisplay = filteredRowsToDisplay.filter(
         (x) => x.col4.toString() === profileName.toString()
       );
@@ -1279,18 +1293,7 @@ export default function DriReportsView() {
     );
   }
 
-  function RenderReportByParticipant() {
-    var retrievedParticipants = [];
-
-    for (var code of participantsQueryCodes) {
-      var retrievedParticipant = participants.find(
-        (x) => x.codigo.toString() === code.toString()
-      );
-      if (retrievedParticipant !== undefined) {
-        retrievedParticipants.push(retrievedParticipant);
-      }
-    }
-
+  function retriveFilteredProfiles(retrievedParticipants) {
     var distinctProfiles = [];
     if (selectedReportParticipant !== "") {
       if (getRetrievedProfiles().length === 0) {
@@ -1316,6 +1319,22 @@ export default function DriReportsView() {
       }
       distinctProfiles = [...new Set(distinctProfiles)];
     }
+    return distinctProfiles;
+  }
+
+  function RenderReportByParticipant() {
+    var retrievedParticipants = [];
+
+    for (var code of participantsQueryCodes) {
+      var retrievedParticipant = participants.find(
+        (x) => x.codigo.toString() === code.toString()
+      );
+      if (retrievedParticipant !== undefined) {
+        retrievedParticipants.push(retrievedParticipant);
+      }
+    }
+
+    var distinctProfiles = retriveFilteredProfiles(retrievedParticipants);
 
     return (
       <div>
@@ -1347,6 +1366,7 @@ export default function DriReportsView() {
                 label="Agente"
                 input={<OutlinedInput label="Agente" />}
                 onChange={handleReportProfileChange}
+                defaultValue={distinctProfiles[0]}
               >
                 {distinctProfiles.map((x) => (
                   <MenuItem key={x} value={x}>
