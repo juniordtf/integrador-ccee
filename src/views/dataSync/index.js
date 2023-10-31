@@ -1797,6 +1797,12 @@ export default function DataSyncView() {
 
     if (onlyRepresentedAgents) {
       var representedAgentCodes = await listarRepresentados();
+      var agentCode = authData.AuthCodigoPerfilAgente;
+
+      if (!representedAgentCodes.includes(agentCode)) {
+        representedAgentCodes.push(agentCode);
+      }
+
       for (const code of representedAgentCodes) {
         await listarParticipantePorCodigo(code);
         itemsProcessed++;

@@ -917,18 +917,23 @@ export default function DriReportsView() {
     setLoadingText("Salvando PDFs");
     setLoadingModalOpen(true);
 
+    var profileMatches = [];
+
     for (var code of participantsQueryCodes) {
       var retrievedParticipant = participants.find(
         (x) => x.codigo === code.toString()
       );
-      var profileMatches = [];
 
-      if (profileMatches.length > 0) {
+      if (retrievedParticipant !== undefined) {
         profileMatches = getRetrievedProfiles().filter(
           (x) =>
             x.agentCode.toString() === retrievedParticipant.codigo.toString()
         );
-        profileMatches = [...new Set(profileMatches)];
+        var profileMatches = [
+          ...new Map(
+            profileMatches.map((item) => [item["name"], item])
+          ).values(),
+        ];
       }
 
       if (profileMatches.length === 0) {
@@ -1028,8 +1033,6 @@ export default function DriReportsView() {
     var rowsToDisplay = queryResultRows[reportIdx];
 
     var filteredRowsToDisplay = [];
-
-    console.log(agentData);
 
     if (agentData !== undefined) {
       filteredRowsToDisplay = rowsToDisplay.filter(
@@ -1166,7 +1169,6 @@ export default function DriReportsView() {
     var profilesArr = [];
     for (var i of idxs) {
       var results = queryResultRows[i];
-      console.log(results);
       var profiles = results.map((x) => ({ name: x.col4, agentCode: x.col0 }));
       if (profilesArr.length === 0) {
         profilesArr = profiles;
