@@ -93,33 +93,6 @@ const ResourcesColumns = [
 
 const PartialResourcesColumns = [
   {
-    id: "codPerfil",
-    label: "Código de Perfil",
-    minWidth: 170,
-  },
-  { id: "codAtivo", label: "Código de Ativo", minWidth: 170 },
-  { id: "codAtivoMedicao", label: "Código de Ativo de Medição", minWidth: 170 },
-  {
-    id: "capacidadeTotal",
-    label: "Capacidade Total",
-    minWidth: 100,
-    align: "right",
-    format: (value) => value.toLocaleString("en-US"),
-  },
-  { id: "nomeEmpresarial", label: "Nome Empresarial", minWidth: 100 },
-  { id: "idSubmercado", label: "Id do submercado", minWidth: 100 },
-  { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 170 },
-  {
-    id: "cnpj",
-    label: "CNPJ",
-    minWidth: 170,
-    format: (value) => formatStringByPattern("XX.XXX.XXX/XXXX-XX", value),
-  },
-  { id: "situacao", label: "Situação", minWidth: 100 },
-];
-
-const PartialMeasurementColumns = [
-  {
     id: "codParcelaAtivo",
     label: "Código de Parcela de Ativo",
     minWidth: 170,
@@ -142,6 +115,43 @@ const PartialMeasurementColumns = [
   { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 170 },
 ];
 
+const PartialLoadColumns = [
+  {
+    id: "codParcelaCarga",
+    label: "Código de Parcela de Carga",
+    minWidth: 100,
+  },
+  {
+    id: "codAtivoMedicao",
+    label: "Código de Ativo de Medição",
+    minWidth: 100,
+  },
+  { id: "nome", label: "Nome Empresarial", minWidth: 100 },
+  { id: "submercado", label: "Submercado", minWidth: 100 },
+  {
+    id: "cnpj",
+    label: "CNPJ",
+    minWidth: 170,
+    format: (value) => formatStringByPattern("XX.XXX.XXX/XXXX-XX", value),
+  },
+  { id: "situacao", label: "Situação", minWidth: 100 },
+  { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 170 },
+  { id: "codConcessionaria", label: "Código da Concessionária", minWidth: 100 },
+  { id: "undCapacidadeCarga", label: "Und. Capacidade Carga", minWidth: 100 },
+  {
+    id: "valorCapacidadeCarga",
+    label: "Valor da Capacidade de Carga",
+    minWidth: 100,
+    align: "right",
+    format: (value) => value?.toLocaleString("en-US"),
+  },
+  { id: "bairro", label: "Bairro", minWidth: 100 },
+  { id: "cidade", label: "Cidade", minWidth: 100 },
+  { id: "estado", label: "Estado", minWidth: 100 },
+  { id: "logradouro", label: "Logradouro", minWidth: 100 },
+  { id: "numero", label: "Número Predial", minWidth: 100 },
+];
+
 export default function DataExportView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [filteredDataSourceKeys, setFilteredDataSourceKeys] = useState([]);
@@ -149,6 +159,7 @@ export default function DataExportView() {
   const [profiles, setProfiles] = useState([]);
   const [resources, setResources] = useState([]);
   const [partialResources, setPartialResources] = useState([]);
+  const [partialLoads, setPartialLoads] = useState([]);
   const [initialRows, setInitialRows] = useState([]);
   const [rows, setRows] = useState([]);
   const [rowKey, setRowKey] = useState("");
@@ -197,6 +208,7 @@ export default function DataExportView() {
     { id: 2, name: "Perfis", alias: "perfis" },
     { id: 3, name: "Ativos de Medição", alias: "ativos" },
     { id: 4, name: "Parcelas de Ativos", alias: "parcelasDeAtivos" },
+    { id: 5, name: "Parcelas de Carga", alias: "parcelasDeCarga" },
   ];
 
   const handleMultiSectecDataSourceChange = (event) => {
@@ -266,6 +278,15 @@ export default function DataExportView() {
 
       setPartialResources(parcelasAtivosMedicao);
 
+      var parcelasDeCarga = await db.parcelasDeCarga;
+      if (parcelasDeCarga === undefined) {
+        parcelasDeCarga = [];
+      } else {
+        parcelasDeCarga = await db.parcelasDeCarga.toArray();
+      }
+
+      setPartialLoads(parcelasDeCarga);
+
       var dataSources = [];
 
       if (participantes.length > 0) {
@@ -299,9 +320,18 @@ export default function DataExportView() {
         );
       }
 
+      if (parcelasDeCarga.length > 0) {
+        dataSources = dataSources.concat(
+          parcelasDeCarga.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
       const distinctDataSources = [...new Set(dataSources)];
 
       if (distinctDataSources) {
+        distinctDataSources.sort();
         setDataSourceKeys(distinctDataSources);
       }
     }
@@ -322,10 +352,10 @@ export default function DataExportView() {
       setTableHeader(ResourcesColumns);
       setRowKey("codAtivo");
     } else if (selectedDataSource.includes("parcelasDeAtivos")) {
-      setTableHeader(PartialMeasurementColumns);
-      setRowKey("codParcelaAtivo");
-    } else if (selectedDataSource.includes("parcelasDeCargas")) {
       setTableHeader(PartialResourcesColumns);
+      setRowKey("codParcelaAtivo");
+    } else if (selectedDataSource.includes("parcelasDeCarga")) {
+      setTableHeader(PartialLoadColumns);
       setRowKey("codParcelaCarga");
     } else {
       setTableHeader([]);
@@ -370,18 +400,23 @@ export default function DataExportView() {
     var filteredPartialResources = partialResources.filter(
       (x) => x.key === dataSourceKey
     );
+    var filteredPartialLoads = partialLoads.filter(
+      (x) => x.key === dataSourceKey
+    );
 
     if (participants.length > 0 && filteredParticipants.length > 0) {
       return filteredParticipants;
     } else if (profiles.length > 0 && filteredProfiles.length > 0) {
       return filteredProfiles;
-    } else if (partialResources.length > 0 && filteredResources.length > 0) {
+    } else if (resources.length > 0 && filteredResources.length > 0) {
       return filteredResources;
     } else if (
       partialResources.length > 0 &&
       filteredPartialResources.length > 0
     ) {
       return filteredPartialResources;
+    } else if (partialLoads.length > 0 && filteredPartialLoads.length > 0) {
+      return filteredPartialLoads;
     } else {
       return [];
     }
@@ -402,7 +437,7 @@ export default function DataExportView() {
     var fileName = selectedDataSource;
     var selectedOption = parseInt(actionId);
 
-    if(selectedOption === 1){
+    if (selectedOption === 1) {
       fileName = clusterName;
     }
 
@@ -471,6 +506,15 @@ export default function DataExportView() {
           console.log(deleteCount + " objects deleted");
           handleLoadingModalClose();
         });
+    } else if (selectedDataSource.includes("parcelasDeCarga")) {
+      db.parcelasAtivosMedicao
+        .where("key")
+        .equals(selectedDataSource)
+        .delete()
+        .then(function (deleteCount) {
+          console.log(deleteCount + " objects deleted");
+          handleLoadingModalClose();
+        });
     }
 
     setSelectedDataSource("");
@@ -493,6 +537,9 @@ export default function DataExportView() {
     } else if (selectedEntity === "ativos") {
       dataSource = resources;
       setSelectedDataSource("ativos");
+    } else if (selectedEntity === "parcelasDeCarga") {
+      dataSource = resources;
+      setSelectedDataSource("parcelasDeCarga");
     } else {
       dataSource = partialResources;
       setSelectedDataSource("parcelasDeAtivos");
@@ -567,12 +614,22 @@ export default function DataExportView() {
       setRows(result);
       setInitialRows(result);
     } else if (
-      selectedDataSourceA.includes("parcela") &&
-      selectedDataSourceB.includes("parcela")
+      selectedDataSourceA.includes("parcelasDeAtivos") &&
+      selectedDataSourceB.includes("parcelasDeAtivos")
     ) {
       let sourceB_Codigos = sourceB.map((x) => x.codParcelaAtivo);
       let result = sourceA.filter(
         (x) => !sourceB_Codigos.includes(x.codParcelaAtivo)
+      );
+      setRows(result);
+      setInitialRows(result);
+    } else if (
+      selectedDataSourceA.includes("parcelasDeCarga") &&
+      selectedDataSourceB.includes("parcelasDeCarga")
+    ) {
+      let sourceB_Codigos = sourceB.map((x) => x.codParcelaCarga);
+      let result = sourceA.filter(
+        (x) => !sourceB_Codigos.includes(x.codParcelaCarga)
       );
       setRows(result);
       setInitialRows(result);
@@ -631,6 +688,12 @@ export default function DataExportView() {
           x.codParcelaAtivo.includes(searchText) ||
           x.nome.toUpperCase().includes(searchText) ||
           x.codPerfil.includes(searchText)
+      );
+    } else if (rowKey === "codParcelaCarga") {
+      filteredData = initialRows.filter(
+        (x) =>
+          x.codParcelaCarga.includes(searchText) ||
+          x.nome.toUpperCase().includes(searchText)
       );
     } else {
       filteredData = [];

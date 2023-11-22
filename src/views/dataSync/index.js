@@ -154,6 +154,12 @@ export default function DataSyncView() {
       } else {
         ativosMedicao = await db.ativosMedicao.toArray();
       }
+      var parcelasDeAtivos = await db.parcelasAtivosMedicao;
+      if (parcelasDeAtivos === undefined) {
+        parcelasDeAtivos = [];
+      } else {
+        parcelasDeAtivos = await db.parcelasAtivosMedicao.toArray();
+      }
 
       var dataSources = [];
 
@@ -175,6 +181,14 @@ export default function DataSyncView() {
       if (ativosMedicao.length > 0) {
         dataSources = dataSources.concat(
           ativosMedicao.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
+      if (parcelasDeAtivos.length > 0) {
+        dataSources = dataSources.concat(
+          parcelasDeAtivos.map(function (v) {
             return v.key;
           })
         );
@@ -247,6 +261,12 @@ export default function DataSyncView() {
     } else {
       ativosMedicao = await db.ativosMedicao.toArray();
     }
+    var parcelasDeAtivos = await db.parcelasAtivosMedicao;
+    if (parcelasDeAtivos === undefined) {
+      parcelasDeAtivos = [];
+    } else {
+      parcelasDeAtivos = await db.parcelasAtivosMedicao.toArray();
+    }
 
     if (
       participantes.length > 0 &&
@@ -266,6 +286,15 @@ export default function DataSyncView() {
       );
       console.log(selectedProfiles.length);
       setDataSourceItems(selectedProfiles);
+    } else if (
+      parcelasDeAtivos.length > 0 &&
+      parcelasDeAtivos.filter((x) => x.key === selectedDataSourceKey).length > 0
+    ) {
+      var selectedPartialResource = parcelasDeAtivos.filter(
+        (x) => x.key === selectedDataSourceKey
+      );
+      console.log(selectedPartialResource.length);
+      setDataSourceItems(selectedPartialResource);
     } else {
       var selectedResource = ativosMedicao.filter(
         (x) => x.key === selectedDataSourceKey
@@ -1531,7 +1560,338 @@ export default function DataSyncView() {
     }
   }
 
-  const sendRequest_ListarParcelasDeCarga = async () => {};
+  const sendRequest_ListarParcelasDeCarga = async () => {
+    var key,
+      formDate = "";
+
+    var date = selectedDataSource.substring(selectedDataSource.length - 5);
+    formDate =
+      "20" +
+      date.substring(date.length - 2) +
+      "-" +
+      date.substring(0, 2) +
+      "-01";
+    formDate = dayjs(formDate).format("YYYY-MM-DDTHH:mm:ss");
+    key = selectedDataSource.replace("parcelasDeAtivos", "parcelasDeCarga");
+
+    if (dataSourceItems === null) {
+      setPendingRequests(pendingRequests - 1);
+      return;
+    }
+
+    db.parcelasAtivosMedicao
+      .where("key")
+      .equalsIgnoreCase(key)
+      .count()
+      .then(function (count) {
+        if (count > 0) {
+          console.log("Counted " + count + " objects");
+          setWarningText(
+            'Já existe uma coleção de dados com o nome "' + key + '"'
+          );
+          setPendingRequests(pendingRequests - 1);
+          setWarningDialogOpen(true);
+          return;
+        } else {
+          console.log("Total: " + dataSourceItems.length);
+          listarParcelasDeCarga(key, dataSourceItems, formDate);
+        }
+      });
+  };
+
+  async function listarParcelasDeCarga(
+    key,
+    dataSourceItems,
+    searchDate,
+    fromRetryList = false
+  ) {
+    try {
+      var itemsProcessed = 0;
+      setPendingRequests(pendingRequests + 1);
+
+      const requestsQuantity = dataSourceItems.length;
+
+      for (const item of dataSourceItems) {
+        var responseData = await ativosService.listarParcelaDeCarga(
+          authData,
+          item.codPerfil,
+          item.codAtivoMedicao,
+          searchDate
+        );
+
+        itemsProcessed++;
+
+        var totalPaginas = responseData.totalPaginas;
+        var totalPaginasNumber = totalPaginas._text
+          ? parseInt(totalPaginas._text.toString())
+          : 0;
+        if (totalPaginasNumber > 1) {
+          for (
+            let paginaCorrente = 1;
+            paginaCorrente <= totalPaginasNumber;
+            paginaCorrente++
+          ) {
+            // eslint-disable-next-line no-loop-func
+
+            var responseDataPaginated =
+              await ativosService.listarParcelaDeCarga(
+                authData,
+                item.codPerfil,
+                item.codAtivoMedicao,
+                searchDate,
+                paginaCorrente
+              );
+
+            handlePartialLoadResponseData(
+              responseDataPaginated,
+              key,
+              searchDate,
+              item.codAtivoMedicao,
+              fromRetryList
+            );
+          }
+        } else {
+          handlePartialLoadResponseData(
+            responseData,
+            key,
+            searchDate,
+            item.codAtivoMedicao,
+            fromRetryList
+          );
+        }
+
+        console.log(itemsProcessed);
+        var amountDone = (itemsProcessed / requestsQuantity) * 100;
+        if (amountDone !== progress) {
+          setProgress(amountDone);
+        }
+        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
+          console.log("Arr: " + requestsQuantity);
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
+        }
+      }
+    } catch (e) {
+      console.log("Erro ao listar parcelas de carga");
+      console.error(e);
+    }
+  }
+
+  function handlePartialLoadResponseData(
+    responseData,
+    key,
+    searchDate,
+    item,
+    fromRetryList
+  ) {
+    if (responseData.code === 200) {
+      var parcelaCarga = responseData.data;
+
+      if (parcelaCarga.length === undefined) {
+        mapResponseToPartialLoadData(key, parcelaCarga);
+      } else {
+        Array.prototype.forEach.call(parcelaCarga, async (x) => {
+          mapResponseToPartialLoadData(key, x);
+        });
+      }
+
+      if (fromRetryList) {
+        removeParameterFromRetryList(key, item);
+      }
+    } else {
+      if (fromRetryList) {
+        updatePartialLoadInRetryList(item, key);
+      } else {
+        addParameterToRetryList(
+          key,
+          item,
+          searchDate,
+          1,
+          responseData.code,
+          0,
+          "listarParcelasDeCarga"
+        );
+      }
+    }
+  }
+
+  async function mapResponseToPartialLoadData(key, item) {
+    const codParcelaCarga =
+      item["bov2:numeroSequencial"] !== undefined
+        ? item["bov2:numeroSequencial"]._text.toString()
+        : "";
+    const codAtivoMedicao =
+      item["bov2:ativoMedicao"] !== undefined
+        ? item["bov2:ativoMedicao"]["bov2:numero"]._text.toString()
+        : "";
+    const nome =
+      item["bov2:nomeReduzido"] !== undefined
+        ? item["bov2:nomeReduzido"]._text.toString()
+        : "";
+    const submercado =
+      item["bov2:submercado"] !== undefined
+        ? item["bov2:submercado"]["bov2:nome"]._text.toString()
+        : "";
+    const cnpj =
+      item["bov2:identificacao"] !== undefined
+        ? item["bov2:identificacao"]["bov2:numero"]._text.toString()
+        : "";
+    const situacao =
+      item["bov2:situacao"] !== undefined
+        ? item["bov2:situacao"]._text.toString()
+        : "";
+    const vigencia =
+      item["bov2:vigencia"] !== undefined
+        ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
+        : "";
+    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
+    const undCapacidadeCarga =
+      item["bov2:capacidadeCarga"] !== undefined
+        ? item["bov2:capacidadeCarga"]["bov2:unidadeMedida"]._text.toString()
+        : "";
+    const valorCapacidadeCarga =
+      item["bov2:capacidadeCarga"] !== undefined
+        ? item["bov2:capacidadeCarga"]["bov2:valor"]._text.toString()
+        : "";
+
+    var bairro,
+      cidade,
+      estado,
+      logradouro,
+      numero = "";
+    var endereco = item["bov2:endereco"];
+    if (endereco !== undefined) {
+      bairro =
+        endereco["bov2:bairro"] !== undefined
+          ? endereco["bov2:bairro"]["bov2:descricao"]._text.toString()
+          : "";
+      cidade =
+        endereco["bov2:cidade"] !== undefined
+          ? endereco["bov2:cidade"]["bov2:descricao"]._text.toString()
+          : "";
+      estado =
+        endereco["bov2:estado"] !== undefined
+          ? endereco["bov2:estado"]["bov2:descricao"]._text.toString()
+          : "";
+      logradouro =
+        endereco["bov2:logradouro"] !== undefined
+          ? endereco["bov2:logradouro"]._text.toString()
+          : "";
+      numero =
+        endereco["bov2:numero"] !== undefined
+          ? endereco["bov2:numero"]._text.toString()
+          : "";
+    }
+    var codConcessionaria = "";
+    if (item["bov2:partes"] !== undefined) {
+      var partes = item["bov2:partes"]["bov2:parte"];
+
+      codConcessionaria = partes
+        .filter((x) => x["bov2:papel"]._text.toString() === "CONCESSIONARIO")[0]
+        ["bov2:agente"]["bov2:codigo"]._text.toString();
+    }
+
+    // console.log(
+    //   key,
+    //   codParcelaCarga,
+    //   codAtivoMedicao,
+    //   nome,
+    //   submercado,
+    //   cnpj,
+    //   situacao,
+    //   periodoVigencia,
+    //   codConcessionaria,
+    //   undCapacidadeCarga,
+    //   valorCapacidadeCarga,
+    //   bairro,
+    //   cidade,
+    //   estado,
+    //   logradouro,
+    //   numero
+    // );
+
+    await addParcelaDeCarga(
+      key,
+      codParcelaCarga,
+      codAtivoMedicao,
+      nome,
+      submercado,
+      cnpj,
+      situacao,
+      periodoVigencia,
+      codConcessionaria,
+      undCapacidadeCarga,
+      valorCapacidadeCarga,
+      bairro,
+      cidade,
+      estado,
+      logradouro,
+      numero
+    );
+  }
+
+  async function addParcelaDeCarga(
+    key,
+    codParcelaCarga,
+    codAtivoMedicao,
+    nome,
+    submercado,
+    cnpj,
+    situacao,
+    periodoVigencia,
+    codConcessionaria,
+    undCapacidadeCarga,
+    valorCapacidadeCarga,
+    bairro,
+    cidade,
+    estado,
+    logradouro,
+    numero
+  ) {
+    try {
+      await db.parcelasDeCarga.add({
+        key,
+        codParcelaCarga,
+        codAtivoMedicao,
+        nome,
+        submercado,
+        cnpj,
+        situacao,
+        periodoVigencia,
+        codConcessionaria,
+        undCapacidadeCarga,
+        valorCapacidadeCarga,
+        bairro,
+        cidade,
+        estado,
+        logradouro,
+        numero,
+      });
+    } catch (error) {
+      console.log(`Failed to add Partial Load ${codParcelaCarga}: ${error}`);
+    }
+  }
+
+  async function updatePartialLoadInRetryList(parameterCode, key) {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("updatePartialLoadInRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeUpdated = retryData.find(
+      (x) => x.parameterCode === parameterCode
+    );
+    var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    const index = retryData.indexOf(itemToBeUpdated);
+
+    if (index !== -1) {
+      retryData[index] = itemToBeUpdatedClone;
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
+    }
+  }
 
   const sendRequest_ListarMedidasCincoMinutos = async () => {
     setPendingRequests(pendingRequests + 1);
@@ -1854,6 +2214,9 @@ export default function DataSyncView() {
         case 4:
           sendRequest_ListarParcelasDeAtivo();
           break;
+        case 5:
+          sendRequest_ListarParcelasDeCarga();
+          break;
         case 6:
           sendRequest_ListarMedidasCincoMinutos();
           break;
@@ -1905,6 +2268,8 @@ export default function DataSyncView() {
       return <div>{RenderProfileOrMeasurementFields(serviceId)}</div>;
     } else if (serviceId === 4) {
       return <div>{renderFractionalMeasurementFields()}</div>;
+    } else if (serviceId === 5) {
+      return <div>{renderLoadFields()}</div>;
     } else if (serviceId === 6) {
       return <div>{renderMeasureFields()}</div>;
     } else {
@@ -2103,7 +2468,32 @@ export default function DataSyncView() {
   };
 
   const renderLoadFields = () => {
-    return <div></div>;
+    var sortedDataSourceKeys = dataSourceKeys.filter((item) =>
+      item.includes("parcelasDeAtivos")
+    );
+
+    return (
+      <Stack spacing={2}>
+        <FormControl>
+          <InputLabel id="data-source-select-label-3">
+            Fonte de dados
+          </InputLabel>
+          <Select
+            labelId="data-source-select-label-4"
+            id="data-source-simple-select-4"
+            value={selectedDataSource}
+            label="Fonte de dados"
+            onChange={handleDataSourceChange}
+          >
+            {sortedDataSourceKeys.map((x) => (
+              <MenuItem value={x} key={x}>
+                {x}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
+    );
   };
 
   return (

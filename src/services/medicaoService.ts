@@ -86,6 +86,94 @@ const listarMedidasCincoMinutos = async (
   });
 };
 
+const listarMedidasFinais = async (
+  authData,
+  codMedidor,
+  dataInicio,
+  dataFim
+): Promise<object> => {
+  var options = {
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: "listarMedida",
+    },
+    timeout: 60000,
+  };
+
+  var xmlBodyStr = `<?xml version="1.0" encoding="UTF-8"?>
+  <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:oas="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:v1="http://xmlns.energia.org.br/MH/v1" xmlns:v11="http://xmlns.energia.org.br/BM/v1" xmlns:v12="http://xmlns.energia.org.br/BO/v1">
+     <soapenv:Header>
+        <v1:messageHeader>
+           <v1:codigoPerfilAgente>${authData.AuthCodigoPerfilAgente}</v1:codigoPerfilAgente>
+        </v1:messageHeader>
+        <oas:Security>
+           <oas:UsernameToken>
+              <oas:Username>${authData.AuthUsername}</oas:Username>
+              <oas:Password>${authData.AuthPassword}</oas:Password>
+           </oas:UsernameToken>
+        </oas:Security>
+     </soapenv:Header>
+     <soapenv:Body>
+        <v11:listarMedida>
+           <v11:pontoMedicao>
+              <v12:codigo>${codMedidor}</v12:codigo>
+           </v11:pontoMedicao>
+           <v11:tipoMedida>FINAL</v11:tipoMedida>
+           <!--<v11:tipoMedicao>INSPECAO</v11:tipoMedicao>-->
+           <v11:periodo>
+              <v12:inicio>${dataInicio}</v12:inicio>
+              <v12:fim>${dataFim}</v12:fim>
+           </v11:periodo>
+        </v11:listarMedida>
+     </soapenv:Body>
+  </soapenv:Envelope>`;
+
+  return new Promise((resolve) => {
+    api()
+      .post("/ws/medc/ListarMedidaBSv1", xmlBodyStr, options)
+      .then((response) => {
+        if (response.status === 200) {
+          let resBody = Buffer.from(response.data).toString();
+          var xml = xml2json(resBody, { compact: true, spaces: 4 });
+          var json = JSON.parse(xml);
+          var parcelaDeAtivos =
+            json["soapenv:Envelope"]["soapenv:Body"][
+              "bmv2:listarMedidaCincoMinutosResponse"
+            ]["bmv2:medidas"]["bov2:medida"];
+          const totalPaginas =
+            json["soapenv:Envelope"]["soapenv:Header"]["hdr:paginacao"][
+              "hdr:totalPaginas"
+            ];
+          var responseData = {
+            data: parcelaDeAtivos,
+            code: response.status,
+            totalPaginas,
+          };
+          resolve(responseData);
+        } else {
+          var responseDataError = {
+            data: codMedidor,
+            code: response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseDataError);
+        }
+      })
+      .catch(function (error) {
+        if (error.response) {
+          console.log(error.response.status);
+          var responseData = {
+            data: codMedidor,
+            code: error.response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      });
+  });
+};
+
 export const medicaoService = {
   listarMedidasCincoMinutos,
+  listarMedidasFinais
 };
