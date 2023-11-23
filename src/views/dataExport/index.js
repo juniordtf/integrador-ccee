@@ -152,6 +152,21 @@ const PartialLoadColumns = [
   { id: "numero", label: "Número Predial", minWidth: 100 },
 ];
 
+const TopologiesColumns = [
+  { id: "codAtivoMedicao", label: "Código de Ativo", minWidth: 100 },
+  {
+    id: "codMedidor",
+    label: "Medidor SCDE",
+    minWidth: 170,
+  },
+  { id: "nomeConcessionaria", label: "Nome da Concessionária", minWidth: 170 },
+  {
+    id: "periodoVigencia",
+    label: "Data de início de vigência",
+    minWidth: 100,
+  },
+];
+
 export default function DataExportView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [filteredDataSourceKeys, setFilteredDataSourceKeys] = useState([]);
@@ -160,6 +175,7 @@ export default function DataExportView() {
   const [resources, setResources] = useState([]);
   const [partialResources, setPartialResources] = useState([]);
   const [partialLoads, setPartialLoads] = useState([]);
+  const [topologies, setTopologies] = useState([]);
   const [initialRows, setInitialRows] = useState([]);
   const [rows, setRows] = useState([]);
   const [rowKey, setRowKey] = useState("");
@@ -209,6 +225,7 @@ export default function DataExportView() {
     { id: 3, name: "Ativos de Medição", alias: "ativos" },
     { id: 4, name: "Parcelas de Ativos", alias: "parcelasDeAtivos" },
     { id: 5, name: "Parcelas de Carga", alias: "parcelasDeCarga" },
+    { id: 6, name: "Topologias por ativo", alias: "topologias" },
   ];
 
   const handleMultiSectecDataSourceChange = (event) => {
@@ -287,6 +304,15 @@ export default function DataExportView() {
 
       setPartialLoads(parcelasDeCarga);
 
+      var topologias = await db.topologia;
+      if (topologias === undefined) {
+        topologias = [];
+      } else {
+        topologias = await db.topologia.toArray();
+      }
+
+      setTopologies(topologias);
+
       var dataSources = [];
 
       if (participantes.length > 0) {
@@ -328,6 +354,14 @@ export default function DataExportView() {
         );
       }
 
+      if (topologias.length > 0) {
+        dataSources = dataSources.concat(
+          topologias.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
       const distinctDataSources = [...new Set(dataSources)];
 
       if (distinctDataSources) {
@@ -357,6 +391,9 @@ export default function DataExportView() {
     } else if (selectedDataSource.includes("parcelasDeCarga")) {
       setTableHeader(PartialLoadColumns);
       setRowKey("codParcelaCarga");
+    } else if (selectedDataSource.includes("topologias")) {
+      setTableHeader(TopologiesColumns);
+      setRowKey("codAtivoMedicao");
     } else {
       setTableHeader([]);
       setRowKey("");
@@ -403,6 +440,7 @@ export default function DataExportView() {
     var filteredPartialLoads = partialLoads.filter(
       (x) => x.key === dataSourceKey
     );
+    var filteredTopologies = topologies.filter((x) => x.key === dataSourceKey);
 
     if (participants.length > 0 && filteredParticipants.length > 0) {
       return filteredParticipants;
@@ -417,6 +455,8 @@ export default function DataExportView() {
       return filteredPartialResources;
     } else if (partialLoads.length > 0 && filteredPartialLoads.length > 0) {
       return filteredPartialLoads;
+    } else if (topologies.length > 0 && filteredTopologies.length > 0) {
+      return filteredTopologies;
     } else {
       return [];
     }
@@ -515,6 +555,15 @@ export default function DataExportView() {
           console.log(deleteCount + " objects deleted");
           handleLoadingModalClose();
         });
+    } else if (selectedDataSource.includes("topologias")) {
+      db.topologia
+        .where("key")
+        .equals(selectedDataSource)
+        .delete()
+        .then(function (deleteCount) {
+          console.log(deleteCount + " objects deleted");
+          handleLoadingModalClose();
+        });
     }
 
     setSelectedDataSource("");
@@ -540,6 +589,9 @@ export default function DataExportView() {
     } else if (selectedEntity === "parcelasDeCarga") {
       dataSource = resources;
       setSelectedDataSource("parcelasDeCarga");
+    } else if (selectedEntity === "topologias") {
+      dataSource = resources;
+      setSelectedDataSource("topologias");
     } else {
       dataSource = partialResources;
       setSelectedDataSource("parcelasDeAtivos");
@@ -633,6 +685,16 @@ export default function DataExportView() {
       );
       setRows(result);
       setInitialRows(result);
+    } else if (
+      selectedDataSourceA.includes("topologias") &&
+      selectedDataSourceB.includes("topologias")
+    ) {
+      let sourceB_Codigos = sourceB.map((x) => x.codAtivoMedicao);
+      let result = sourceA.filter(
+        (x) => !sourceB_Codigos.includes(x.codAtivoMedicao)
+      );
+      setRows(result);
+      setInitialRows(result);
     } else {
       setTableHeader([]);
       setRowKey("");
@@ -694,6 +756,12 @@ export default function DataExportView() {
         (x) =>
           x.codParcelaCarga.includes(searchText) ||
           x.nome.toUpperCase().includes(searchText)
+      );
+    } else if (rowKey === "codAtivoMedicao") {
+      filteredData = initialRows.filter(
+        (x) =>
+          x.codAtivoMedicao.includes(searchText) ||
+          x.nomeConcessionaria.toUpperCase().includes(searchText)
       );
     } else {
       filteredData = [];

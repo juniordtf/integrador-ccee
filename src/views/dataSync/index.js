@@ -67,6 +67,8 @@ export default function DataSyncView() {
     { id: 4, name: "Listar parcelas de ativos" },
     { id: 5, name: "Listar parcelas de carga" },
     { id: 6, name: "Listar medidas - 5 minutos" },
+    { id: 7, name: "Listar medidas consolidadas" },
+    { id: 8, name: "Listar topologias por ativo" },
   ];
   const classes = [
     { id: 1, name: "Autoprodutor" },
@@ -1091,8 +1093,8 @@ export default function DataSyncView() {
 
   async function addResourceToRetryList(
     key,
-    resourceCode,
-    profileCode,
+    codAtivoMedicao,
+    codPerfil,
     searchDate,
     errorCode,
     attempts,
@@ -1101,8 +1103,8 @@ export default function DataSyncView() {
     try {
       const retryKey = "retry_" + key;
       const retryParameter = {
-        resourceCode,
-        profileCode,
+        codAtivoMedicao,
+        codPerfil,
         searchDate,
         errorCode,
         attempts,
@@ -1126,7 +1128,7 @@ export default function DataSyncView() {
       localStorage.setItem(retryKey, JSON.stringify(retryResources));
     } catch (error) {
       console.log(
-        `Failed to add ${resourceCode} to Retry Resource's list: ${error}`
+        `Failed to add ${codAtivoMedicao} to Retry Resource's list: ${error}`
       );
     }
   }
@@ -1169,6 +1171,11 @@ export default function DataSyncView() {
         console.log("Total: " + parametersCodes.length);
         const searchDate = retryData.map((x) => x.searchDate)[0];
         listarParcelasDeCarga(key.substring(6), retryData, searchDate, true);
+      } else if (key.includes("topologias")) {
+        const parametersCodes = retryData.map((x) => x.parameterCode);
+        console.log("Total: " + parametersCodes.length);
+        const searchDate = retryData.map((x) => x.searchDate)[0];
+        listarTopologias(key.substring(6), retryData, searchDate, true);
       } else if (key.includes("ativos")) {
         const codPerfis = retryData.map((x) => x.codPerfil);
         listarAtivos(key.substring(6), codPerfis, true);
@@ -1273,7 +1280,7 @@ export default function DataSyncView() {
     setPendingRequests(pendingRequests - 1);
   };
 
-  const removeResourceFromRetryList = (key, resourceCode) => {
+  const removeResourceFromRetryList = (key, codAtivoMedicao) => {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
     console.log("removeResourceFromRetryList");
@@ -1281,7 +1288,7 @@ export default function DataSyncView() {
     if (!retryData) return;
 
     const itemToBeRemoved = retryData.find(
-      (x) => x.resourceCode === resourceCode
+      (x) => x.codAtivoMedicao === codAtivoMedicao
     );
     const index = retryData.indexOf(itemToBeRemoved);
 
@@ -1366,11 +1373,11 @@ export default function DataSyncView() {
         for (const x of itemsToRemove) {
           removeParameterFromRetryList(key.substring(6), x.parameterCode);
         }
-      } else if (key.includes("parcelasDeCarga")) {
+      } else if (key.includes("parcelasDeCarga") || key.includes("topologias")) {
         for (const x of itemsToRemove) {
-          removeResourceFromRetryList(key.substring(6), x.resourceCode);
+          removeResourceFromRetryList(key.substring(6), x.codAtivoMedicao);
         }
-      } else if (key.includes("ativos")) {
+      }  else if (key.includes("ativos")) {
         for (const x of itemsToRemove) {
           removeProfileFromRetryList(key.substring(6), x.codPerfil);
         }
@@ -1804,7 +1811,7 @@ export default function DataSyncView() {
       }
     } else {
       if (fromRetryList) {
-        updatePartialLoadInRetryList(item.resourceCode, key);
+        updateResourceInRetryList(item.codAtivoMedicao, key);
       } else {
         addResourceToRetryList(
           key,
@@ -1957,7 +1964,7 @@ export default function DataSyncView() {
     }
   }
 
-  async function updatePartialLoadInRetryList(resourceCode, key) {
+  async function updateResourceInRetryList(codAtivoMedicao, key) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
     console.log("updatePartialLoadInRetryList");
@@ -1965,7 +1972,7 @@ export default function DataSyncView() {
     if (!retryData) return;
 
     const itemToBeUpdated = retryData.find(
-      (x) => x.resourceCode.toString() === resourceCode.toString()
+      (x) => x.codAtivoMedicao.toString() === codAtivoMedicao.toString()
     );
     var itemToBeUpdatedClone = itemToBeUpdated;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
@@ -1977,6 +1984,224 @@ export default function DataSyncView() {
     }
   }
 
+  /**
+   * Listar Topologias por Ativo
+   * @returns
+   */
+  const sendRequest_ListarTopologiasPorAtivo = async () => {
+    var key,
+      formDate = "";
+
+    var date = selectedDataSource.substring(selectedDataSource.length - 5);
+    formDate =
+      "20" +
+      date.substring(date.length - 2) +
+      "-" +
+      date.substring(0, 2) +
+      "-01";
+    formDate = dayjs(formDate).format("YYYY-MM-DDTHH:mm:ss");
+    key = selectedDataSource.replace("parcelasDeAtivos", "topologias");
+
+    if (dataSourceItems === null) {
+      setPendingRequests(pendingRequests - 1);
+      return;
+    }
+
+    db.topologia
+      .where("key")
+      .equalsIgnoreCase(key)
+      .count()
+      .then(function (count) {
+        if (count > 0) {
+          console.log("Counted " + count + " objects");
+          setWarningText(
+            'Já existe uma coleção de dados com o nome "' + key + '"'
+          );
+          setPendingRequests(pendingRequests - 1);
+          setWarningDialogOpen(true);
+          return;
+        } else {
+          console.log("Total: " + dataSourceItems.length);
+          listarTopologias(key, dataSourceItems, formDate);
+        }
+      });
+  };
+
+  async function listarTopologias(
+    key,
+    dataSourceItems,
+    searchDate,
+    fromRetryList = false
+  ) {
+    try {
+      var itemsProcessed = 0;
+      setPendingRequests(pendingRequests + 1);
+
+      const requestsQuantity = dataSourceItems.length;
+
+      for (const item of dataSourceItems) {
+        var responseData = await ativosService.listarTopologiaPorAtivo(
+          authData,
+          item.codPerfil,
+          item.codAtivoMedicao,
+          searchDate
+        );
+
+        itemsProcessed++;
+
+        var totalPaginas = responseData.totalPaginas;
+        var totalPaginasNumber = totalPaginas._text
+          ? parseInt(totalPaginas._text.toString())
+          : 0;
+        if (totalPaginasNumber > 1) {
+          for (
+            let paginaCorrente = 1;
+            paginaCorrente <= totalPaginasNumber;
+            paginaCorrente++
+          ) {
+            // eslint-disable-next-line no-loop-func
+
+            var responseDataPaginated =
+              await ativosService.listarTopologiaPorAtivo(
+                authData,
+                item.codPerfil,
+                item.codAtivoMedicao,
+                searchDate,
+                paginaCorrente
+              );
+
+            handleTopologyResponseData(
+              responseDataPaginated,
+              key,
+              searchDate,
+              item,
+              fromRetryList
+            );
+          }
+        } else {
+          handleTopologyResponseData(
+            responseData,
+            key,
+            searchDate,
+            item,
+            fromRetryList
+          );
+        }
+
+        console.log(itemsProcessed);
+        var amountDone = (itemsProcessed / requestsQuantity) * 100;
+        if (amountDone !== progress) {
+          setProgress(amountDone);
+        }
+        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
+          console.log("Arr: " + requestsQuantity);
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
+        }
+      }
+    } catch (e) {
+      console.log("Erro ao listar topologias por ativo");
+      console.error(e);
+    }
+  }
+
+  function handleTopologyResponseData(
+    responseData,
+    key,
+    searchDate,
+    item,
+    fromRetryList
+  ) {
+    if (responseData.code === 200) {
+      var parcelaCarga = responseData.data;
+
+      if (parcelaCarga.length === undefined) {
+        mapResponseToTopologyData(key, parcelaCarga);
+      } else {
+        Array.prototype.forEach.call(parcelaCarga, async (x) => {
+          mapResponseToTopologyData(key, x);
+        });
+      }
+
+      if (fromRetryList) {
+        removeResourceFromRetryList(key, item.codAtivoMedicao);
+      }
+    } else {
+      if (fromRetryList) {
+        updateResourceInRetryList(item.codAtivoMedicao, key);
+      } else {
+        addResourceToRetryList(
+          key,
+          item.codAtivoMedicao,
+          item.codPerfil,
+          searchDate,
+          responseData.code,
+          0,
+          "listarTopologiasPorAtivo"
+        );
+      }
+    }
+  }
+
+  async function mapResponseToTopologyData(key, item) {
+    const codAtivoMedicao =
+      item["bov2:ativoMedicao"] !== undefined
+        ? item["bov2:ativoMedicao"]["bov2:numero"]._text.toString()
+        : "";
+    const codMedidor =
+      item["bov2:ativoMedicao"] !== undefined
+        ? item["bov2:ativoMedicao"]["bov2:pontos"]["bov2:pontoMedicao"][
+            "bov2:codigo"
+          ]._text.toString()
+        : "";
+    const nomeConcessionaria =
+      item["bov2:nome"] !== undefined ? item["bov2:nome"]._text.toString() : "";
+    const vigencia =
+      item["bov2:vigencia"] !== undefined
+        ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
+        : "";
+    var periodoVigencia = vigencia !== "" ? dayjs(vigencia).format("DD/MM/YYYY") : "";
+
+    console.log(
+      codAtivoMedicao,
+      codMedidor,
+      nomeConcessionaria,
+      periodoVigencia
+    );
+
+    await addTopologia(
+      key,
+      codAtivoMedicao,
+      codMedidor,
+      nomeConcessionaria,
+      periodoVigencia
+    );
+  }
+
+  async function addTopologia(
+    key,
+    codAtivoMedicao,
+    codMedidor,
+    nomeConcessionaria,
+    periodoVigencia
+  ) {
+    try {
+      await db.topologia.add({
+        key,
+        codAtivoMedicao,
+        codMedidor,
+        nomeConcessionaria,
+        periodoVigencia,
+      });
+    } catch (error) {
+      console.log(
+        `Failed to add Topology for resource: ${codAtivoMedicao}: ${error}`
+      );
+    }
+  }
+
+  // Listar Medidas - 5 minutos
   const sendRequest_ListarMedidasCincoMinutos = async () => {
     setPendingRequests(pendingRequests + 1);
 
@@ -2308,6 +2533,9 @@ export default function DataSyncView() {
         case 6:
           sendRequest_ListarMedidasCincoMinutos();
           break;
+        case 8:
+          sendRequest_ListarTopologiasPorAtivo();
+          break;
         default:
           sendRequest_ListarParticipantes();
           break;
@@ -2357,11 +2585,13 @@ export default function DataSyncView() {
     } else if (serviceId === 4) {
       return <div>{renderFractionalMeasurementFields()}</div>;
     } else if (serviceId === 5) {
-      return <div>{renderLoadFields()}</div>;
+      return <div>{renderLoadOrTopologyFields()}</div>;
     } else if (serviceId === 6) {
       return <div>{renderMeasureFields()}</div>;
+    } else if (serviceId === 8) {
+      return <div>{renderLoadOrTopologyFields()}</div>;
     } else {
-      return <div>{renderLoadFields()}</div>;
+      return <div>{renderLoadOrTopologyFields()}</div>;
     }
   }
 
@@ -2555,7 +2785,7 @@ export default function DataSyncView() {
     );
   };
 
-  const renderLoadFields = () => {
+  const renderLoadOrTopologyFields = () => {
     var sortedDataSourceKeys = dataSourceKeys.filter((item) =>
       item.includes("parcelasDeAtivos")
     );

@@ -308,8 +308,103 @@ const listarParcelaDeCarga = async (
   });
 };
 
+const listarTopologiaPorAtivo = async (
+  authData,
+  perfilAtual,
+  ativoMedicao,
+  inicioVigencia,
+  paginaAtual = 1
+): Promise<object> => {
+  var options = {
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: "listarTopologia",
+    },
+  };
+
+  var xmlBodyStr = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mh="http://xmlns.energia.org.br/MH/v2" xmlns:oas="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:bm="http://xmlns.energia.org.br/BM/v2" xmlns:bo="http://xmlns.energia.org.br/BO/v2">
+  <soapenv:Header>
+      <mh:messageHeader>
+          <mh:codigoPerfilAgente>${perfilAtual}</mh:codigoPerfilAgente>
+      </mh:messageHeader>
+      <mh:paginacao>
+          <mh:numero>${paginaAtual}</mh:numero>
+          <mh:quantidadeItens>50</mh:quantidadeItens>
+      </mh:paginacao>
+      <oas:Security>
+          <oas:UsernameToken>
+              <oas:Username>${authData.AuthUsername}</oas:Username>
+              <oas:Password>${authData.AuthPassword}</oas:Password>
+          </oas:UsernameToken>
+      </oas:Security>
+  </soapenv:Header>
+  <soapenv:Body>
+      <bm:listarTopologiaRequest>
+          <bm:parcelaAtivo>
+              <bo:ativoMedicao>
+                  <bo:numero>${ativoMedicao}</bo:numero>
+              </bo:ativoMedicao>
+          </bm:parcelaAtivo>
+          <!-- <bm:periodo>
+              <bo:inicio>2012-06-01T00:00:00</bo:inicio>
+              <bo:fim>2012-05-01T00:00:00</bo:fim>
+          </bm:periodo> -->
+          <bm:tipoRelacionamento>
+              <!-- PROPRIETARIO ou CONCESSIONARIO  -->
+              <bo:nome>PROPRIETARIO</bo:nome>
+          </bm:tipoRelacionamento>
+      </bm:listarTopologiaRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+
+  return new Promise((resolve) => {
+    api()
+      .post("/TopologiaBSv2", xmlBodyStr, options)
+      .then((response) => {
+        if (response.status === 200) {
+          let resBody = new Buffer.from(response.data).toString();
+          var xml = xml2json(resBody, { compact: true, spaces: 4 });
+          var json = JSON.parse(xml);
+          var topologias =
+            json["soapenv:Envelope"]["soapenv:Body"][
+              "bmv2:listarTopologiaResponse"
+            ]["bmv2:topologias"]["bov2:topologia"];
+          const totalPaginas =
+            json["soapenv:Envelope"]["soapenv:Header"]["hdr:paginacao"][
+              "hdr:totalPaginas"
+            ];
+          var responseData = {
+            data: topologias,
+            code: response.status,
+            totalPaginas,
+          };
+          resolve(responseData);
+        } else {
+          var responseData = {
+            data: ativoMedicao,
+            code: response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      })
+      .catch(function (error) {
+        if (error.response) {
+          console.log(error.response.status);
+          var responseData = {
+            data: ativoMedicao,
+            code: error.response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      });
+  });
+};
+
 export const ativosService = {
   listarAtivosDeMedicao,
   listarParcelasDeAtivosDeMedicao,
   listarParcelaDeCarga,
+  listarTopologiaPorAtivo
 };
