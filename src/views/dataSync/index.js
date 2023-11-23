@@ -314,6 +314,7 @@ export default function DataSyncView() {
 
   const sendRequest_ListarParticipantes = async (classId = 0) => {
     setPendingRequests(pendingRequests + 1);
+
     var cat = classId === 0 ? category : classId;
     var totalPages =
       await cadastrosService.listarParticipantesDeMercado_totalDePaginas(
@@ -403,7 +404,7 @@ export default function DataSyncView() {
           }
         } else {
           if (fromRetryList) {
-            removeParticipantsPageFromRetryList(key, currentPage);
+            updateParticipantPageInRetryList(key, currentPage);
           } else {
             addParticipantsPageToRetryList(
               key,
@@ -639,13 +640,13 @@ export default function DataSyncView() {
       }
 
       if (fromRetryList) {
-        removeProfileFromRetryList(key, codAgente);
+        removeAgentFromRetryList(key, codAgente);
       }
     } else {
       if (fromRetryList) {
         updateParticipantInRetryList(codAgente, key);
       } else {
-        addParticipanteToRetryList(
+        addAgentToRetryList(
           key,
           codAgente,
           responseData.code,
@@ -718,7 +719,7 @@ export default function DataSyncView() {
     }
   }
 
-  async function addParticipanteToRetryList(
+  async function addAgentToRetryList(
     key,
     codAgente,
     errorCode,
@@ -764,6 +765,24 @@ export default function DataSyncView() {
     if (!retryData) return;
 
     const itemToBeUpdated = retryData.find((x) => x.codAgente === codAgente);
+    var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    const index = retryData.indexOf(itemToBeUpdated);
+
+    if (index !== -1) {
+      retryData[index] = itemToBeUpdatedClone;
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
+    }
+  }
+
+  async function updateParticipantPageInRetryList(page, key) {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("updateParticipantPageInRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeUpdated = retryData.find((x) => x.page === page);
     var itemToBeUpdatedClone = itemToBeUpdated;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
     const index = retryData.indexOf(itemToBeUpdated);
@@ -878,12 +897,12 @@ export default function DataSyncView() {
               }
 
               if (fromRetryList) {
-                removeResourceFromRetryList(key, codPerfil);
+                removeProfileFromRetryList(key, codPerfil);
               }
             } else {
               if (responseDataPaginated.code !== 500) {
                 if (!fromRetryList) {
-                  addPerfilToRetryList(
+                  addProfileToRetryList(
                     key,
                     codPerfil,
                     responseDataPaginated.code,
@@ -893,7 +912,7 @@ export default function DataSyncView() {
                 }
               } else {
                 if (fromRetryList) {
-                  removeResourceFromRetryList(key, codPerfil);
+                  removeProfileFromRetryList(key, codPerfil);
                 }
               }
             }
@@ -910,12 +929,12 @@ export default function DataSyncView() {
             }
 
             if (fromRetryList) {
-              removeResourceFromRetryList(key, codPerfil);
+              removeProfileFromRetryList(key, codPerfil);
             }
           } else {
             if (responseData.code !== 500) {
               if (!fromRetryList) {
-                addPerfilToRetryList(
+                addProfileToRetryList(
                   key,
                   codPerfil,
                   responseData.code,
@@ -925,7 +944,7 @@ export default function DataSyncView() {
               }
             } else {
               if (fromRetryList) {
-                removeResourceFromRetryList(key, codPerfil);
+                removeProfileFromRetryList(key, codPerfil);
               }
             }
           }
@@ -990,7 +1009,7 @@ export default function DataSyncView() {
     }
   }
 
-  async function addPerfilToRetryList(
+  async function addProfileToRetryList(
     key,
     codPerfil,
     errorCode,
@@ -1070,6 +1089,48 @@ export default function DataSyncView() {
     }
   }
 
+  async function addResourceToRetryList(
+    key,
+    resourceCode,
+    profileCode,
+    searchDate,
+    errorCode,
+    attempts,
+    serviceFailed
+  ) {
+    try {
+      const retryKey = "retry_" + key;
+      const retryParameter = {
+        resourceCode,
+        profileCode,
+        searchDate,
+        errorCode,
+        attempts,
+        serviceFailed,
+      };
+
+      let keys = [];
+      if (retryKeys.length === 0) {
+        keys = [retryKey];
+      } else {
+        keys = retryKeys.concat(retryKey);
+      }
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
+
+      let retryResources = JSON.parse(localStorage.getItem(retryKey));
+      if (retryResources === null) {
+        retryResources = [retryParameter];
+      } else {
+        retryResources = retryResources.concat(retryParameter);
+      }
+      localStorage.setItem(retryKey, JSON.stringify(retryResources));
+    } catch (error) {
+      console.log(
+        `Failed to add ${resourceCode} to Retry Resource's list: ${error}`
+      );
+    }
+  }
+
   const retryFaultyRequests = async () => {
     if (retryKeys.length === 0) return;
 
@@ -1103,6 +1164,11 @@ export default function DataSyncView() {
           parameter,
           true
         );
+      } else if (key.includes("parcelasDeCarga")) {
+        const parametersCodes = retryData.map((x) => x.parameterCode);
+        console.log("Total: " + parametersCodes.length);
+        const searchDate = retryData.map((x) => x.searchDate)[0];
+        listarParcelasDeCarga(key.substring(6), retryData, searchDate, true);
       } else if (key.includes("ativos")) {
         const codPerfis = retryData.map((x) => x.codPerfil);
         listarAtivos(key.substring(6), codPerfis, true);
@@ -1112,7 +1178,7 @@ export default function DataSyncView() {
     }
   };
 
-  const removeProfileFromRetryList = (key, codAgente) => {
+  const removeAgentFromRetryList = (key, codAgente) => {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
     console.log("removeProfileFromRetryList");
@@ -1143,10 +1209,10 @@ export default function DataSyncView() {
     setPendingRequests(pendingRequests - 1);
   };
 
-  const removeResourceFromRetryList = (key, codPerfil) => {
+  const removeProfileFromRetryList = (key, codPerfil) => {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("removeResourceFromRetryList");
+    console.log("removeProfileFromRetryList");
 
     if (!retryData) return;
 
@@ -1183,6 +1249,39 @@ export default function DataSyncView() {
 
     const itemToBeRemoved = retryData.find(
       (x) => x.parameterCode === parameterCode
+    );
+    const index = retryData.indexOf(itemToBeRemoved);
+
+    if (index > -1) {
+      retryData.splice(index, 1);
+    }
+
+    if (retryData.length === 0) {
+      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
+      const idx = retryKeys.indexOf(keyToBeRemoved);
+
+      if (idx > -1) {
+        retryKeys.splice(idx, 1);
+      }
+
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
+      localStorage.removeItem(retryKey);
+    } else {
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
+    }
+
+    setPendingRequests(pendingRequests - 1);
+  };
+
+  const removeResourceFromRetryList = (key, resourceCode) => {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("removeResourceFromRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeRemoved = retryData.find(
+      (x) => x.resourceCode === resourceCode
     );
     const index = retryData.indexOf(itemToBeRemoved);
 
@@ -1261,15 +1360,19 @@ export default function DataSyncView() {
         }
       } else if (key.includes("perfis")) {
         for (const x of itemsToRemove) {
-          removeProfileFromRetryList(key.substring(6), x.codAgente);
+          removeAgentFromRetryList(key.substring(6), x.codAgente);
         }
       } else if (key.includes("parcelasDeAtivos")) {
         for (const x of itemsToRemove) {
           removeParameterFromRetryList(key.substring(6), x.parameterCode);
         }
+      } else if (key.includes("parcelasDeCarga")) {
+        for (const x of itemsToRemove) {
+          removeResourceFromRetryList(key.substring(6), x.resourceCode);
+        }
       } else if (key.includes("ativos")) {
         for (const x of itemsToRemove) {
-          removeResourceFromRetryList(key.substring(6), x.codPerfil);
+          removeProfileFromRetryList(key.substring(6), x.codPerfil);
         }
       } else {
         return;
@@ -1646,7 +1749,7 @@ export default function DataSyncView() {
               responseDataPaginated,
               key,
               searchDate,
-              item.codAtivoMedicao,
+              item,
               fromRetryList
             );
           }
@@ -1655,7 +1758,7 @@ export default function DataSyncView() {
             responseData,
             key,
             searchDate,
-            item.codAtivoMedicao,
+            item,
             fromRetryList
           );
         }
@@ -1697,17 +1800,17 @@ export default function DataSyncView() {
       }
 
       if (fromRetryList) {
-        removeParameterFromRetryList(key, item);
+        removeResourceFromRetryList(key, item.codAtivoMedicao);
       }
     } else {
       if (fromRetryList) {
-        updatePartialLoadInRetryList(item, key);
+        updatePartialLoadInRetryList(item.resourceCode, key);
       } else {
-        addParameterToRetryList(
+        addResourceToRetryList(
           key,
-          item,
+          item.codAtivoMedicao,
+          item.codPerfil,
           searchDate,
-          1,
           responseData.code,
           0,
           "listarParcelasDeCarga"
@@ -1792,25 +1895,6 @@ export default function DataSyncView() {
         ["bov2:agente"]["bov2:codigo"]._text.toString();
     }
 
-    // console.log(
-    //   key,
-    //   codParcelaCarga,
-    //   codAtivoMedicao,
-    //   nome,
-    //   submercado,
-    //   cnpj,
-    //   situacao,
-    //   periodoVigencia,
-    //   codConcessionaria,
-    //   undCapacidadeCarga,
-    //   valorCapacidadeCarga,
-    //   bairro,
-    //   cidade,
-    //   estado,
-    //   logradouro,
-    //   numero
-    // );
-
     await addParcelaDeCarga(
       key,
       codParcelaCarga,
@@ -1873,7 +1957,7 @@ export default function DataSyncView() {
     }
   }
 
-  async function updatePartialLoadInRetryList(parameterCode, key) {
+  async function updatePartialLoadInRetryList(resourceCode, key) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
     console.log("updatePartialLoadInRetryList");
@@ -1881,7 +1965,7 @@ export default function DataSyncView() {
     if (!retryData) return;
 
     const itemToBeUpdated = retryData.find(
-      (x) => x.parameterCode === parameterCode
+      (x) => x.resourceCode.toString() === resourceCode.toString()
     );
     var itemToBeUpdatedClone = itemToBeUpdated;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
@@ -2171,8 +2255,12 @@ export default function DataSyncView() {
         setProgress(amountDone);
       }
     } else {
+      var classesProcessed = 0;
       for (const cl of classes) {
-        sendRequest_ListarParticipantes(cl.id);
+        await sendRequest_ListarParticipantes(cl.id);
+        classesProcessed++;
+        var amountDone = (classesProcessed / classes.length) * 100;
+        setProgress(amountDone);
       }
     }
 

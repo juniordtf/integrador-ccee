@@ -126,7 +126,7 @@ const PartialLoadColumns = [
     label: "Código de Ativo de Medição",
     minWidth: 100,
   },
-  { id: "nome", label: "Nome Empresarial", minWidth: 100 },
+  { id: "nome", label: "Nome Empresarial", minWidth: 170 },
   { id: "submercado", label: "Submercado", minWidth: 100 },
   {
     id: "cnpj",
@@ -135,7 +135,7 @@ const PartialLoadColumns = [
     format: (value) => formatStringByPattern("XX.XXX.XXX/XXXX-XX", value),
   },
   { id: "situacao", label: "Situação", minWidth: 100 },
-  { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 170 },
+  { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 100 },
   { id: "codConcessionaria", label: "Código da Concessionária", minWidth: 100 },
   { id: "undCapacidadeCarga", label: "Und. Capacidade Carga", minWidth: 100 },
   {
@@ -507,7 +507,7 @@ export default function DataExportView() {
           handleLoadingModalClose();
         });
     } else if (selectedDataSource.includes("parcelasDeCarga")) {
-      db.parcelasAtivosMedicao
+      db.parcelasDeCarga
         .where("key")
         .equals(selectedDataSource)
         .delete()
