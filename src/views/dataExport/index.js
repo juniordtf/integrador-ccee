@@ -167,6 +167,81 @@ const TopologiesColumns = [
   },
 ];
 
+const SinteticColumns = [
+  { id: "codAtivoMedicao", label: "Código de Ativo", minWidth: 100 },
+  {
+    id: "nomeAtivo",
+    label: "Nome do Ativo",
+    minWidth: 170,
+  },
+  { id: "cnpj", label: "CNPJ do ativo", minWidth: 170 },
+  {
+    id: "undCapacidadeCarga",
+    label: "Und. Capacidade Carga",
+    minWidth: 100,
+  },
+  {
+    id: "valorCapacidadeCarga",
+    label: "Montante de Capacidade de Carga",
+    minWidth: 100,
+  },
+  {
+    id: "submercado",
+    label: "Submercado",
+    minWidth: 100,
+  },
+  {
+    id: "nomeConcessionaria",
+    label: "Nome da Concessionária",
+    minWidth: 100,
+  },
+  {
+    id: "codPerfil",
+    label: "Código do Perfil",
+    minWidth: 100,
+  },
+  {
+    id: "nomePerfil",
+    label: "Nome do Perfil",
+    minWidth: 100,
+  },
+  {
+    id: "codAgente",
+    label: "Código do Agente",
+    minWidth: 100,
+  },
+  {
+    id: "nomeAgente",
+    label: "Nome do Agente",
+    minWidth: 100,
+  },
+  {
+    id: "logradouro",
+    label: "Logradouro",
+    minWidth: 100,
+  },
+  {
+    id: "numeroPredial",
+    label: "Número Predial",
+    minWidth: 100,
+  },
+  {
+    id: "bairro",
+    label: "Bairro",
+    minWidth: 100,
+  },
+  {
+    id: "cidade",
+    label: "Cidade",
+    minWidth: 100,
+  },
+  {
+    id: "estado",
+    label: "Estado",
+    minWidth: 100,
+  },
+];
+
 export default function DataExportView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [filteredDataSourceKeys, setFilteredDataSourceKeys] = useState([]);
@@ -197,6 +272,7 @@ export default function DataExportView() {
   const [open, setOpen] = useState(false);
   const [actionId, setActionId] = useState(2);
   const [datasetName, setDatasetName] = useState([]);
+  const [sinteticDatasetName, setSinteticDatasetName] = useState([]);
   const [selectedEntity, setSelectedEntity] = useState("");
   const [clusterName, setClusterName] = useState("");
 
@@ -217,6 +293,7 @@ export default function DataExportView() {
     { id: 1, value: "Agrupar dados" },
     { id: 2, value: "Visualizar dados individualizados" },
     { id: 3, value: "Comparar conjuntos de dados" },
+    { id: 4, value: "Sintetizar dados" },
   ];
 
   const entities = [
@@ -234,6 +311,16 @@ export default function DataExportView() {
     } = event;
 
     setDatasetName(typeof value === "string" ? value.split(",") : value);
+  };
+
+  const handleSinteticMultiSelectDataSourceChange = (event) => {
+    const {
+      target: { value },
+    } = event;
+
+    setSinteticDatasetName(
+      typeof value === "string" ? value.split(",") : value
+    );
   };
 
   const handleSelectedEntityChange = (event) => {
@@ -394,6 +481,9 @@ export default function DataExportView() {
     } else if (selectedDataSource.includes("topologias")) {
       setTableHeader(TopologiesColumns);
       setRowKey("codAtivoMedicao");
+    } else if (selectedDataSource.includes("dadosSintéticos")) {
+      setTableHeader(SinteticColumns);
+      setRowKey("codAtivoMedicao");
     } else {
       setTableHeader([]);
       setRowKey("");
@@ -461,6 +551,181 @@ export default function DataExportView() {
       return [];
     }
   };
+
+  const createSinteticTable = () => {
+    handleLoadingModalOpen();
+
+    var sinteticParticipants = sinteticDatasetName.find((x) =>
+      x.includes("participantes")
+    );
+    var sinteticProfiles = sinteticDatasetName.find((x) =>
+      x.includes("perfis")
+    );
+    var sinteticPartialResources = sinteticDatasetName.find((x) =>
+      x.includes("parcelasDeAtivos")
+    );
+    var sinteticPartialLoads = sinteticDatasetName.find((x) =>
+      x.includes("parcelasDeCarga")
+    );
+    var sinteticTopologies = sinteticDatasetName.find((x) =>
+      x.includes("topologias")
+    );
+
+    if (sinteticPartialResources === undefined) return;
+
+    var sinteticPartialResourcesValues = partialResources.filter(
+      (x) => x.key === sinteticPartialResources
+    );
+
+    var sinteticTableA,
+      sinteticTableB,
+      sinteticTableC,
+      sinteticTableD,
+      sinteticTableE = [];
+
+    const key =
+      "dadosSintéticos_" +
+      sinteticPartialResources.substring(sinteticPartialResources.length - 8);
+    console.log(key);
+
+    sinteticTableA = sinteticPartialResourcesValues.map((x) => ({
+      key,
+      id: x.id,
+      codAtivoMedicao: x.codAtivoMedicao,
+      nomeAtivo: x.nome,
+      cnpj: x.cnpj,
+      codPerfil: x.codPerfil,
+    }));
+
+    if (sinteticPartialLoads !== undefined) {
+      var sinteticPartialLoadValues = partialLoads.filter(
+        (x) => x.key === sinteticPartialLoads
+      );
+      var filteredSinteticPartialLoadValues = sinteticPartialLoadValues.filter(
+        (x) =>
+          sinteticTableA
+            .map((z) => z.codAtivoMedicao)
+            .includes(x.codAtivoMedicao)
+      );
+
+      sinteticTableB = filteredSinteticPartialLoadValues.map((x) => ({
+        codAtivoMedicao: x.codAtivoMedicao,
+        logradouro: x.logradouro,
+        numeroPredial: x.numero,
+        bairro: x.bairro,
+        cidade: x.cidade,
+        estado: x.estado,
+        undCapacidadeCarga: x.undCapacidadeCarga,
+        valorCapacidadeCarga: x.valorCapacidadeCarga,
+      }));
+    }
+
+    var resultTableA = mergeArraysByKey(
+      sinteticTableA,
+      sinteticTableB,
+      "codAtivoMedicao"
+    );
+
+    if (sinteticTopologies !== undefined) {
+      var sinteticTopologiesValues = topologies.filter(
+        (x) => x.key === sinteticTopologies
+      );
+      var filteredSinteticTopologiesValues = sinteticTopologiesValues.filter(
+        (x) =>
+          sinteticTableA
+            .map((z) => z.codAtivoMedicao)
+            .includes(x.codAtivoMedicao)
+      );
+
+      sinteticTableC = filteredSinteticTopologiesValues.map((x) => ({
+        codAtivoMedicao: x.codAtivoMedicao,
+        codMedidor: x.codMedidor,
+        nomeConcessionaria: x.nomeConcessionaria,
+      }));
+    }
+
+    var resultTableB = mergeArraysByKey(
+      resultTableA,
+      sinteticTableC,
+      "codAtivoMedicao"
+    );
+
+    if (sinteticProfiles !== undefined) {
+      var sinteticProfilesValues = profiles.filter(
+        (x) => x.key === sinteticProfiles
+      );
+
+      var filteredSinteticProfiles = sinteticProfilesValues.filter((x) =>
+        sinteticTableA.map((z) => z.codPerfil).includes(x.codPerfil)
+      );
+
+      sinteticTableD = filteredSinteticProfiles.map((x) => ({
+        codPerfil: x.codPerfil,
+        siglaPeril: x.sigla,
+        codAgente: x.codAgente,
+        submercado: x.submercado,
+      }));
+    }
+
+    var resultTableC = mergeArraysByKey(
+      resultTableB,
+      sinteticTableD,
+      "codPerfil"
+    );
+
+    if (sinteticParticipants !== undefined) {
+      var sinteticParticipantsValues = participants.filter(
+        (x) => x.key === sinteticParticipants
+      );
+
+      var filteredSinteticParticipants = sinteticParticipantsValues.filter(
+        (x) => sinteticTableD.map((z) => z.codAgente).includes(x.codigo)
+      );
+
+      sinteticTableE = filteredSinteticParticipants.map((x) => ({
+        codAgente: x.codigo,
+        nomeAgente: x.nomeEmpresarial,
+      }));
+    }
+
+    var resultTableD = mergeArraysByKey(
+      resultTableC,
+      sinteticTableE,
+      "codAgente"
+    );
+
+    var finalResultTable = [];
+
+    for (const res of resultTableD) {
+      if (res !== undefined) {
+        finalResultTable.push(res);
+      }
+    }
+
+    setSelectedDataSource(key);
+    setRows(resultTableD);
+    setInitialRows(resultTableD);
+
+    handleLoadingModalClose();
+  };
+
+  function mergeArraysByKey(arr1, arr2, key) {
+    var resultArr = [];
+    for (const item of arr1) {
+      var value = [];
+      var match = arr2.find((x) => x[key] === item[key]);
+
+      if (match !== undefined) {
+        value = Object.assign({}, item, match);
+      } else {
+        value = Object.assign({}, item);
+      }
+
+      resultArr.push(value);
+    }
+
+    return resultArr;
+  }
 
   const handleExportData = () => {
     setDialogReason("exportData");
@@ -810,8 +1075,10 @@ export default function DataExportView() {
       return <div>{RnederGroupDatasetsView()}</div>;
     } else if (option === 2) {
       return <div>{RenderSingleExporterView()}</div>;
-    } else {
+    } else if (option === 3) {
       return <div>{RenderComparatorExporterView()}</div>;
+    } else if (option === 4) {
+      return <div>{RenderSinteticExporterView()}</div>;
     }
   };
 
@@ -1058,6 +1325,58 @@ export default function DataExportView() {
         ) : (
           <div></div>
         )}
+      </div>
+    );
+  }
+
+  function RenderSinteticExporterView() {
+    return (
+      <div>
+        <Stack
+          direction="row"
+          divider={<Divider orientation="vertical" flexItem />}
+          sx={{ marginTop: 2 }}
+          spacing={2}
+        >
+          <FormControl sx={{ width: "50%" }}>
+            <InputLabel id="demo-multiple-name-label">
+              Conjunto de dados
+            </InputLabel>
+            <Select
+              labelId="demo-multiple-name-label"
+              id="demo-multiple-name"
+              multiple
+              value={sinteticDatasetName}
+              onChange={handleSinteticMultiSelectDataSourceChange}
+              input={<OutlinedInput label="Name" />}
+              renderValue={(selected) => selected.join(", ")}
+              MenuProps={MenuProps}
+            >
+              {dataSourceKeys.map((name) => (
+                <MenuItem key={name} value={name}>
+                  <Checkbox checked={sinteticDatasetName.indexOf(name) > -1} />
+                  <ListItemText primary={name} />
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Button
+            variant="outlined"
+            onClick={createSinteticTable}
+            sx={{ marginTop: 2 }}
+          >
+            Gerar dados sintetizados
+          </Button>
+          {selectedDataSource !== "" ? (
+            <Button variant="outlined" onClick={handleExportData}>
+              Exportar
+            </Button>
+          ) : (
+            <div></div>
+          )}
+        </Stack>
+        {RenderTable()}
       </div>
     );
   }
