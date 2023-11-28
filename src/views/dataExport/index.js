@@ -3,7 +3,7 @@ import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
+import TableCell, { tableCellClasses } from "@mui/material/TableCell";
 import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TablePagination from "@mui/material/TablePagination";
@@ -38,7 +38,24 @@ import OutlinedInput from "@mui/material/OutlinedInput";
 import ListItemText from "@mui/material/ListItemText";
 import Checkbox from "@mui/material/Checkbox";
 import { useTheme } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
 import { db } from "../../database/db";
+
+const StyledTableCell = styled(TableCell)(({ theme }) => ({
+  [`&.${tableCellClasses.head}`]: {
+    backgroundColor: "lightGrey",
+    color: theme.palette.common.black,
+  },
+  [`&.${tableCellClasses.body}`]: {
+    fontSize: 14,
+  },
+}));
+
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+  "&:nth-of-type(odd)": {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
 
 const ParticipantsColumns = [
   {
@@ -1026,7 +1043,8 @@ export default function DataExportView() {
       filteredData = initialRows.filter(
         (x) =>
           x.codAtivoMedicao.includes(searchText) ||
-          x.nomeConcessionaria.toUpperCase().includes(searchText)
+          (x.nomeConcessionaria !== undefined &&
+            x.nomeConcessionaria.toUpperCase().includes(searchText))
       );
     } else {
       filteredData = [];
@@ -1120,17 +1138,17 @@ export default function DataExportView() {
               <TableContainer sx={{ maxHeight: 440, marginTop: 1 }}>
                 <Table stickyHeader aria-label="sticky table">
                   <TableHead>
-                    <TableRow>
+                    <StyledTableRow>
                       {tableHeader.map((column) => (
-                        <TableCell
+                        <StyledTableCell
                           key={column.id}
                           align={column.align}
                           style={{ minWidth: column.minWidth }}
                         >
                           {column.label}
-                        </TableCell>
+                        </StyledTableCell>
                       ))}
-                    </TableRow>
+                    </StyledTableRow>
                   </TableHead>
                   <TableBody>
                     {rows
@@ -1140,7 +1158,7 @@ export default function DataExportView() {
                       )
                       .map((row) => {
                         return (
-                          <TableRow
+                          <StyledTableRow
                             hover
                             role="checkbox"
                             tabIndex={-1}
@@ -1154,7 +1172,7 @@ export default function DataExportView() {
                                 </TableCell>
                               );
                             })}
-                          </TableRow>
+                          </StyledTableRow>
                         );
                       })}
                   </TableBody>
