@@ -5,7 +5,7 @@ const api = () => {
   const serverAddress =
     serverData !== null ? serverData.serverAddress : "localhost:5000";
   const axiosInstance = axios.create({
-    baseURL: "http://" + serverAddress + "/ws/v2/",
+    baseURL: "https://" + serverAddress + "/ws/v2/",
   });
 
   return axiosInstance;
