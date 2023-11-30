@@ -243,6 +243,8 @@ export default function DataSyncView() {
   };
 
   const handleDataSourceChange = async (event) => {
+    setPendingRequests(pendingRequests + 1);
+
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSource(event.target.value);
     var participantes = await db.participantes.toArray();
@@ -304,6 +306,8 @@ export default function DataSyncView() {
       console.log(selectedResource.length);
       setDataSourceItems(selectedResource);
     }
+
+    setPendingRequests(0);
   };
 
   const handleParameterChange = (event) => {
@@ -317,6 +321,7 @@ export default function DataSyncView() {
   const sendRequest_ListarParticipantes = async (classId = 0) => {
     setPendingRequests(pendingRequests + 1);
 
+    var isAutomatic = classId === 0 ? false : true;
     var cat = classId === 0 ? category : classId;
     var totalPages =
       await cadastrosService.listarParticipantesDeMercado_totalDePaginas(
@@ -327,15 +332,17 @@ export default function DataSyncView() {
       );
 
     if (totalPages === null) {
-      setWarningText(
-        "Não foram retornados agentes para os parâmetros informados"
-      );
+      if (!isAutomatic) {
+        setWarningText(
+          "Não foram retornados agentes para os parâmetros informados"
+        );
+        setWarningDialogOpen(true);
+      }
+
       setPendingRequests(pendingRequests - 1);
-      setWarningDialogOpen(true);
       return;
     }
 
-    console.log(totalPages);
     var key = "";
 
     if (classId === 0) {
@@ -362,7 +369,25 @@ export default function DataSyncView() {
       key = "participantes_" + dayjs(date).format("DD/MM/YY");
     }
 
-    listarParticipantes(key, totalPages, date, cat);
+    var done = await listarParticipantes(
+      key,
+      totalPages,
+      date,
+      cat,
+      false,
+      isAutomatic
+    );
+
+    if (done) {
+      setPendingRequests(pendingRequests - 1);
+      setProgress(0);
+
+      var catInArr = classes.find((x) => x.id === cat);
+
+      if (classes.indexOf(catInArr) + 1 === classes.length) {
+        setSuccesDialogOpen(true);
+      }
+    }
   };
 
   async function listarParticipantes(
@@ -370,7 +395,8 @@ export default function DataSyncView() {
     totalPages,
     date,
     category,
-    fromRetryList = false
+    fromRetryList = false,
+    isAutomatic = false
   ) {
     try {
       const initialPage = fromRetryList ? totalPages : 1;
@@ -419,19 +445,18 @@ export default function DataSyncView() {
           }
         }
 
-        itemsProcessed++;
-        var amountDone = (currentPage / totalPages) * 100;
-        setProgress(amountDone);
-        console.log(currentPage);
-        if (currentPage === totalPages) {
-          setPendingRequests(pendingRequests - 1);
-          setProgress(0);
-          setSuccesDialogOpen(true);
+        if (!isAutomatic) {
+          itemsProcessed++;
+          var amountDone = (currentPage / totalPages) * 100;
+          setProgress(amountDone);
         }
       }
+
+      return true;
     } catch (e) {
       console.log("Erro ao listar participantes");
       console.error(e);
+      return true;
     }
   }
 
@@ -531,6 +556,8 @@ export default function DataSyncView() {
   }
 
   const sendRequest_ListarPerfis = async () => {
+    setPendingRequests(pendingRequests + 1);
+
     const key = selectedDataSource.replace("participantes", "perfis");
     console.log(key);
 
@@ -538,7 +565,7 @@ export default function DataSyncView() {
       .where("key")
       .equalsIgnoreCase(key)
       .count()
-      .then(function (count) {
+      .then(async function (count) {
         if (count > 0) {
           console.log("Counted " + count + " objects");
           setWarningText(
@@ -555,7 +582,11 @@ export default function DataSyncView() {
 
           console.log("Total: " + dataSourceItems.length);
           var codAgentes = dataSourceItems.map((x) => x.codigo);
-          listarPerfis(key, codAgentes);
+
+          await listarPerfis(key, codAgentes);
+          setPendingRequests(pendingRequests - 1);
+          setSuccesDialogOpen(true);
+          setProgress(0);
         }
       });
   };
@@ -563,8 +594,6 @@ export default function DataSyncView() {
   async function listarPerfis(key, sourceItems, fromRetryList = false) {
     try {
       var itemsProcessed = 0;
-      setPendingRequests(pendingRequests + 1);
-
       const requestsQuantity = sourceItems.length;
 
       for (const codAgente of sourceItems) {
@@ -608,15 +637,8 @@ export default function DataSyncView() {
           );
         }
 
-        console.log(itemsProcessed);
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
         setProgress(amountDone);
-        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-          console.log("Arr: " + requestsQuantity);
-          setPendingRequests(pendingRequests - 1);
-          setProgress(0);
-          setSuccesDialogOpen(true);
-        }
       }
     } catch (e) {
       console.log("Erro ao listar perfis");
@@ -816,6 +838,8 @@ export default function DataSyncView() {
   }
 
   const sendRequest_ListarAtivosDeMedicao = async () => {
+    setPendingRequests(pendingRequests + 1);
+
     var date = selectedDataSource.substring(selectedDataSource.length - 5);
     date =
       "20" +
@@ -831,7 +855,7 @@ export default function DataSyncView() {
       .where("key")
       .equalsIgnoreCase(key)
       .count()
-      .then(function (count) {
+      .then(async function (count) {
         if (count > 0) {
           console.log("Counted " + count + " objects");
           setWarningText(
@@ -848,7 +872,11 @@ export default function DataSyncView() {
 
           console.log("Total: " + dataSourceItems.length);
           var codPerfis = dataSourceItems.map((x) => x.codPerfil);
-          listarAtivos(key, codPerfis);
+
+          await listarAtivos(key, codPerfis);
+          setPendingRequests(pendingRequests - 1);
+          setSuccesDialogOpen(true);
+          setProgress(0);
         }
       });
   };
@@ -856,8 +884,6 @@ export default function DataSyncView() {
   async function listarAtivos(key, sourceItems, fromRetryList = false) {
     try {
       var itemsProcessed = 0;
-      setPendingRequests(pendingRequests + 1);
-
       const requestsQuantity = sourceItems.length;
 
       for (const codPerfil of sourceItems) {
@@ -955,12 +981,6 @@ export default function DataSyncView() {
         console.log(itemsProcessed);
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
         setProgress(amountDone);
-        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-          console.log("Arr: " + requestsQuantity);
-          setPendingRequests(pendingRequests - 1);
-          setProgress(0);
-          setSuccesDialogOpen(true);
-        }
       }
     } catch (e) {
       console.log("Erro ao listar ativos");
@@ -1148,7 +1168,8 @@ export default function DataSyncView() {
             rd.page,
             rd.date,
             rd.category,
-            true
+            true,
+            false
           );
         }
       } else if (key.includes("perfis")) {
@@ -1212,8 +1233,6 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
-
-    setPendingRequests(pendingRequests - 1);
   };
 
   const removeProfileFromRetryList = (key, codPerfil) => {
@@ -1243,8 +1262,6 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
-
-    setPendingRequests(pendingRequests - 1);
   };
 
   const removeParameterFromRetryList = (key, parameterCode) => {
@@ -1276,8 +1293,6 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
-
-    setPendingRequests(pendingRequests - 1);
   };
 
   const removeResourceFromRetryList = (key, codAtivoMedicao) => {
@@ -1309,8 +1324,6 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
-
-    setPendingRequests(pendingRequests - 1);
   };
 
   const removeParticipantsPageFromRetryList = (key, page) => {
@@ -1340,8 +1353,6 @@ export default function DataSyncView() {
     } else {
       localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
-
-    setPendingRequests(pendingRequests - 1);
   };
 
   const removeExpiredData = async () => {
@@ -1363,27 +1374,35 @@ export default function DataSyncView() {
 
       if (key.includes("participantes")) {
         for (const x of itemsToRemove) {
-          removeParticipantsPageFromRetryList(key.substring(6), x.page);
+          await removeParticipantsPageFromRetryList(key.substring(6), x.page);
         }
       } else if (key.includes("perfis")) {
         for (const x of itemsToRemove) {
-          removeAgentFromRetryList(key.substring(6), x.codAgente);
+          await removeAgentFromRetryList(key.substring(6), x.codAgente);
         }
       } else if (key.includes("parcelasDeAtivos")) {
         for (const x of itemsToRemove) {
-          removeParameterFromRetryList(key.substring(6), x.parameterCode);
+          await removeParameterFromRetryList(key.substring(6), x.parameterCode);
         }
-      } else if (key.includes("parcelasDeCarga") || key.includes("topologias")) {
+      } else if (
+        key.includes("parcelasDeCarga") ||
+        key.includes("topologias")
+      ) {
         for (const x of itemsToRemove) {
-          removeResourceFromRetryList(key.substring(6), x.codAtivoMedicao);
+          await removeResourceFromRetryList(
+            key.substring(6),
+            x.codAtivoMedicao
+          );
         }
-      }  else if (key.includes("ativos")) {
+      } else if (key.includes("ativos")) {
         for (const x of itemsToRemove) {
-          removeProfileFromRetryList(key.substring(6), x.codPerfil);
+          await removeProfileFromRetryList(key.substring(6), x.codPerfil);
         }
       } else {
         return;
       }
+
+      setPendingRequests(pendingRequests - 1);
     }
   };
 
@@ -1395,6 +1414,8 @@ export default function DataSyncView() {
   };
 
   const sendRequest_ListarParcelasDeAtivo = async () => {
+    setPendingRequests(pendingRequests + 1);
+
     var key,
       formDate,
       selectedParameter = "";
@@ -1430,7 +1451,7 @@ export default function DataSyncView() {
       .where("key")
       .equalsIgnoreCase(key)
       .count()
-      .then(function (count) {
+      .then(async function (count) {
         if (count > 0) {
           console.log("Counted " + count + " objects");
           setWarningText(
@@ -1441,7 +1462,16 @@ export default function DataSyncView() {
           return;
         } else {
           console.log("Total: " + sourceData.length);
-          listarParcelasDeAtivos(key, sourceData, formDate, selectedParameter);
+
+          await listarParcelasDeAtivos(
+            key,
+            sourceData,
+            formDate,
+            selectedParameter
+          );
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
         }
       });
   };
@@ -1455,8 +1485,6 @@ export default function DataSyncView() {
   ) {
     try {
       var itemsProcessed = 0;
-      setPendingRequests(pendingRequests + 1);
-
       var codMedidor,
         codParcelaAtivo,
         codAtivoMedicao,
@@ -1531,16 +1559,9 @@ export default function DataSyncView() {
           );
         }
 
-        console.log(itemsProcessed);
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
         if (amountDone !== progress) {
           setProgress(amountDone);
-        }
-        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-          console.log("Arr: " + requestsQuantity);
-          setPendingRequests(pendingRequests - 1);
-          setProgress(0);
-          setSuccesDialogOpen(true);
         }
       }
     } catch (e) {
@@ -1671,6 +1692,8 @@ export default function DataSyncView() {
   }
 
   const sendRequest_ListarParcelasDeCarga = async () => {
+    setPendingRequests(pendingRequests + 1);
+
     var key,
       formDate = "";
 
@@ -1693,7 +1716,7 @@ export default function DataSyncView() {
       .where("key")
       .equalsIgnoreCase(key)
       .count()
-      .then(function (count) {
+      .then(async function (count) {
         if (count > 0) {
           console.log("Counted " + count + " objects");
           setWarningText(
@@ -1704,7 +1727,11 @@ export default function DataSyncView() {
           return;
         } else {
           console.log("Total: " + dataSourceItems.length);
-          listarParcelasDeCarga(key, dataSourceItems, formDate);
+
+          await listarParcelasDeCarga(key, dataSourceItems, formDate);
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
         }
       });
   };
@@ -1717,8 +1744,6 @@ export default function DataSyncView() {
   ) {
     try {
       var itemsProcessed = 0;
-      setPendingRequests(pendingRequests + 1);
-
       const requestsQuantity = dataSourceItems.length;
 
       for (const item of dataSourceItems) {
@@ -1774,12 +1799,6 @@ export default function DataSyncView() {
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
         if (amountDone !== progress) {
           setProgress(amountDone);
-        }
-        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-          console.log("Arr: " + requestsQuantity);
-          setPendingRequests(pendingRequests - 1);
-          setProgress(0);
-          setSuccesDialogOpen(true);
         }
       }
     } catch (e) {
@@ -1989,6 +2008,8 @@ export default function DataSyncView() {
    * @returns
    */
   const sendRequest_ListarTopologiasPorAtivo = async () => {
+    setPendingRequests(pendingRequests + 1);
+
     var key,
       formDate = "";
 
@@ -2011,7 +2032,7 @@ export default function DataSyncView() {
       .where("key")
       .equalsIgnoreCase(key)
       .count()
-      .then(function (count) {
+      .then(async function (count) {
         if (count > 0) {
           console.log("Counted " + count + " objects");
           setWarningText(
@@ -2022,7 +2043,11 @@ export default function DataSyncView() {
           return;
         } else {
           console.log("Total: " + dataSourceItems.length);
-          listarTopologias(key, dataSourceItems, formDate);
+
+          await listarTopologias(key, dataSourceItems, formDate);
+          setPendingRequests(pendingRequests - 1);
+          setProgress(0);
+          setSuccesDialogOpen(true);
         }
       });
   };
@@ -2035,8 +2060,6 @@ export default function DataSyncView() {
   ) {
     try {
       var itemsProcessed = 0;
-      setPendingRequests(pendingRequests + 1);
-
       const requestsQuantity = dataSourceItems.length;
 
       for (const item of dataSourceItems) {
@@ -2092,12 +2115,6 @@ export default function DataSyncView() {
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
         if (amountDone !== progress) {
           setProgress(amountDone);
-        }
-        if (requestsQuantity > 0 && itemsProcessed === requestsQuantity) {
-          console.log("Arr: " + requestsQuantity);
-          setPendingRequests(pendingRequests - 1);
-          setProgress(0);
-          setSuccesDialogOpen(true);
         }
       }
     } catch (e) {
@@ -2161,7 +2178,8 @@ export default function DataSyncView() {
       item["bov2:vigencia"] !== undefined
         ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
         : "";
-    var periodoVigencia = vigencia !== "" ? dayjs(vigencia).format("DD/MM/YYYY") : "";
+    var periodoVigencia =
+      vigencia !== "" ? dayjs(vigencia).format("DD/MM/YYYY") : "";
 
     console.log(
       codAtivoMedicao,
@@ -2461,10 +2479,11 @@ export default function DataSyncView() {
   }
 
   const sendRequest_FullAutomatic = async () => {
-    setPendingRequests(pendingRequests + 1);
     var itemsProcessed = 0;
 
     if (onlyRepresentedAgents) {
+      setPendingRequests(pendingRequests + 1);
+
       var representedAgentCodes = await listarRepresentados();
       var agentCode = authData.AuthCodigoPerfilAgente;
 
@@ -2479,8 +2498,11 @@ export default function DataSyncView() {
         var amountDone = (itemsProcessed / totalAmount) * 100;
         setProgress(amountDone);
       }
+
+      setPendingRequests(pendingRequests - 1);
     } else {
       var classesProcessed = 0;
+
       for (const cl of classes) {
         await sendRequest_ListarParticipantes(cl.id);
         classesProcessed++;
@@ -2488,8 +2510,6 @@ export default function DataSyncView() {
         setProgress(amountDone);
       }
     }
-
-    setPendingRequests(pendingRequests - 1);
   };
 
   const fileHandler = (event) => {
@@ -2913,26 +2933,32 @@ export default function DataSyncView() {
             }}
           >
             <CircularProgress />
-            <Box
-              sx={{
-                top: 0,
-                left: 0,
-                bottom: 0,
-                right: 0,
-                position: "absolute",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Typography
-                variant="caption"
-                component="div"
-                color="text.secondary"
-              >
-                {`${Math.round(progress)}%`}
-              </Typography>
-            </Box>
+            {progress > 0 ? (
+              <div>
+                <Box
+                  sx={{
+                    top: 0,
+                    left: 0,
+                    bottom: 0,
+                    right: 0,
+                    position: "absolute",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    component="div"
+                    color="text.secondary"
+                  >
+                    {`${Math.round(progress)}%`}
+                  </Typography>
+                </Box>
+              </div>
+            ) : (
+              <div></div>
+            )}
           </Box>
           <Typography
             id="modal-modal-description"
