@@ -185,6 +185,7 @@ function App(props: Props) {
 
           <Routes>
             <Route exact path="/" element={<DataSyncView />} />
+            <Route exact path="/integrador-ccee" element={<DataSyncView />} />
             <Route exact path="/importarDados" element={<DataSyncView />} />
             <Route exact path="/exportarDados" element={<DataExportView />} />
             <Route
