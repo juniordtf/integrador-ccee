@@ -1160,10 +1160,8 @@ export default function DataSyncView() {
       let retryData = JSON.parse(localStorage.getItem(key));
 
       if (key.includes("participantes")) {
-        setPendingRequests(pendingRequests + 1);
-
         for (const rd of retryData) {
-          listarParticipantes(
+          await listarParticipantes(
             key.substring(6),
             rd.page,
             rd.date,
@@ -1174,13 +1172,13 @@ export default function DataSyncView() {
         }
       } else if (key.includes("perfis")) {
         const codAgentes = retryData.map((x) => x.codAgente);
-        listarPerfis(key.substring(6), codAgentes, true);
+        await listarPerfis(key.substring(6), codAgentes, true);
       } else if (key.includes("parcelasDeAtivos")) {
         const parametersCodes = retryData.map((x) => x.parameterCode);
         console.log("Total: " + parametersCodes.length);
         const searchDate = retryData.map((x) => x.searchDate)[0];
         const parameter = retryData.map((x) => x.parameter)[0];
-        listarParcelasDeAtivos(
+        await listarParcelasDeAtivos(
           key.substring(6),
           parametersCodes,
           searchDate,
@@ -1191,15 +1189,20 @@ export default function DataSyncView() {
         const parametersCodes = retryData.map((x) => x.parameterCode);
         console.log("Total: " + parametersCodes.length);
         const searchDate = retryData.map((x) => x.searchDate)[0];
-        listarParcelasDeCarga(key.substring(6), retryData, searchDate, true);
+        await listarParcelasDeCarga(
+          key.substring(6),
+          retryData,
+          searchDate,
+          true
+        );
       } else if (key.includes("topologias")) {
         const parametersCodes = retryData.map((x) => x.parameterCode);
         console.log("Total: " + parametersCodes.length);
         const searchDate = retryData.map((x) => x.searchDate)[0];
-        listarTopologias(key.substring(6), retryData, searchDate, true);
+        await listarTopologias(key.substring(6), retryData, searchDate, true);
       } else if (key.includes("ativos")) {
         const codPerfis = retryData.map((x) => x.codPerfil);
-        listarAtivos(key.substring(6), codPerfis, true);
+        await listarAtivos(key.substring(6), codPerfis, true);
       } else {
         return;
       }
@@ -2180,13 +2183,6 @@ export default function DataSyncView() {
         : "";
     var periodoVigencia =
       vigencia !== "" ? dayjs(vigencia).format("DD/MM/YYYY") : "";
-
-    console.log(
-      codAtivoMedicao,
-      codMedidor,
-      nomeConcessionaria,
-      periodoVigencia
-    );
 
     await addTopologia(
       key,
