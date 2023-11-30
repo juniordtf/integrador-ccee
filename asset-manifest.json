@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/integradorCCEE/static/css/main.151f132e.css",
-    "main.js": "/integradorCCEE/static/js/main.19ecfc38.js",
-    "static/js/787.420c6dca.chunk.js": "/integradorCCEE/static/js/787.420c6dca.chunk.js",
-    "index.html": "/integradorCCEE/index.html",
-    "main.151f132e.css.map": "/integradorCCEE/static/css/main.151f132e.css.map",
-    "main.19ecfc38.js.map": "/integradorCCEE/static/js/main.19ecfc38.js.map",
-    "787.420c6dca.chunk.js.map": "/integradorCCEE/static/js/787.420c6dca.chunk.js.map"
+    "main.css": "/integrador-ccee/static/css/main.151f132e.css",
+    "main.js": "/integrador-ccee/static/js/main.0e31ba3f.js",
+    "static/js/787.420c6dca.chunk.js": "/integrador-ccee/static/js/787.420c6dca.chunk.js",
+    "index.html": "/integrador-ccee/index.html",
+    "main.151f132e.css.map": "/integrador-ccee/static/css/main.151f132e.css.map",
+    "main.0e31ba3f.js.map": "/integrador-ccee/static/js/main.0e31ba3f.js.map",
+    "787.420c6dca.chunk.js.map": "/integrador-ccee/static/js/787.420c6dca.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.151f132e.css",
-    "static/js/main.19ecfc38.js"
+    "static/js/main.0e31ba3f.js"
   ]
 }
