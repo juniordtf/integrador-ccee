@@ -210,7 +210,8 @@ export default function HierarchicalView() {
       },
     },
     [`& .${treeItemClasses.group}`]: {
-      marginLeft: 0,
+      marginLeft: 10,
+      paddingLeft: 10,
       [`& .${treeItemClasses.content}`]: {
         paddingLeft: theme.spacing(2),
       },

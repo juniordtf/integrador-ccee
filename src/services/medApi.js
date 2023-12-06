@@ -1,14 +1,14 @@
 import axios from "axios";
 
-const api = () => {
+const medApi = () => {
   const serverData = JSON.parse(localStorage.getItem("serverData"));
   const serverAddress =
     serverData !== null ? serverData.serverAddress : "localhost:5000";
   const axiosInstance = axios.create({
-    baseURL: "http://" + serverAddress + "/ws/v2/",
+    baseURL: "http://" + serverAddress,
   });
 
   return axiosInstance;
 };
 
-export default api;
+export default medApi;

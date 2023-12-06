@@ -1,4 +1,5 @@
 import api from "./api";
+import medApi from "./medApi";
 import { xml2json } from "xml-js";
 
 const listarMedidasCincoMinutos = async (
@@ -129,7 +130,7 @@ const listarMedidasFinais = async (
   </soapenv:Envelope>`;
 
   return new Promise((resolve) => {
-    api()
+    medApi()
       .post("/ws/medc/ListarMedidaBSv1", xmlBodyStr, options)
       .then((response) => {
         if (response.status === 200) {
@@ -137,24 +138,19 @@ const listarMedidasFinais = async (
           var xml = xml2json(resBody, { compact: true, spaces: 4 });
           var json = JSON.parse(xml);
           var parcelaDeAtivos =
-            json["soapenv:Envelope"]["soapenv:Body"][
-              "bmv2:listarMedidaCincoMinutosResponse"
-            ]["bmv2:medidas"]["bov2:medida"];
-          const totalPaginas =
-            json["soapenv:Envelope"]["soapenv:Header"]["hdr:paginacao"][
-              "hdr:totalPaginas"
-            ];
+            json["io2:Envelope"]["io2:Body"]["out:listarMedidaResponse"][
+              "out:medidas"
+            ]["out:medida"];
+
           var responseData = {
             data: parcelaDeAtivos,
             code: response.status,
-            totalPaginas,
           };
           resolve(responseData);
         } else {
           var responseDataError = {
             data: codMedidor,
             code: response.status,
-            totalPaginas: 0,
           };
           resolve(responseDataError);
         }
@@ -165,7 +161,6 @@ const listarMedidasFinais = async (
           var responseData = {
             data: codMedidor,
             code: error.response.status,
-            totalPaginas: 0,
           };
           resolve(responseData);
         }
@@ -175,5 +170,5 @@ const listarMedidasFinais = async (
 
 export const medicaoService = {
   listarMedidasCincoMinutos,
-  listarMedidasFinais
+  listarMedidasFinais,
 };

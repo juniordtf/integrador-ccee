@@ -67,7 +67,7 @@ export default function DataSyncView() {
     { id: 4, name: "Listar parcelas de ativos" },
     { id: 5, name: "Listar parcelas de carga" },
     { id: 6, name: "Listar medidas - 5 minutos" },
-    { id: 7, name: "Listar medidas consolidadas" },
+    { id: 7, name: "Listar medidas finais" },
     { id: 8, name: "Listar topologias por ativo" },
   ];
   const classes = [
@@ -1410,7 +1410,9 @@ export default function DataSyncView() {
   };
 
   const exportMeasurementData = async () => {
-    var fileName = "medidasCincoMinutos" + "_" + scdeCode;
+    var medService =
+      servicos.id === 6 ? "medidasCincoMinutos" : "medidasFinais";
+    var fileName = medService + "_" + scdeCode;
     let exportType = exportFromJSON.types.xls;
 
     exportFromJSON({ data: measurementsValues, fileName, exportType });
@@ -2387,6 +2389,84 @@ export default function DataSyncView() {
     };
   }
 
+  // Listar Medidas Finais
+  const sendRequest_ListarMedidasFinais = async () => {
+    setPendingRequests(pendingRequests + 1);
+
+    const initialDate = dayjs(date).startOf("month");
+    const endDate = initialDate.endOf("month");
+
+    var results = await listarMedidasFinais(
+      dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
+      dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss")
+    );
+
+    setMeasurementsValues(results);
+    setPendingRequests(pendingRequests - 1);
+  };
+
+  async function listarMedidasFinais(initialDate, endDate) {
+    var response = await medicaoService.listarMedidasFinais(
+      authData,
+      scdeCode,
+      initialDate,
+      endDate
+    );
+
+    var measurementsArr = [];
+
+    if (response.code === 200) {
+      const results = response.data;
+      results.forEach((r) => {
+        var measurements = mapResponseToFinalMeasurementData(r);
+        measurementsArr.push(measurements);
+      });
+    }
+
+    return measurementsArr;
+  }
+
+  function mapResponseToFinalMeasurementData(item) {
+    const consumoAtivo =
+      item["out2:consumoAtivo"] !== undefined
+        ? item["out2:consumoAtivo"]._text.toString()
+        : "";
+    const consumoReativo =
+      item["out2:consumoReativo"] !== undefined
+        ? item["out2:consumoReativo"]._text.toString()
+        : "";
+    const geracaoAtiva =
+      item["out2:geracaoAtiva"] !== undefined
+        ? item["out2:geracaoAtiva"]._text.toString()
+        : "";
+    const geracaoReativo =
+      item["out2:geracaoReativo"] !== undefined
+        ? item["out2:geracaoReativo"]._text.toString()
+        : "";
+    const periodo =
+      item["out2:periodo"] !== undefined
+        ? item["out2:periodo"]["out2:fim"]._text.toString()
+        : "";
+    const status =
+      item["out2:status"] !== undefined
+        ? item["out2:status"]._text.toString()
+        : "";
+    const subTipo =
+      item["out2:subTipo"] !== undefined
+        ? item["out2:subTipo"]._text.toString()
+        : "";
+
+    return {
+      consumoAtivo,
+      consumoReativo,
+      geracaoAtiva,
+      geracaoReativo,
+      periodo,
+      status,
+      subTipo,
+    };
+  }
+
   const listarRepresentados = async () => {
     var responseData = await cadastrosService.listarRepresentacao(authData, 1);
     var totalPaginas = responseData.totalPaginas;
@@ -2549,6 +2629,9 @@ export default function DataSyncView() {
         case 6:
           sendRequest_ListarMedidasCincoMinutos();
           break;
+        case 7:
+          sendRequest_ListarMedidasFinais();
+          break;
         case 8:
           sendRequest_ListarTopologiasPorAtivo();
           break;
@@ -2602,8 +2685,8 @@ export default function DataSyncView() {
       return <div>{renderFractionalMeasurementFields()}</div>;
     } else if (serviceId === 5) {
       return <div>{renderLoadOrTopologyFields()}</div>;
-    } else if (serviceId === 6) {
-      return <div>{renderMeasureFields()}</div>;
+    } else if (serviceId === 6 || serviceId === 7) {
+      return <div>{renderMeasurementFields()}</div>;
     } else if (serviceId === 8) {
       return <div>{renderLoadOrTopologyFields()}</div>;
     } else {
@@ -2775,7 +2858,7 @@ export default function DataSyncView() {
     );
   };
 
-  const renderMeasureFields = () => {
+  const renderMeasurementFields = () => {
     return (
       <Stack spacing={2}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
