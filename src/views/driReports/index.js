@@ -1308,7 +1308,7 @@ export default function DriReportsView() {
             (x) => x === selectedReportParticipant.sigla
           );
         } else {
-          distinctProfiles.push(selectedReportParticipant.sigla);
+          distinctProfiles.push(retrievedParticipants[0].sigla);
         }
       } else {
         distinctProfiles = getRetrievedProfiles()
@@ -1365,8 +1365,8 @@ export default function DriReportsView() {
                 labelId="agent-select-input-label"
                 id="agent-simple-select"
                 value={selectedReportProfile}
-                label="Agente"
-                input={<OutlinedInput label="Agente" />}
+                label="Peril"
+                input={<OutlinedInput label="Perfil" />}
                 onChange={handleReportProfileChange}
                 defaultValue={distinctProfiles[0]}
               >

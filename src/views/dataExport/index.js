@@ -222,6 +222,12 @@ const SinteticColumns = [
     label: "Nome do Perfil",
     minWidth: 100,
   },
+
+  {
+    id: "comercializadorVarejista",
+    label: "  Comercializador Varejista?",
+    minWidth: 100,
+  },
   {
     id: "codAgente",
     label: "Código do Agente",
@@ -255,6 +261,21 @@ const SinteticColumns = [
   {
     id: "estado",
     label: "Estado",
+    minWidth: 100,
+  },
+  {
+    id: "periodoVigencia",
+    label: "Data de início de Vigência",
+    minWidth: 100,
+  },
+  {
+    id: "codParcelaAtivo",
+    label: "Código da Parcela de Ativo",
+    minWidth: 100,
+  },
+  {
+    id: "codParcelaCarga",
+    label: "Código da Parcela de Carga",
     minWidth: 100,
   },
 ];
@@ -612,6 +633,8 @@ export default function DataExportView() {
       nomeAtivo: x.nome,
       cnpj: x.cnpj,
       codPerfil: x.codPerfil,
+      periodoVigencia: x.periodoVigencia,
+      codParcelaAtivo: x.codParcelaAtivo,
     }));
 
     if (sinteticPartialLoads !== undefined) {
@@ -634,6 +657,7 @@ export default function DataExportView() {
         estado: x.estado,
         undCapacidadeCarga: x.undCapacidadeCarga,
         valorCapacidadeCarga: x.valorCapacidadeCarga,
+        codParcelaCarga: x.codParcelaCarga,
       }));
     }
 
@@ -679,6 +703,7 @@ export default function DataExportView() {
       sinteticTableD = filteredSinteticProfiles.map((x) => ({
         codPerfil: x.codPerfil,
         siglaPeril: x.sigla,
+        comercializadorVarejista: x.comercializadorVarejista,
         codAgente: x.codAgente,
         submercado: x.submercado,
       }));

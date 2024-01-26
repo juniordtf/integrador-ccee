@@ -1156,6 +1156,13 @@ export default function DataSyncView() {
   const retryFaultyRequests = async () => {
     if (retryKeys.length === 0) return;
 
+    await proccessRetryList();
+    setSuccesDialogOpen(true);
+  };
+
+  async function proccessRetryList() {
+    setPendingRequests(pendingRequests + 1);
+
     for (const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
 
@@ -1207,7 +1214,9 @@ export default function DataSyncView() {
         return;
       }
     }
-  };
+
+    setPendingRequests(0);
+  }
 
   const removeAgentFromRetryList = (key, codAgente) => {
     const retryKey = "retry_" + key;
@@ -1359,19 +1368,24 @@ export default function DataSyncView() {
   };
 
   const removeExpiredData = async () => {
-    setPendingRequests(pendingRequests + 1);
-
     if (retryKeys.length === 0) {
-      setPendingRequests(pendingRequests - 1);
+      setPendingRequests(0);
       return;
     }
+
+    await removeExpiredDataFromList();
+    setSuccesDialogOpen(true);
+  };
+
+  async function removeExpiredDataFromList() {
+    setPendingRequests(pendingRequests + 1);
 
     for (const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
       let itemsToRemove = retryData.filter((z) => z.attempts > 1);
 
       if (itemsToRemove.length === 0) {
-        setPendingRequests(pendingRequests - 1);
+        setPendingRequests(0);
         return;
       }
 
@@ -1404,10 +1418,9 @@ export default function DataSyncView() {
       } else {
         return;
       }
-
-      setPendingRequests(pendingRequests - 1);
     }
-  };
+    setPendingRequests(0);
+  }
 
   const exportMeasurementData = async () => {
     var medService =
