@@ -1069,7 +1069,9 @@ export default function DataExportView() {
         (x) =>
           x.codAtivoMedicao.includes(searchText) ||
           (x.nomeConcessionaria !== undefined &&
-            x.nomeConcessionaria.toUpperCase().includes(searchText))
+            x.nomeConcessionaria.toUpperCase().includes(searchText)) ||
+          (x.nomeAtivo !== undefined &&
+            x.nomeAtivo.toUpperCase().includes(searchText))
       );
     } else {
       filteredData = [];

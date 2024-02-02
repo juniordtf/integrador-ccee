@@ -89,6 +89,7 @@ export default function DataSyncView() {
     { id: 2, name: "Código Parcela de Ativo" },
     { id: 3, name: "Código Ativo de Medição" },
     { id: 4, name: "Código Perfil" },
+    { id: 5, name: "CNPJ" },
   ];
 
   const style = {
@@ -1506,7 +1507,8 @@ export default function DataSyncView() {
       var codMedidor,
         codParcelaAtivo,
         codAtivoMedicao,
-        codPerfil = "";
+        codPerfil,
+        cnpj = "";
 
       const requestsQuantity = sourceItems.length;
 
@@ -1517,8 +1519,10 @@ export default function DataSyncView() {
           codParcelaAtivo = item;
         } else if (selectedParameter === 3) {
           codAtivoMedicao = item;
-        } else {
+        } else if (selectedParameter === 4) {
           codPerfil = item;
+        } else {
+          cnpj = item;
         }
 
         var responseData = await ativosService.listarParcelasDeAtivosDeMedicao(
@@ -1527,6 +1531,7 @@ export default function DataSyncView() {
           codParcelaAtivo,
           codAtivoMedicao,
           codPerfil,
+          cnpj,
           searchDate
         );
 
@@ -1551,6 +1556,7 @@ export default function DataSyncView() {
                 codParcelaAtivo,
                 codAtivoMedicao,
                 codPerfil,
+                cnpj,
                 searchDate,
                 paginaCorrente
               );
@@ -2335,48 +2341,53 @@ export default function DataSyncView() {
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    const energiaAtiva_ConsumoValor =
+    var energiaAtiva_ConsumoValor =
       item["bov2:energiaAtiva"] !== undefined
         ? item["bov2:energiaAtiva"]["bov2:consumo"][
             "bov2:valor"
           ]._text.toString()
         : "";
+
+    energiaAtiva_ConsumoValor = energiaAtiva_ConsumoValor.replace(".", ",");
     const energiaAtiva_GeracaoUnd =
       item["bov2:energiaAtiva"] !== undefined
         ? item["bov2:energiaAtiva"]["bov2:geracao"][
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    const energiaAtiva_GeracaoValor =
+    var energiaAtiva_GeracaoValor =
       item["bov2:energiaAtiva"] !== undefined
         ? item["bov2:energiaAtiva"]["bov2:geracao"][
             "bov2:valor"
           ]._text.toString()
         : "";
+    energiaAtiva_GeracaoValor = energiaAtiva_GeracaoValor.replace(".", ",");
     const energiaReativa_ConsumoUnd =
       item["bov2:energiaReativa"] !== undefined
         ? item["bov2:energiaReativa"]["bov2:consumo"][
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    const energiaReativa_ConsumoValor =
+    var energiaReativa_ConsumoValor =
       item["bov2:energiaReativa"] !== undefined
         ? item["bov2:energiaReativa"]["bov2:consumo"][
             "bov2:valor"
           ]._text.toString()
         : "";
+    energiaReativa_ConsumoValor = energiaReativa_ConsumoValor.replace(".", ",");
     const energiaReativa_GeracaoUnd =
       item["bov2:energiaReativa"] !== undefined
         ? item["bov2:energiaReativa"]["bov2:geracao"][
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    const energiaReativa_GeracaoValor =
+    var energiaReativa_GeracaoValor =
       item["bov2:energiaReativa"] !== undefined
         ? item["bov2:energiaReativa"]["bov2:geracao"][
             "bov2:valor"
           ]._text.toString()
         : "";
+    energiaReativa_GeracaoValor = energiaReativa_GeracaoValor.replace(".", ",");
     const medidor =
       item["bov2:medidor"] !== undefined
         ? item["bov2:medidor"]["bov2:codigo"]._text.toString()
@@ -2440,22 +2451,27 @@ export default function DataSyncView() {
   }
 
   function mapResponseToFinalMeasurementData(item) {
-    const consumoAtivo =
+    var consumoAtivo =
       item["out2:consumoAtivo"] !== undefined
         ? item["out2:consumoAtivo"]._text.toString()
         : "";
-    const consumoReativo =
+    consumoAtivo = consumoAtivo.replace(".", ",");
+    var consumoReativo =
       item["out2:consumoReativo"] !== undefined
         ? item["out2:consumoReativo"]._text.toString()
         : "";
-    const geracaoAtiva =
+    consumoReativo = consumoReativo.replace(".", ",");
+    var geracaoAtiva =
       item["out2:geracaoAtiva"] !== undefined
         ? item["out2:geracaoAtiva"]._text.toString()
         : "";
-    const geracaoReativo =
+    geracaoAtiva = geracaoAtiva.replace(".", ",");
+    var geracaoReativo =
       item["out2:geracaoReativo"] !== undefined
         ? item["out2:geracaoReativo"]._text.toString()
         : "";
+    geracaoReativo = geracaoReativo.replace(".", ",");
+
     const periodo =
       item["out2:periodo"] !== undefined
         ? item["out2:periodo"]["out2:fim"]._text.toString()

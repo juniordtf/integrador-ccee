@@ -110,6 +110,7 @@ const listarParcelasDeAtivosDeMedicao = async (
   codParcelaAtivo,
   codAtivoMedicao,
   codPerfil,
+  cnpj,
   inicioVigencia,
   paginaAtual = 1
 ): Promise<object> => {
@@ -126,6 +127,7 @@ const listarParcelasDeAtivosDeMedicao = async (
   codAtivoMedicao = codAtivoMedicao === undefined ? " " : codAtivoMedicao;
   codPerfil = codPerfil === undefined ? " " : codPerfil;
   inicioVigencia = inicioVigencia === undefined ? " " : inicioVigencia;
+  cnpj = cnpj === undefined ? " " : cnpj;
 
   var xmlBodyStr = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mhv2="http://xmlns.energia.org.br/MH/v2" xmlns:oas="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:bmv2="http://xmlns.energia.org.br/BM/v2" xmlns:bov2="http://xmlns.energia.org.br/BO/v2">
   <soapenv:Header>
@@ -162,7 +164,7 @@ const listarParcelasDeAtivosDeMedicao = async (
  <bov2:codigo>${codAtivoMedicao}</bov2:codigo> 
 </bov2:ativoMedicao>
 <bov2:identificacao>
-<!-- <bov2:numero></bov2:numero> -->
+   <bov2:numero>${cnpj}</bov2:numero> 
 </bov2:identificacao>
 </bmv2:parcelaAtivo>
 </bmv2:listarParcelaAtivoRequest>
@@ -406,5 +408,5 @@ export const ativosService = {
   listarAtivosDeMedicao,
   listarParcelasDeAtivosDeMedicao,
   listarParcelaDeCarga,
-  listarTopologiaPorAtivo
+  listarTopologiaPorAtivo,
 };
