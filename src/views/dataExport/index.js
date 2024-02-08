@@ -151,7 +151,7 @@ const PartialLoadColumns = [
     minWidth: 170,
     format: (value) => formatStringByPattern("XX.XXX.XXX/XXXX-XX", value),
   },
-  { id: "situacao", label: "Situação", minWidth: 100 },
+{ id: "situacao", label: "Situação", minWidth: 100 },
   { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 100 },
   { id: "codConcessionaria", label: "Código da Concessionária", minWidth: 100 },
   { id: "undCapacidadeCarga", label: "Und. Capacidade Carga", minWidth: 100 },
@@ -192,6 +192,7 @@ const SinteticColumns = [
     minWidth: 170,
   },
   { id: "cnpj", label: "CNPJ do ativo", minWidth: 170 },
+  { id: "situacao", label: "Situação", minWidth: 100 },
   {
     id: "undCapacidadeCarga",
     label: "Und. Capacidade Carga",
@@ -615,11 +616,11 @@ export default function DataExportView() {
       (x) => x.key === sinteticPartialResources
     );
 
-    var sinteticTableA,
-      sinteticTableB,
-      sinteticTableC,
-      sinteticTableD,
-      sinteticTableE = [];
+    let sinteticTableA = [];
+    let sinteticTableB = [];
+    let sinteticTableC = [];
+    let sinteticTableD = [];
+    let sinteticTableE = [];
 
     const key =
       "dadosSintéticos_" +
@@ -635,6 +636,7 @@ export default function DataExportView() {
       codPerfil: x.codPerfil,
       periodoVigencia: x.periodoVigencia,
       codParcelaAtivo: x.codParcelaAtivo,
+      situacao: x.situacao
     }));
 
     if (sinteticPartialLoads !== undefined) {
@@ -753,6 +755,9 @@ export default function DataExportView() {
 
   function mergeArraysByKey(arr1, arr2, key) {
     var resultArr = [];
+
+    if (arr1 === undefined || arr2 == undefined) return resultArr;
+
     for (const item of arr1) {
       var value = [];
       var match = arr2.find((x) => x[key] === item[key]);

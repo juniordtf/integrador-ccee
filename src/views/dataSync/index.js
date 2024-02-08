@@ -556,6 +556,44 @@ export default function DataSyncView() {
     }
   }
 
+  async function addParticipantCodeToRetryList(
+    key,
+    codAgente,
+    errorCode,
+    attempts,
+    serviceFailed
+  ) {
+    try {
+      const retryKey = "retry_" + key;
+      const retryParticipant = {
+        codAgente,
+        errorCode,
+        attempts,
+        serviceFailed,
+      };
+
+      let keys = [];
+      if (retryKeys.length === 0) {
+        keys = [retryKey];
+      } else {
+        keys = retryKeys.concat(retryKey);
+      }
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
+
+      let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
+      if (retryParticipants === null) {
+        retryParticipants = [retryParticipant];
+      } else {
+        retryParticipants = retryParticipants.concat(retryParticipant);
+      }
+      localStorage.setItem(retryKey, JSON.stringify(retryParticipants));
+    } catch (error) {
+      console.log(
+        `Failed to add page number ${codAgente} to Retry Participant's page list: ${error}`
+      );
+    }
+  }
+
   const sendRequest_ListarPerfis = async () => {
     setPendingRequests(pendingRequests + 1);
 
@@ -1167,7 +1205,11 @@ export default function DataSyncView() {
     for (const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
 
-      if (key.includes("participantes")) {
+      if (key.includes("participantes_representados")) {
+        for (const rd of retryData) {
+          await listarParticipantePorCodigo(rd.codAgente, key.substring(6), true);
+        }
+      } else if (key.includes("participantes")) {
         for (const rd of retryData) {
           await listarParticipantes(
             key.substring(6),
@@ -1347,6 +1389,35 @@ export default function DataSyncView() {
     if (!retryData) return;
 
     const itemToBeRemoved = retryData.find((x) => x.page === page);
+    const index = retryData.indexOf(itemToBeRemoved);
+
+    if (index > -1) {
+      retryData.splice(index, 1);
+    }
+
+    if (retryData.length === 0) {
+      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
+      const idx = retryKeys.indexOf(keyToBeRemoved);
+
+      if (idx > -1) {
+        retryKeys.splice(idx, 1);
+      }
+
+      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
+      localStorage.removeItem(retryKey);
+    } else {
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
+    }
+  };
+
+  const removeParticipantFromRetryList = (key, code) => {
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("removeParticipantsPageFromRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeRemoved = retryData.find((x) => x.code === code);
     const index = retryData.indexOf(itemToBeRemoved);
 
     if (index > -1) {
@@ -2551,10 +2622,16 @@ export default function DataSyncView() {
     return codes;
   }
 
-  async function listarParticipantePorCodigo(agentCode) {
+  async function listarParticipantePorCodigo(
+    agentCode,
+    dataKey = "",
+    fromRetryList = false
+  ) {
     try {
-      const key =
-        "participantes_representados_" + dayjs(date).format("DD/MM/YY");
+      var key =
+        dataKey !== ""
+          ? dataKey
+          : "participantes_representados_" + dayjs(date).format("DD/MM/YY");
 
       var responseData =
         await cadastrosService.listarParticipantesDeMercadoPorAgente(
@@ -2576,6 +2653,22 @@ export default function DataSyncView() {
         Array.prototype.forEach.call(participantesData, async (item) => {
           mapResponseToParticipantsData(key, item);
         });
+
+        if (fromRetryList) {
+          removeParticipantFromRetryList(key, agentCode);
+        }
+      } else {
+        if (fromRetryList) {
+          updateParticipantInRetryList(agentCode, key);
+        } else {
+          addParticipantCodeToRetryList(
+            key,
+            agentCode,
+            responseData.code,
+            0,
+            "listarParticipantes"
+          );
+        }
       }
     } catch (e) {
       console.log("Erro ao listar participantes");
