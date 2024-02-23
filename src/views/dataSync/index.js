@@ -41,13 +41,15 @@ export default function DataSyncView() {
   const [retryKeys, setRetryKeys] = useState([]);
   const [parameter, setParameter] = useState("");
   const [searchMethod, setSearchMethod] = useState("Automático");
+  const [participantSearchMethod, setParticipantSearchMethod] =
+    useState("Classe");
   const [selectedDataSource, setSelectedDataSource] = useState("");
   const [dataSourceItems, setDataSourceItems] = useState([]);
   const [service, setService] = useState("");
   const [category, setCategory] = useState("");
   const [pendingRequests, setPendingRequests] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [openSuccesDialog, setSuccesDialogOpen] = useState(false);
+  const [openSuccessDialog, setSuccessDialogOpen] = useState(false);
   const [openWarningDialog, setWarningDialogOpen] = useState(false);
   const [warningText, setWarningText] = useState("");
   const [date, setDate] = useState(dayjs());
@@ -111,7 +113,7 @@ export default function DataSyncView() {
       return;
     }
 
-    setSuccesDialogOpen(false);
+    setSuccessDialogOpen(false);
   };
 
   const handleWarningDialogClose = (event, reason) => {
@@ -319,6 +321,25 @@ export default function DataSyncView() {
     setOnlyRepresentedAgents(!onlyRepresentedAgents);
   };
 
+  const chooseHowToListParticipants = async () => {
+    if (participantSearchMethod === "Classe") {
+      sendRequest_ListarParticipantes();
+    } else {
+      const key = "buscaCustommizada_participantes_" + dayjs(date).format("DD/MM/YY");
+      const sourceData = rows.map((x) => x[0]);
+
+      let itemsProcessed = 0;
+      for (const code of sourceData) {
+        await listarParticipantePorCodigo(code, key);
+        itemsProcessed++;
+        var totalAmount = sourceData.length;
+        var amountDone = (itemsProcessed / totalAmount) * 100;
+        setProgress(amountDone);
+      }
+      setSuccessDialogOpen(true);
+    }
+  };
+
   const sendRequest_ListarParticipantes = async (classId = 0) => {
     setPendingRequests(pendingRequests + 1);
 
@@ -386,7 +407,7 @@ export default function DataSyncView() {
       var catInArr = classes.find((x) => x.id === cat);
 
       if (classes.indexOf(catInArr) + 1 === classes.length) {
-        setSuccesDialogOpen(true);
+        setSuccessDialogOpen(true);
       }
     }
   };
@@ -624,7 +645,7 @@ export default function DataSyncView() {
 
           await listarPerfis(key, codAgentes);
           setPendingRequests(pendingRequests - 1);
-          setSuccesDialogOpen(true);
+          setSuccessDialogOpen(true);
           setProgress(0);
         }
       });
@@ -914,7 +935,7 @@ export default function DataSyncView() {
 
           await listarAtivos(key, codPerfis);
           setPendingRequests(pendingRequests - 1);
-          setSuccesDialogOpen(true);
+          setSuccessDialogOpen(true);
           setProgress(0);
         }
       });
@@ -1196,7 +1217,7 @@ export default function DataSyncView() {
     if (retryKeys.length === 0) return;
 
     await proccessRetryList();
-    setSuccesDialogOpen(true);
+    setSuccessDialogOpen(true);
   };
 
   async function proccessRetryList() {
@@ -1207,7 +1228,11 @@ export default function DataSyncView() {
 
       if (key.includes("participantes_representados")) {
         for (const rd of retryData) {
-          await listarParticipantePorCodigo(rd.codAgente, key.substring(6), true);
+          await listarParticipantePorCodigo(
+            rd.codAgente,
+            key.substring(6),
+            true
+          );
         }
       } else if (key.includes("participantes")) {
         for (const rd of retryData) {
@@ -1446,7 +1471,7 @@ export default function DataSyncView() {
     }
 
     await removeExpiredDataFromList();
-    setSuccesDialogOpen(true);
+    setSuccessDialogOpen(true);
   };
 
   async function removeExpiredDataFromList() {
@@ -1561,7 +1586,7 @@ export default function DataSyncView() {
           );
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
-          setSuccesDialogOpen(true);
+          setSuccessDialogOpen(true);
         }
       });
   };
@@ -1826,7 +1851,7 @@ export default function DataSyncView() {
           await listarParcelasDeCarga(key, dataSourceItems, formDate);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
-          setSuccesDialogOpen(true);
+          setSuccessDialogOpen(true);
         }
       });
   };
@@ -2142,7 +2167,7 @@ export default function DataSyncView() {
           await listarTopologias(key, dataSourceItems, formDate);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
-          setSuccesDialogOpen(true);
+          setSuccessDialogOpen(true);
         }
       });
   };
@@ -2728,13 +2753,17 @@ export default function DataSyncView() {
     setSearchMethod(event.target.value);
   };
 
+  const handleParticipantSearchMethodChange = (event) => {
+    setParticipantSearchMethod(event.target.value);
+  };
+
   const sendRequest = () => {
     if (searchMethod === "Automático") {
       sendRequest_FullAutomatic();
     } else {
       switch (service) {
         case 1:
-          sendRequest_ListarParticipantes();
+          chooseHowToListParticipants();
           break;
         case 2:
           sendRequest_ListarPerfis();
@@ -2829,23 +2858,54 @@ export default function DataSyncView() {
             renderInput={(params) => <TextField {...params} />}
           />
         </LocalizationProvider>
-
         <FormControl>
-          <InputLabel id="class-simple-select-label">Classe</InputLabel>
-          <Select
-            labelId="class-simple-select-label"
-            id="class-simple-select-2"
-            value={category}
-            label="Classe"
-            onChange={handleCategoryChange}
+          <FormLabel id="demo-radio-buttons-group-label-x">
+            Forma de busca
+          </FormLabel>
+          <RadioGroup
+            row
+            aria-labelledby="participant-radio-buttons-group-label"
+            defaultValue="Automático"
+            name="participant-radio-buttons-group"
+            value={participantSearchMethod}
+            onChange={handleParticipantSearchMethodChange}
           >
-            {classes.map((x) => (
-              <MenuItem value={x.id} key={x.id}>
-                {x.name}
-              </MenuItem>
-            ))}
-          </Select>
+            <FormControlLabel
+              value="Classe"
+              control={<Radio />}
+              label="Por classe"
+            />
+            <FormControlLabel
+              value="Código"
+              control={<Radio />}
+              label="Por código"
+            />
+          </RadioGroup>
         </FormControl>
+        {participantSearchMethod === "Classe" ? (
+          <div>
+            <FormControl sx={{ width: "100%" }}>
+              <InputLabel id="class-simple-select-label">Classe</InputLabel>
+              <Select
+                labelId="class-simple-select-label"
+                id="class-simple-select-2"
+                value={category}
+                label="Classe"
+                onChange={handleCategoryChange}
+              >
+                {classes.map((x) => (
+                  <MenuItem value={x.id} key={x.id}>
+                    {x.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </div>
+        ) : (
+          <div>
+            <input type="file" onChange={fileHandler.bind(this)} />
+          </div>
+        )}
       </Stack>
     );
   };
@@ -3173,7 +3233,7 @@ export default function DataSyncView() {
         </Box>
       </Modal>
       <Snackbar
-        open={openSuccesDialog}
+        open={openSuccessDialog}
         autoHideDuration={6000}
         onClose={handleSuccessDialogClose}
       >

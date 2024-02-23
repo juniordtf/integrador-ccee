@@ -37,7 +37,8 @@ export default function HierarchicalView() {
   const [selectedPartialResourceData, setSelectedPartialResourceData] =
     useState([]);
   const [open, setOpen] = useState(false);
-
+  const [profilesTotal, setProfilesTotal] = useState(0);
+  const [resourcesTotal, setResourcesTotal] = useState(0);
   const handleOpen = () => setOpen(true);
 
   const handleClose = (event, reason) => {
@@ -107,7 +108,7 @@ export default function HierarchicalView() {
     handleOpen();
 
     var selectedParticipant = participants.find(
-      (x) => x.codigo === participantsCode
+      (x) => x.codigo === participantsCode && x.key === selectedDataSource
     );
 
     if (selectedParticipant === undefined) {
@@ -123,6 +124,8 @@ export default function HierarchicalView() {
           .toString() === x.key.substring(x.key.length - 8).toString()
     );
 
+    setProfilesTotal(relatedProfiles.length);
+
     if (relatedProfiles.length === 0) {
       handleClose();
       return;
@@ -132,6 +135,7 @@ export default function HierarchicalView() {
     var partialResourceInitialCode = relatedProfiles.length + 1;
     var relatedProfileNodes = [];
 
+    let rsTotal = 0;
     for (const x of relatedProfiles) {
       const relatedPartialResource = partialResources.filter(
         (y) =>
@@ -139,6 +143,8 @@ export default function HierarchicalView() {
           x.key.substring(x.key.length - 8).toString() ===
             y.key.substring(y.key.length - 8).toString()
       );
+
+      rsTotal += relatedPartialResource.length;
 
       if (relatedPartialResource.length > 0) {
         var relatedPartialResourceNodes = [];
@@ -172,6 +178,8 @@ export default function HierarchicalView() {
       relatedProfileNodes.push(item);
       profileInitialCode++;
     }
+
+    setResourcesTotal(rsTotal);
 
     const data = {
       id: "root",
@@ -586,21 +594,27 @@ export default function HierarchicalView() {
       </Stack>
 
       {treeViewData !== "" ? (
-        <div className={styles.treeViewContainer}>
-          <TreeView
-            aria-label="rich object"
-            defaultCollapseIcon={<ExpandMoreIcon />}
-            defaultExpanded={["root"]}
-            defaultExpandIcon={<ChevronRightIcon />}
-            sx={{
-              minHeight: 250,
-              maxHeight: 500,
-              flexGrow: 1,
-              overflowY: "auto",
-            }}
-          >
-            {renderTree(treeViewData)}
-          </TreeView>
+        <div>
+          <div className={styles.treeViewContainer}>
+            <TreeView
+              aria-label="rich object"
+              defaultCollapseIcon={<ExpandMoreIcon />}
+              defaultExpanded={["root"]}
+              defaultExpandIcon={<ChevronRightIcon />}
+              sx={{
+                minHeight: 250,
+                maxHeight: 500,
+                flexGrow: 1,
+                overflowY: "auto",
+              }}
+            >
+              {renderTree(treeViewData)}
+            </TreeView>
+          </div>
+          <Typography mt={1}>
+            Quantidade de perfis: {profilesTotal}, Quantidade de ativos:{" "}
+            {resourcesTotal}
+          </Typography>
         </div>
       ) : (
         <div />
