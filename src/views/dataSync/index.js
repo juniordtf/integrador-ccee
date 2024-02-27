@@ -58,6 +58,7 @@ export default function DataSyncView() {
   const [columns, setColumns] = useState([]);
   const [scdeCode, setScdeCode] = useState("");
   const [measurementsValues, setMeasurementsValues] = useState([]);
+  const [modellingValues, setModellingValues] = useState([]);
   const [onlyRepresentedAgents, setOnlyRepresentedAgents] = useState(false);
 
   const timerRef = useRef(null);
@@ -71,6 +72,7 @@ export default function DataSyncView() {
     { id: 6, name: "Listar medidas - 5 minutos" },
     { id: 7, name: "Listar medidas finais" },
     { id: 8, name: "Listar topologias por ativo" },
+    { id: 9, name: "Listar modelagem de ativo" },
   ];
   const classes = [
     { id: 1, name: "Autoprodutor" },
@@ -325,7 +327,8 @@ export default function DataSyncView() {
     if (participantSearchMethod === "Classe") {
       sendRequest_ListarParticipantes();
     } else {
-      const key = "buscaCustommizada_participantes_" + dayjs(date).format("DD/MM/YY");
+      const key =
+        "buscaCustommizada_participantes_" + dayjs(date).format("DD/MM/YY");
       const sourceData = rows.map((x) => x[0]);
 
       let itemsProcessed = 0;
@@ -2592,6 +2595,96 @@ export default function DataSyncView() {
     };
   }
 
+  /**
+   * Listar Modelagem de Ativo
+   * @returns
+   */
+  const sendRequest_ListarModelagemDeAtivo = async () => {
+    setPendingRequests(pendingRequests + 1);
+
+    const initialDate = dayjs(date).startOf("month");
+    const endDate = dayjs();
+
+    var modellingResponse = await ativosService.listarModelagemDeAtivo(
+      authData,
+      dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
+      dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss")
+    );
+
+    if (modellingResponse.code !== 200) return;
+
+    var totalPages = parseInt(modellingResponse.totalPaginas._text.toString());
+
+    let results = [];
+
+    for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
+      var innerResults = await listarModelagens(
+        dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
+        dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss"),
+        currentPage
+      );
+      results.concat(innerResults);
+    }
+
+    console.log(results.length);
+
+    setModellingValues(results);
+    setPendingRequests(pendingRequests - 1);
+  };
+
+  async function listarModelagens(initialDate, endDate, currentPage) {
+    var response = await ativosService.listarModelagemDeAtivo(
+      authData,
+      initialDate,
+      endDate,
+      currentPage
+    );
+
+    var modellingArr = [];
+
+    if (response.code === 200) {
+      const results = response.data;
+      results.forEach((r) => {
+        var resourcesModelling = mapResponseToModellingData(r);
+        modellingArr.push(resourcesModelling);
+      });
+    }
+
+    return modellingArr;
+  }
+
+  function mapResponseToModellingData(item) {
+    const codAtivoMedicao =
+      item["bov2:ativoMedicao"] !== undefined
+        ? item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString()
+        : "";
+    let dataApta =
+      item["bov2:dataApta"] !== undefined
+        ? item["bov2:dataApta"]._text.toString()
+        : "";
+    dataApta = dayjs(dataApta).format("DD/MM/YYYY");
+    let dataAutorizada =
+      item["bov2:dataAutorizada"] !== undefined
+        ? item["bov2:dataAutorizada"]._text.toString()
+        : "";
+    dataAutorizada = dayjs(dataAutorizada).format("DD/MM/YYYY");
+    const situacao =
+      item["bov2:situacao"] !== undefined
+        ? item["bov2:situacao"]["bov2:nome"]._text.toString()
+        : "";
+
+    return {
+      codAtivoMedicao,
+      dataApta,
+      dataAutorizada,
+      situacao,
+    };
+  }
+
+  /**
+   * Listar Representados
+   * @returns
+   */
   const listarRepresentados = async () => {
     var responseData = await cadastrosService.listarRepresentacao(authData, 1);
     var totalPaginas = responseData.totalPaginas;
@@ -2786,6 +2879,9 @@ export default function DataSyncView() {
         case 8:
           sendRequest_ListarTopologiasPorAtivo();
           break;
+        case 9:
+          sendRequest_ListarModelagemDeAtivo();
+          break;
         default:
           sendRequest_ListarParticipantes();
           break;
@@ -2840,6 +2936,8 @@ export default function DataSyncView() {
       return <div>{renderMeasurementFields()}</div>;
     } else if (serviceId === 8) {
       return <div>{renderLoadOrTopologyFields()}</div>;
+    } else if (serviceId === 9) {
+      return <div>{renderModellingFields()}</div>;
     } else {
       return <div>{renderLoadOrTopologyFields()}</div>;
     }
@@ -3062,6 +3160,26 @@ export default function DataSyncView() {
           label="Cód Medidor"
           onChange={(event) => setScdeCode(event.target.value)}
         />
+      </Stack>
+    );
+  };
+
+  const renderModellingFields = () => {
+    return (
+      <Stack spacing={2}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DatePicker
+            label="Mês & ano"
+            value={date}
+            views={["year", "month"]}
+            openTo="month"
+            maxDate={dayjs()}
+            onChange={(newValue) => {
+              setDate(newValue);
+            }}
+            renderInput={(params) => <TextField {...params} />}
+          />
+        </LocalizationProvider>
       </Stack>
     );
   };

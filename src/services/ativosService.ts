@@ -404,9 +404,142 @@ const listarTopologiaPorAtivo = async (
   });
 };
 
+const listarModelagemDeAtivo = async (
+  authData,
+  dataInicio,
+  dataFim,
+  paginaAtual = 1
+): Promise<object> => {
+  var options = {
+    headers: {
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: "listarModelagemAtivo",
+    },
+  };
+
+  var xmlBodyStr = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mh="http://xmlns.energia.org.br/MH/v2" xmlns:oas="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:bm="http://xmlns.energia.org.br/BM/v2" xmlns:bo="http://xmlns.energia.org.br/BO/v2">
+  <soapenv:Header>
+      <mh:messageHeader>
+          <mh:codigoPerfilAgente>${authData.AuthCodigoPerfilAgente}</mh:codigoPerfilAgente>
+      </mh:messageHeader>
+      <oas:Security>
+          <oas:UsernameToken>
+              <oas:Username>${authData.AuthUsername}</oas:Username>
+              <oas:Password>${authData.AuthPassword}</oas:Password>
+          </oas:UsernameToken>
+      </oas:Security>
+      <mh:paginacao>
+          <mh:numero>${paginaAtual}</mh:numero>
+          <mh:quantidadeItens>50</mh:quantidadeItens>
+      </mh:paginacao>
+  </soapenv:Header>
+  <soapenv:Body>
+      <bm:listarModelagemAtivoRequest>
+          <bm:agenteConcessionario>
+              <!--<bo:codigo>9999</bo:codigo>-->
+          </bm:agenteConcessionario>
+          <bm:agentesProprietarios>
+              <bo:participanteMercado>
+                  <!--<bo:codigo>9999</bo:codigo>-->
+              </bo:participanteMercado>
+              <bo:participanteMercado>
+                  <!--<bo:codigo>9999</bo:codigo>-->
+              </bo:participanteMercado>
+          </bm:agentesProprietarios>
+          <bm:ativosMedicao>
+              <bo:ativo>
+                  <!-- <bo:codigo>72514</bo:codigo> -->
+              </bo:ativo>
+          </bm:ativosMedicao>
+          <bm:indicadores>
+              <bo:indicador>
+                  <!--<bo:id>ADESAO</bo:id>-->
+              </bo:indicador>
+              <bo:indicador>
+                  <!--<bo:id>DESLIGAMENTO</bo:id>-->
+              </bo:indicador>
+              <bo:indicador>
+                  <!--<bo:id>DHC</bo:id>-->            
+              </bo:indicador>
+              <bo:indicador>
+                  <!--<bo:id>PONTO_MEDICAO</bo:id>-->       
+              </bo:indicador>
+          </bm:indicadores>
+          <bm:periodo>
+              <bo:inicio>${dataInicio}</bo:inicio>
+              <bo:fim>${dataFim}</bo:fim>
+          </bm:periodo>
+          <bm:situacaoModelagem>
+              <bo:identificador>FINALIZADAS</bo:identificador>
+          </bm:situacaoModelagem>
+          <bm:tipoAtivoMedicao>
+              <bo:identificador>CARGA</bo:identificador>
+          </bm:tipoAtivoMedicao>
+          <bm:tipoData>DATA_APTA</bm:tipoData>
+          <bm:tipoRelacionamento>
+              <bo:id>PROPRIETARIO</bo:id>
+          </bm:tipoRelacionamento>
+          <bm:tiposModelagem>
+              <bo:tipo>
+                  <!-- <bo:identificador>INCLUSAO</bo:identificador> -->
+              </bo:tipo>
+              <bo:tipo>
+                  <!--<bo:identificador>ALTERACAO</bo:identificador>-->  
+              </bo:tipo>
+          </bm:tiposModelagem>
+      </bm:listarModelagemAtivoRequest>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+
+  return new Promise((resolve) => {
+    api()
+      .post("/ModelagemAtivoBSv2", xmlBodyStr, options)
+      .then((response) => {
+        if (response.status === 200) {
+          let resBody = new Buffer.from(response.data).toString();
+          var xml = xml2json(resBody, { compact: true, spaces: 4 });
+          var json = JSON.parse(xml);
+          var modelagens =
+            json["soapenv:Envelope"]["soapenv:Body"][
+              "bmv2:listarModelagemAtivoResponse"
+            ]["bmv2:modelagens"]["bov2:modelagemAtivo"];
+          const totalPaginas =
+            json["soapenv:Envelope"]["soapenv:Header"]["hdr:paginacao"][
+              "hdr:totalPaginas"
+            ];
+          var responseData = {
+            data: modelagens,
+            code: response.status,
+            totalPaginas,
+          };
+          resolve(responseData);
+        } else {
+          var responseData = {
+            data: modelagens,
+            code: response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      })
+      .catch(function (error) {
+        if (error.response) {
+          console.log(error.response.status);
+          var responseData = {
+            data: dataInicio,
+            code: error.response.status,
+            totalPaginas: 0,
+          };
+          resolve(responseData);
+        }
+      });
+  });
+};
+
 export const ativosService = {
   listarAtivosDeMedicao,
   listarParcelasDeAtivosDeMedicao,
   listarParcelaDeCarga,
   listarTopologiaPorAtivo,
+  listarModelagemDeAtivo
 };
