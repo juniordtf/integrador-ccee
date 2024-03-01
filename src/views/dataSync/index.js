@@ -1531,6 +1531,14 @@ export default function DataSyncView() {
     exportFromJSON({ data: measurementsValues, fileName, exportType });
   };
 
+  const exportModellingData = async () => {
+    var fileName =
+      "modelagens_" + parseInt(date.month() + 1) + "-" + date.year();
+    let exportType = exportFromJSON.types.xls;
+
+    exportFromJSON({ data: modellingValues, fileName, exportType });
+  };
+
   const sendRequest_ListarParcelasDeAtivo = async () => {
     setPendingRequests(pendingRequests + 1);
 
@@ -2611,7 +2619,10 @@ export default function DataSyncView() {
       dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss")
     );
 
-    if (modellingResponse.code !== 200) return;
+    if (modellingResponse.code !== 200) {
+      setPendingRequests(pendingRequests - 1);
+      return;
+    }
 
     var totalPages = parseInt(modellingResponse.totalPaginas._text.toString());
 
@@ -2623,10 +2634,8 @@ export default function DataSyncView() {
         dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss"),
         currentPage
       );
-      results.concat(innerResults);
+      innerResults.forEach((x) => results.push(x));
     }
-
-    console.log(results.length);
 
     setModellingValues(results);
     setPendingRequests(pendingRequests - 1);
@@ -2662,12 +2671,13 @@ export default function DataSyncView() {
       item["bov2:dataApta"] !== undefined
         ? item["bov2:dataApta"]._text.toString()
         : "";
-    dataApta = dayjs(dataApta).format("DD/MM/YYYY");
+    dataApta = dataApta !== "" ? dayjs(dataApta).format("DD/MM/YYYY") : "";
     let dataAutorizada =
       item["bov2:dataAutorizada"] !== undefined
         ? item["bov2:dataAutorizada"]._text.toString()
         : "";
-    dataAutorizada = dayjs(dataAutorizada).format("DD/MM/YYYY");
+    dataAutorizada =
+      dataAutorizada !== "" ? dayjs(dataAutorizada).format("DD/MM/YYYY") : "";
     const situacao =
       item["bov2:situacao"] !== undefined
         ? item["bov2:situacao"]["bov2:nome"]._text.toString()
@@ -2688,9 +2698,7 @@ export default function DataSyncView() {
   const listarRepresentados = async () => {
     var responseData = await cadastrosService.listarRepresentacao(authData, 1);
     var totalPaginas = responseData.totalPaginas;
-    var totalPaginasNumber = totalPaginas._text
-      ? parseInt(totalPaginas._text.toString())
-      : 0;
+    var totalPaginasNumber = parseInt(totalPaginas._text.toString());
 
     var agentCodes = [];
     if (totalPaginasNumber > 1) {
@@ -2716,6 +2724,8 @@ export default function DataSyncView() {
         codes.forEach((x) => agentCodes.push(x));
       }
     }
+
+    console.log(agentCodes.length);
 
     return agentCodes;
   };
@@ -3283,6 +3293,19 @@ export default function DataSyncView() {
             sx={{ marginTop: 7 }}
           >
             Exportar medições
+          </Button>
+        </div>
+      ) : (
+        <div></div>
+      )}
+      {modellingValues.length > 0 ? (
+        <div>
+          <Button
+            variant="outlined"
+            onClick={exportModellingData}
+            sx={{ marginTop: 7 }}
+          >
+            Exportar modelagens
           </Button>
         </div>
       ) : (
