@@ -2682,12 +2682,17 @@ export default function DataSyncView() {
       item["bov2:situacao"] !== undefined
         ? item["bov2:situacao"]["bov2:nome"]._text.toString()
         : "";
+    const tipo =
+      item["bov2:tipo"] !== undefined
+        ? item["bov2:tipo"]["bov2:descricao"]._text.toString()
+        : "";
 
     return {
       codAtivoMedicao,
       dataApta,
       dataAutorizada,
       situacao,
+      tipo,
     };
   }
 
