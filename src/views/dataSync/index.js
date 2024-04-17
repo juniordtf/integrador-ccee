@@ -2815,7 +2815,19 @@ export default function DataSyncView() {
     if (onlyRepresentedAgents) {
       setPendingRequests(pendingRequests + 1);
 
+      var responseData = await cadastrosService.listarRepresentacao(
+        authData,
+        1
+      );
+      var totalItens = responseData.totalItens;
+      var totalItensNumber = parseInt(totalItens._text.toString());
+
       var representedAgentCodes = await listarRepresentados();
+
+      while (totalItensNumber !== representedAgentCodes.length) {
+        representedAgentCodes = await listarRepresentados();
+      }
+
       var agentCode = authData.AuthCodigoPerfilAgente;
 
       if (!representedAgentCodes.includes(agentCode)) {

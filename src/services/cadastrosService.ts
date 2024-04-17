@@ -436,10 +436,16 @@ const listarRepresentacao = async (
               "mhv2:totalPaginas"
             ];
 
+          const totalItens =
+            json["soapenv:Envelope"]["soapenv:Header"]["mhv2:paginacao"][
+              "mhv2:quantidadeTotalItens"
+            ];
+
           var responseData = {
             data: representacoes,
             code: response.status,
             totalPaginas,
+            totalItens,
           };
           resolve(responseData);
         } else {
@@ -447,6 +453,7 @@ const listarRepresentacao = async (
             data: 0,
             code: response.status,
             totalPaginas: 0,
+            totalItens: 0,
           };
           resolve(responseData);
         }
@@ -457,6 +464,7 @@ const listarRepresentacao = async (
             data: 0,
             code: error.response.status,
             totalPaginas: 0,
+            totalItens: 0,
           };
           console.log(error.response.status);
           resolve(responseData);
