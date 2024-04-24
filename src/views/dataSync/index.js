@@ -328,7 +328,7 @@ export default function DataSyncView() {
       sendRequest_ListarParticipantes();
     } else {
       const key =
-        "buscaCustommizada_participantes_" + dayjs(date).format("DD/MM/YY");
+        "buscaCustomizada_participantes_" + dayjs(date).format("DD/MM/YY");
       const sourceData = rows.map((x) => x[0]);
 
       let itemsProcessed = 0;
@@ -503,6 +503,8 @@ export default function DataSyncView() {
       item["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
     periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
     const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
+    const codClasse = item["bov2:classe"]["bov2:codigo"]._text.toString();
+    const nomeClasse = item["bov2:classe"]["bov2:descricao"]._text.toString();
 
     await addParticipante(
       key,
@@ -511,7 +513,9 @@ export default function DataSyncView() {
       situacao,
       sigla,
       codigo,
-      periodoVigencia
+      periodoVigencia,
+      codClasse,
+      nomeClasse
     );
   }
 
@@ -522,7 +526,9 @@ export default function DataSyncView() {
     situacao,
     sigla,
     codigo,
-    periodoVigencia
+    periodoVigencia,
+    codClasse,
+    nomeClasse
   ) {
     try {
       await db.participantes.add({
@@ -533,6 +539,8 @@ export default function DataSyncView() {
         sigla,
         codigo,
         periodoVigencia,
+        codClasse,
+        nomeClasse,
       });
     } catch (error) {
       console.log(`Failed to add ${nomeEmpresarial}: ${error}`);
@@ -1549,7 +1557,7 @@ export default function DataSyncView() {
 
     if (searchMethod === "Manual") {
       key =
-        "buscaCustommizada_parcelasDeAtivos_" + dayjs(date).format("DD/MM/YY");
+        "buscaCustomizada_parcelasDeAtivos_" + dayjs(date).format("DD/MM/YY");
       formDate = dayjs(date).format("YYYY-MM-DDTHH:mm:ss");
       sourceData = rows.map((x) => x[0]);
       selectedParameter = parameter;

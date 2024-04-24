@@ -69,6 +69,8 @@ const ParticipantsColumns = [
   { id: "codigo", label: "Código de Agente", minWidth: 100 },
   { id: "periodoVigencia", label: "Data de Início de Vigência", minWidth: 100 },
   { id: "situacao", label: "Situação", minWidth: 100 },
+  { id: "codClasse", label: "Código de Classe" },
+  { id: "nomeClasse", label: "Classe", minWidth: 100 },
 ];
 
 const ProfilesColumns = [
@@ -151,7 +153,7 @@ const PartialLoadColumns = [
     minWidth: 170,
     format: (value) => formatStringByPattern("XX.XXX.XXX/XXXX-XX", value),
   },
-{ id: "situacao", label: "Situação", minWidth: 100 },
+  { id: "situacao", label: "Situação", minWidth: 100 },
   { id: "periodoVigencia", label: "Data de início de vigência", minWidth: 100 },
   { id: "codConcessionaria", label: "Código da Concessionária", minWidth: 100 },
   { id: "undCapacidadeCarga", label: "Und. Capacidade Carga", minWidth: 100 },
@@ -491,8 +493,9 @@ export default function DataExportView() {
       const distinctDataSources = [...new Set(dataSources)];
 
       if (distinctDataSources) {
-        distinctDataSources.sort();
-        setDataSourceKeys(distinctDataSources);
+        let arrSortedByDate = sortKeysByDate(distinctDataSources);
+        let arrSortedByKey = sortKeysByName(arrSortedByDate);
+        setDataSourceKeys(arrSortedByKey);
       }
     }
     fetchData();
@@ -528,6 +531,62 @@ export default function DataExportView() {
       setRowKey("");
     }
   }, [selectedDataSource]);
+
+  const sortKeysByName = (arrKeys) => {
+    const firstSortKey = "buscaCustomizada";
+    const secondtSortKey = "representados";
+
+    arrKeys.sort((a, b) => {
+      const nameA = a.toUpperCase();
+      const nameB = b.toUpperCase();
+
+      if (
+        nameA.includes(firstSortKey.toUpperCase()) &&
+        !nameB.includes(firstSortKey.toUpperCase())
+      ) {
+        return -1;
+      }
+      if (
+        !nameA.includes(firstSortKey.toUpperCase()) &&
+        nameB.includes(firstSortKey.toUpperCase())
+      ) {
+        return 1;
+      }
+      return 0;
+    });
+
+    arrKeys.sort((a, b) => {
+      const nameA = a.toUpperCase();
+      const nameB = b.toUpperCase();
+
+      if (
+        nameA.includes(secondtSortKey.toUpperCase()) &&
+        !nameB.includes(secondtSortKey.toUpperCase())
+      ) {
+        return -1;
+      }
+      if (
+        !nameA.includes(secondtSortKey.toUpperCase()) &&
+        nameB.includes(secondtSortKey.toUpperCase())
+      ) {
+        return 1;
+      }
+      return 0;
+    });
+
+    return arrKeys;
+  };
+
+  const sortKeysByDate = (arrKeys) => {
+    arrKeys.sort((a, b) => {
+      const dateA = a.slice(a.length - 8);
+      const dateB = b.slice(b.length - 8);
+
+      return new Date(dateB) - new Date(dateA);
+    });
+
+    return arrKeys;
+  };
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -636,7 +695,7 @@ export default function DataExportView() {
       codPerfil: x.codPerfil,
       periodoVigencia: x.periodoVigencia,
       codParcelaAtivo: x.codParcelaAtivo,
-      situacao: x.situacao
+      situacao: x.situacao,
     }));
 
     if (sinteticPartialLoads !== undefined) {

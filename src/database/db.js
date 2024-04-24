@@ -2,9 +2,9 @@
 import Dexie from "dexie";
 
 export const db = new Dexie("integratorDatabase");
-db.version(10).stores({
+db.version(11).stores({
   participantes:
-    "++id, key, cnpj, nomeEmpresarial, situacao, sigla, codigo, periodoVigencia",
+    "++id, key, cnpj, nomeEmpresarial, situacao, sigla, codigo, periodoVigencia, codClasse, nomeClasse",
   perfis:
     "++id, key, codAgente, classe, codPerfil, comercializadorVarejista, sigla, situacao, submercado, perfilPrincipal, regimeCotas",
   ativosMedicao:
