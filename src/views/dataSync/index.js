@@ -332,6 +332,17 @@ export default function DataSyncView() {
       const sourceData = rows.map((x) => x[0]);
 
       let itemsProcessed = 0;
+
+      sourceData.forEach(async (code) => {
+        await addParticipantCodeToRetryList(
+          key,
+          code,
+          0,
+          0,
+          "listarParticipantes"
+        );
+      });
+
       for (const code of sourceData) {
         await listarParticipantePorCodigo(code, key);
         itemsProcessed++;
@@ -399,7 +410,6 @@ export default function DataSyncView() {
       totalPages,
       date,
       cat,
-      false,
       isAutomatic
     );
 
@@ -420,7 +430,7 @@ export default function DataSyncView() {
     totalPages,
     date,
     category,
-    fromRetryList = false,
+    fromRetryList,
     isAutomatic = false
   ) {
     try {
@@ -593,7 +603,8 @@ export default function DataSyncView() {
     codAgente,
     errorCode,
     attempts,
-    serviceFailed
+    serviceFailed,
+    done = false
   ) {
     try {
       const retryKey = "retry_" + key;
@@ -602,6 +613,7 @@ export default function DataSyncView() {
         errorCode,
         attempts,
         serviceFailed,
+        done,
       };
 
       let keys = [];
@@ -662,10 +674,16 @@ export default function DataSyncView() {
       });
   };
 
-  async function listarPerfis(key, sourceItems, fromRetryList = false) {
+  async function listarPerfis(key, sourceItems, notFromRetryList = true) {
     try {
       var itemsProcessed = 0;
       const requestsQuantity = sourceItems.length;
+
+      if (notFromRetryList) {
+        sourceItems.forEach((code) => {
+          addParticipantCodeToRetryList(key, code, 0, 0, "listarPerfis");
+        });
+      }
 
       for (const codAgente of sourceItems) {
         var responseData = await cadastrosService.listarPerfis(
@@ -692,20 +710,10 @@ export default function DataSyncView() {
               paginaCorrente
             );
 
-            handleProfileRespondeData(
-              responseDataPaginated,
-              key,
-              codAgente,
-              fromRetryList
-            );
+            handleProfileResponseData(responseDataPaginated, key, codAgente);
           }
         } else {
-          handleProfileRespondeData(
-            responseData,
-            key,
-            codAgente,
-            fromRetryList
-          );
+          handleProfileResponseData(responseData, key, codAgente);
         }
 
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
@@ -717,12 +725,7 @@ export default function DataSyncView() {
     }
   }
 
-  function handleProfileRespondeData(
-    responseData,
-    key,
-    codAgente,
-    fromRetryList
-  ) {
+  function handleProfileResponseData(responseData, key, codAgente) {
     if (responseData.code === 200) {
       var perfis = responseData.data;
 
@@ -733,23 +736,14 @@ export default function DataSyncView() {
           mapResponseToProfileData(key, codAgente, item);
         });
       }
-
-      if (fromRetryList) {
-        removeAgentFromRetryList(key, codAgente);
-      }
-    } else {
-      if (fromRetryList) {
-        updateParticipantInRetryList(codAgente, key);
-      } else {
-        addAgentToRetryList(
-          key,
-          codAgente,
-          responseData.code,
-          0,
-          "listarPerfis"
-        );
-      }
     }
+
+    updateParticipantInRetryList(
+      codAgente,
+      key,
+      "listarPerfis",
+      responseData.code
+    );
   }
 
   async function mapResponseToProfileData(key, codAgente, item) {
@@ -819,7 +813,8 @@ export default function DataSyncView() {
     codAgente,
     errorCode,
     attempts,
-    serviceFailed
+    serviceFailed,
+    done = false
   ) {
     try {
       const retryKey = "retry_" + key;
@@ -828,6 +823,7 @@ export default function DataSyncView() {
         errorCode,
         attempts,
         serviceFailed,
+        done,
       };
 
       let keys = [];
@@ -852,7 +848,12 @@ export default function DataSyncView() {
     }
   }
 
-  async function updateParticipantInRetryList(codAgente, key) {
+  async function updateParticipantInRetryList(
+    codAgente,
+    key,
+    serviceFailed,
+    errorCode
+  ) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
     console.log("updateParticipantInRetryList");
@@ -861,7 +862,10 @@ export default function DataSyncView() {
 
     const itemToBeUpdated = retryData.find((x) => x.codAgente === codAgente);
     var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.done = true;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    itemToBeUpdatedClone.serviceFailed = serviceFailed;
+    itemToBeUpdatedClone.errorCode = errorCode;
     const index = retryData.indexOf(itemToBeUpdated);
 
     if (index !== -1) {
@@ -1239,26 +1243,30 @@ export default function DataSyncView() {
 
       if (key.includes("participantes_representados")) {
         for (const rd of retryData) {
-          await listarParticipantePorCodigo(
-            rd.codAgente,
-            key.substring(6),
-            true
-          );
+          if (rd.errorCode !== 200) {
+            await listarParticipantePorCodigo(rd.codAgente, key.substring(6));
+          }
         }
       } else if (key.includes("participantes")) {
         for (const rd of retryData) {
-          await listarParticipantes(
-            key.substring(6),
-            rd.page,
-            rd.date,
-            rd.category,
-            true,
-            false
-          );
+          if (rd.errorCode !== 200) {
+            await listarParticipantes(
+              key.substring(6),
+              rd.page,
+              rd.date,
+              rd.category,
+              true,
+              false
+            );
+          }
         }
       } else if (key.includes("perfis")) {
-        const codAgentes = retryData.map((x) => x.codAgente);
-        await listarPerfis(key.substring(6), codAgentes, true);
+        const filteredSource = retryData.filter(
+          (x) => x.done === true && x.errorCode !== 200
+        );
+        console.log(filteredSource.length);
+        const codAgentes = filteredSource.map((x) => x.codAgente);
+        await listarPerfis(key.substring(6), codAgentes, false);
       } else if (key.includes("parcelasDeAtivos")) {
         const parametersCodes = retryData.map((x) => x.parameterCode);
         console.log("Total: " + parametersCodes.length);
@@ -1502,7 +1510,10 @@ export default function DataSyncView() {
           await removeParticipantsPageFromRetryList(key.substring(6), x.page);
         }
       } else if (key.includes("perfis")) {
-        for (const x of itemsToRemove) {
+        let removes = retryData.filter(
+          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+        );
+        for (const x of removes) {
           await removeAgentFromRetryList(key.substring(6), x.codAgente);
         }
       } else if (key.includes("parcelasDeAtivos")) {
@@ -2763,11 +2774,7 @@ export default function DataSyncView() {
     return codes;
   }
 
-  async function listarParticipantePorCodigo(
-    agentCode,
-    dataKey = "",
-    fromRetryList = false
-  ) {
+  async function listarParticipantePorCodigo(agentCode, dataKey = "") {
     try {
       var key =
         dataKey !== ""
@@ -2794,23 +2801,14 @@ export default function DataSyncView() {
         Array.prototype.forEach.call(participantesData, async (item) => {
           mapResponseToParticipantsData(key, item);
         });
-
-        if (fromRetryList) {
-          removeParticipantFromRetryList(key, agentCode);
-        }
-      } else {
-        if (fromRetryList) {
-          updateParticipantInRetryList(agentCode, key);
-        } else {
-          addParticipantCodeToRetryList(
-            key,
-            agentCode,
-            responseData.code,
-            0,
-            "listarParticipantes"
-          );
-        }
       }
+
+      updateParticipantInRetryList(
+        agentCode,
+        key,
+        "listarParticipantes",
+        parseInt(responseData.code)
+      );
     } catch (e) {
       console.log("Erro ao listar participantes");
       console.error(e);
