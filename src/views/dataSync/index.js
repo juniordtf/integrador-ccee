@@ -666,6 +666,10 @@ export default function DataSyncView() {
           console.log("Total: " + dataSourceItems.length);
           var codAgentes = dataSourceItems.map((x) => x.codigo);
 
+          codAgentes.forEach((code) => {
+            addParticipantCodeToRetryList(key, code, 0, 0, "listarPerfis");
+          });
+
           await listarPerfis(key, codAgentes);
           setPendingRequests(pendingRequests - 1);
           setSuccessDialogOpen(true);
@@ -674,16 +678,10 @@ export default function DataSyncView() {
       });
   };
 
-  async function listarPerfis(key, sourceItems, notFromRetryList = true) {
+  async function listarPerfis(key, sourceItems) {
     try {
       var itemsProcessed = 0;
       const requestsQuantity = sourceItems.length;
-
-      if (notFromRetryList) {
-        sourceItems.forEach((code) => {
-          addParticipantCodeToRetryList(key, code, 0, 0, "listarPerfis");
-        });
-      }
 
       for (const codAgente of sourceItems) {
         var responseData = await cadastrosService.listarPerfis(
@@ -808,46 +806,6 @@ export default function DataSyncView() {
     }
   }
 
-  async function addAgentToRetryList(
-    key,
-    codAgente,
-    errorCode,
-    attempts,
-    serviceFailed,
-    done = false
-  ) {
-    try {
-      const retryKey = "retry_" + key;
-      const retryParticipant = {
-        codAgente,
-        errorCode,
-        attempts,
-        serviceFailed,
-        done,
-      };
-
-      let keys = [];
-      if (retryKeys.length === 0) {
-        keys = [retryKey];
-      } else {
-        keys = retryKeys.concat(retryKey);
-      }
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
-
-      let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
-      if (retryParticipants === null) {
-        retryParticipants = [retryParticipant];
-      } else {
-        retryParticipants = retryParticipants.concat(retryParticipant);
-      }
-      localStorage.setItem(retryKey, JSON.stringify(retryParticipants));
-    } catch (error) {
-      console.log(
-        `Failed to add ${codAgente} to Retry Participant's list: ${error}`
-      );
-    }
-  }
-
   async function updateParticipantInRetryList(
     codAgente,
     key,
@@ -892,7 +850,12 @@ export default function DataSyncView() {
     }
   }
 
-  async function updatePartialResourceInRetryList(parameterCode, key) {
+  async function updatePartialResourceInRetryList(
+    parameterCode,
+    key,
+    serviceFailed,
+    errorCode
+  ) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
     console.log("updateParticipantInRetryList");
@@ -903,7 +866,10 @@ export default function DataSyncView() {
       (x) => x.parameterCode === parameterCode
     );
     var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.done = true;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    itemToBeUpdatedClone.serviceFailed = serviceFailed;
+    itemToBeUpdatedClone.errorCode = errorCode;
     const index = retryData.indexOf(itemToBeUpdated);
 
     if (index !== -1) {
@@ -1151,7 +1117,8 @@ export default function DataSyncView() {
     parameter,
     errorCode,
     attempts,
-    serviceFailed
+    serviceFailed,
+    done = false
   ) {
     try {
       const retryKey = "retry_" + key;
@@ -1162,6 +1129,7 @@ export default function DataSyncView() {
         errorCode,
         attempts,
         serviceFailed,
+        done,
       };
 
       let keys = [];
@@ -1264,20 +1232,23 @@ export default function DataSyncView() {
         const filteredSource = retryData.filter(
           (x) => x.done === true && x.errorCode !== 200
         );
-        console.log(filteredSource.length);
         const codAgentes = filteredSource.map((x) => x.codAgente);
-        await listarPerfis(key.substring(6), codAgentes, false);
+        await listarPerfis(key.substring(6), codAgentes);
       } else if (key.includes("parcelasDeAtivos")) {
-        const parametersCodes = retryData.map((x) => x.parameterCode);
-        console.log("Total: " + parametersCodes.length);
-        const searchDate = retryData.map((x) => x.searchDate)[0];
-        const parameter = retryData.map((x) => x.parameter)[0];
+        const filteredSource = retryData.filter(
+          (x) => x.done === true && x.errorCode !== 200
+        );
+
+        const parametersCodes = filteredSource.map((x) => x.parameterCode);
+        const searchDate = filteredSource.map((x) => x.searchDate)[0];
+        const parameter = filteredSource.map((x) => x.parameter)[0];
+
+
         await listarParcelasDeAtivos(
           key.substring(6),
           parametersCodes,
           searchDate,
-          parameter,
-          true
+          parameter
         );
       } else if (key.includes("parcelasDeCarga")) {
         const parametersCodes = retryData.map((x) => x.parameterCode);
@@ -1454,35 +1425,6 @@ export default function DataSyncView() {
     }
   };
 
-  const removeParticipantFromRetryList = (key, code) => {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("removeParticipantsPageFromRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeRemoved = retryData.find((x) => x.code === code);
-    const index = retryData.indexOf(itemToBeRemoved);
-
-    if (index > -1) {
-      retryData.splice(index, 1);
-    }
-
-    if (retryData.length === 0) {
-      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
-      const idx = retryKeys.indexOf(keyToBeRemoved);
-
-      if (idx > -1) {
-        retryKeys.splice(idx, 1);
-      }
-
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
-      localStorage.removeItem(retryKey);
-    } else {
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  };
-
   const removeExpiredData = async () => {
     if (retryKeys.length === 0) {
       setPendingRequests(0);
@@ -1517,7 +1459,10 @@ export default function DataSyncView() {
           await removeAgentFromRetryList(key.substring(6), x.codAgente);
         }
       } else if (key.includes("parcelasDeAtivos")) {
-        for (const x of itemsToRemove) {
+        let removes = retryData.filter(
+          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+        );
+        for (const x of removes) {
           await removeParameterFromRetryList(key.substring(6), x.parameterCode);
         }
       } else if (
@@ -1608,6 +1553,18 @@ export default function DataSyncView() {
         } else {
           console.log("Total: " + sourceData.length);
 
+          sourceData.forEach((x) => {
+            addParameterToRetryList(
+              key,
+              x,
+              formDate,
+              selectedParameter,
+              0,
+              0,
+              ""
+            );
+          });
+
           await listarParcelasDeAtivos(
             key,
             sourceData,
@@ -1625,8 +1582,7 @@ export default function DataSyncView() {
     key,
     sourceItems,
     searchDate,
-    selectedParameter,
-    fromRetryList = false
+    selectedParameter
   ) {
     try {
       var itemsProcessed = 0;
@@ -1691,10 +1647,7 @@ export default function DataSyncView() {
               responseDataPaginated,
               key,
               codMedidor,
-              selectedParameter,
-              searchDate,
               item,
-              fromRetryList
             );
           }
         } else {
@@ -1702,10 +1655,7 @@ export default function DataSyncView() {
             responseData,
             key,
             codMedidor,
-            selectedParameter,
-            searchDate,
             item,
-            fromRetryList
           );
         }
 
@@ -1724,10 +1674,7 @@ export default function DataSyncView() {
     responseData,
     key,
     codMedidor,
-    selectedParameter,
-    searchDate,
-    item,
-    fromRetryList
+    item
   ) {
     if (responseData.code === 200) {
       var parcelaAtivos = responseData.data;
@@ -1739,25 +1686,14 @@ export default function DataSyncView() {
           mapResponseToPartialMeasurementData(key, codMedidor, x);
         });
       }
-
-      if (fromRetryList) {
-        removeParameterFromRetryList(key, item);
-      }
-    } else {
-      if (fromRetryList) {
-        updatePartialResourceInRetryList(item, key);
-      } else {
-        addParameterToRetryList(
-          key,
-          item,
-          searchDate,
-          selectedParameter,
-          responseData.code,
-          0,
-          "listarParcelasDeAtivos"
-        );
-      }
     }
+
+    updatePartialResourceInRetryList(
+      item,
+      key,
+      "listarParcelasDeAtivos",
+      responseData.code
+    );
   }
 
   async function mapResponseToPartialMeasurementData(key, codMedidor, item) {
