@@ -356,6 +356,10 @@ export default function DataSyncView() {
     }
   };
 
+  /**
+   * Listar Participantes
+   * @returns
+   */
   const sendRequest_ListarParticipantes = async (classId = 0) => {
     setPendingRequests(pendingRequests + 1);
 
@@ -921,6 +925,7 @@ export default function DataSyncView() {
         errorCode,
         attempts,
         serviceFailed,
+        done,
       };
 
       let keys = [];
@@ -1046,7 +1051,7 @@ export default function DataSyncView() {
 
       if (key.includes("participantes_representados")) {
         for (const rd of retryData) {
-          if (rd.errorCode !== 200) {
+          if (rd.done === true && rd.errorCode !== 200) {
             await listarParticipantePorCodigo(rd.codAgente, key.substring(6));
           }
         }
@@ -1085,22 +1090,28 @@ export default function DataSyncView() {
           parameter
         );
       } else if (key.includes("parcelasDeCarga")) {
-        const parametersCodes = retryData.map((x) => x.parameterCode);
-        console.log("Total: " + parametersCodes.length);
-        const searchDate = retryData.map((x) => x.searchDate)[0];
+        const filteredSource = retryData.filter(
+          (x) => x.done === true && x.errorCode !== 200
+        );
+
+        const searchDate = filteredSource.map((x) => x.searchDate)[0];
         await listarParcelasDeCarga(
           key.substring(6),
-          retryData,
-          searchDate,
-          true
+          filteredSource,
+          searchDate
         );
       } else if (key.includes("topologias")) {
-        const parametersCodes = retryData.map((x) => x.parameterCode);
-        console.log("Total: " + parametersCodes.length);
-        const searchDate = retryData.map((x) => x.searchDate)[0];
-        await listarTopologias(key.substring(6), retryData, searchDate, true);
+        const filteredSource = retryData.filter(
+          (x) => x.done === true && x.errorCode !== 200
+        );
+
+        const searchDate = filteredSource.map((x) => x.searchDate)[0];
+        await listarTopologias(key.substring(6), filteredSource, searchDate);
       } else if (key.includes("ativos")) {
-        const codPerfis = retryData.map((x) => x.codPerfil);
+        const filteredSource = retryData.filter(
+          (x) => x.done === true && x.errorCode !== 200
+        );
+        const codPerfis = filteredSource.map((x) => x.codPerfil);
         await listarAtivos(key.substring(6), codPerfis);
       } else {
         return;
@@ -1303,14 +1314,21 @@ export default function DataSyncView() {
         key.includes("parcelasDeCarga") ||
         key.includes("topologias")
       ) {
-        for (const x of itemsToRemove) {
+        let removes = retryData.filter(
+          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+        );
+
+        for (const x of removes) {
           await removeResourceFromRetryList(
             key.substring(6),
             x.codAtivoMedicao
           );
         }
       } else if (key.includes("ativos")) {
-        for (const x of itemsToRemove) {
+        let removes = retryData.filter(
+          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+        );
+        for (const x of removes) {
           await removeProfileFromRetryList(key.substring(6), x.codPerfil);
         }
       } else {
@@ -1571,6 +1589,18 @@ export default function DataSyncView() {
         } else {
           console.log("Total: " + dataSourceItems.length);
 
+          dataSourceItems.forEach((x) => {
+            addResourceToRetryList(
+              key,
+              x.codAtivoMedicao,
+              x.codPerfil,
+              formDate,
+              0,
+              0,
+              "listarTopologiasPorAtivo"
+            );
+          });
+
           await listarParcelasDeCarga(key, dataSourceItems, formDate);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
@@ -1667,28 +1697,21 @@ export default function DataSyncView() {
           apiMappings.mapResponseToPartialLoadData(key, x);
         });
       }
-
-      if (fromRetryList) {
-        removeResourceFromRetryList(key, item.codAtivoMedicao);
-      }
-    } else {
-      if (fromRetryList) {
-        updateResourceInRetryList(item.codAtivoMedicao, key);
-      } else {
-        addResourceToRetryList(
-          key,
-          item.codAtivoMedicao,
-          item.codPerfil,
-          searchDate,
-          responseData.code,
-          0,
-          "listarParcelasDeCarga"
-        );
-      }
     }
+    updateResourceInRetryList(
+      item.codAtivoMedicao,
+      key,
+      "listarParcelasDeCarga",
+      0
+    );
   }
 
-  async function updateResourceInRetryList(codAtivoMedicao, key) {
+  async function updateResourceInRetryList(
+    codAtivoMedicao,
+    key,
+    serviceFailed,
+    errorCode
+  ) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
     console.log("updatePartialLoadInRetryList");
@@ -1698,8 +1721,12 @@ export default function DataSyncView() {
     const itemToBeUpdated = retryData.find(
       (x) => x.codAtivoMedicao.toString() === codAtivoMedicao.toString()
     );
+
     var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.done = true;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    itemToBeUpdatedClone.serviceFailed = serviceFailed;
+    itemToBeUpdatedClone.errorCode = errorCode;
     const index = retryData.indexOf(itemToBeUpdated);
 
     if (index !== -1) {
@@ -1749,6 +1776,18 @@ export default function DataSyncView() {
         } else {
           console.log("Total: " + dataSourceItems.length);
 
+          dataSourceItems.forEach((x) => {
+            addResourceToRetryList(
+              key,
+              x.codAtivoMedicao,
+              x.codPerfil,
+              formDate,
+              0,
+              0,
+              "listarTopologiasPorAtivo"
+            );
+          });
+
           await listarTopologias(key, dataSourceItems, formDate);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
@@ -1760,8 +1799,7 @@ export default function DataSyncView() {
   async function listarTopologias(
     key,
     dataSourceItems,
-    searchDate,
-    fromRetryList = false
+    searchDate
   ) {
     try {
       var itemsProcessed = 0;
@@ -1801,18 +1839,14 @@ export default function DataSyncView() {
             handleTopologyResponseData(
               responseDataPaginated,
               key,
-              searchDate,
               item,
-              fromRetryList
             );
           }
         } else {
           handleTopologyResponseData(
             responseData,
             key,
-            searchDate,
             item,
-            fromRetryList
           );
         }
 
@@ -1831,9 +1865,7 @@ export default function DataSyncView() {
   function handleTopologyResponseData(
     responseData,
     key,
-    searchDate,
     item,
-    fromRetryList
   ) {
     if (responseData.code === 200) {
       var parcelaCarga = responseData.data;
@@ -1845,25 +1877,14 @@ export default function DataSyncView() {
           apiMappings.mapResponseToTopologyData(key, x);
         });
       }
-
-      if (fromRetryList) {
-        removeResourceFromRetryList(key, item.codAtivoMedicao);
-      }
-    } else {
-      if (fromRetryList) {
-        updateResourceInRetryList(item.codAtivoMedicao, key);
-      } else {
-        addResourceToRetryList(
-          key,
-          item.codAtivoMedicao,
-          item.codPerfil,
-          searchDate,
-          responseData.code,
-          0,
-          "listarTopologiasPorAtivo"
-        );
-      }
     }
+
+    updateResourceInRetryList(
+      item.codAtivoMedicao,
+      key,
+      "listarTopologiasPorAtivo",
+      0
+    );
   }
 
   // Listar Medidas - 5 minutos
@@ -2092,7 +2113,6 @@ export default function DataSyncView() {
 
     return agentCodes;
   };
-
 
   async function listarParticipantePorCodigo(agentCode, dataKey = "") {
     try {
