@@ -32,6 +32,8 @@ import { workers } from "../../webWorkers/workers.js";
 import WebWorker from "../../webWorkers/workerSetup";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db } from "../../database/db";
+import { dbPersistance } from "./dbPersistance.ts";
+import { apiMappings } from "./apiMappings.ts";
 import { setWeekYearWithOptions } from "date-fns/fp";
 import exportFromJSON from "export-from-json";
 
@@ -459,7 +461,7 @@ export default function DataSyncView() {
           }
 
           Array.prototype.forEach.call(participantesData, async (item) => {
-            mapResponseToParticipantsData(key, item);
+            apiMappings.mapResponseToParticipantsData(key, item);
           });
 
           if (fromRetryList) {
@@ -492,68 +494,6 @@ export default function DataSyncView() {
       console.log("Erro ao listar participantes");
       console.error(e);
       return true;
-    }
-  }
-
-  async function mapResponseToParticipantsData(key, item) {
-    const cnpj =
-      item["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"] !==
-      undefined
-        ? item["bov2:parte"]["bov2:pessoaJuridica"]["bov2:identificacoes"][
-            "bov2:identificacao"
-          ]["bov2:numero"]._text.toString()
-        : "";
-    const nomeEmpresarial =
-      item["bov2:parte"]["bov2:pessoaJuridica"][
-        "bov2:nomeEmpresarial"
-      ]._text.toString();
-    const sigla = item["bov2:sigla"]._text.toString();
-    const codigo = item["bov2:codigo"]._text.toString();
-    let periodoVigencia =
-      item["bov2:periodoVigencia"]["bov2:inicio"]._text.toString();
-    periodoVigencia = dayjs(periodoVigencia).format("DD/MM/YYYY");
-    const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
-    const codClasse = item["bov2:classe"]["bov2:codigo"]._text.toString();
-    const nomeClasse = item["bov2:classe"]["bov2:descricao"]._text.toString();
-
-    await addParticipante(
-      key,
-      cnpj,
-      nomeEmpresarial,
-      situacao,
-      sigla,
-      codigo,
-      periodoVigencia,
-      codClasse,
-      nomeClasse
-    );
-  }
-
-  async function addParticipante(
-    key,
-    cnpj,
-    nomeEmpresarial,
-    situacao,
-    sigla,
-    codigo,
-    periodoVigencia,
-    codClasse,
-    nomeClasse
-  ) {
-    try {
-      await db.participantes.add({
-        key,
-        cnpj,
-        nomeEmpresarial,
-        situacao,
-        sigla,
-        codigo,
-        periodoVigencia,
-        codClasse,
-        nomeClasse,
-      });
-    } catch (error) {
-      console.log(`Failed to add ${nomeEmpresarial}: ${error}`);
     }
   }
 
@@ -728,10 +668,10 @@ export default function DataSyncView() {
       var perfis = responseData.data;
 
       if (perfis.length === undefined) {
-        mapResponseToProfileData(key, codAgente, perfis);
+        apiMappings.mapResponseToProfileData(key, codAgente, perfis);
       } else {
         Array.prototype.forEach.call(perfis, async (item) => {
-          mapResponseToProfileData(key, codAgente, item);
+          apiMappings.mapResponseToProfileData(key, codAgente, item);
         });
       }
     }
@@ -742,68 +682,6 @@ export default function DataSyncView() {
       "listarPerfis",
       responseData.code
     );
-  }
-
-  async function mapResponseToProfileData(key, codAgente, item) {
-    const classe = item["bov2:classe"]["bov2:descricao"]._text.toString();
-    const codPerfil = item["bov2:codigo"]._text.toString();
-    var comercializadorVarejista =
-      item["bov2:comercializadorVarejista"]._text.toString();
-    const sigla = item["bov2:sigla"]._text.toString();
-    const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
-    const submercado =
-      item["bov2:submercado"] === undefined
-        ? "Sem informação"
-        : item["bov2:submercado"]["bov2:nome"]._text.toString();
-    var perfilPrincipal = item["bov2:perfilPrincipal"]._text.toString();
-    var regimeCotas = item["bov2:regimeCotas"]._text.toString();
-    comercializadorVarejista =
-      comercializadorVarejista === "true" ? "Sim" : "Não";
-    perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
-    regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
-
-    await addPerfil(
-      key,
-      codAgente,
-      classe,
-      codPerfil,
-      comercializadorVarejista,
-      sigla,
-      situacao,
-      submercado,
-      perfilPrincipal,
-      regimeCotas
-    );
-  }
-
-  async function addPerfil(
-    key,
-    codAgente,
-    classe,
-    codPerfil,
-    comercializadorVarejista,
-    sigla,
-    situacao,
-    submercado,
-    perfilPrincipal,
-    regimeCotas
-  ) {
-    try {
-      await db.perfis.add({
-        key,
-        codAgente,
-        classe,
-        codPerfil,
-        comercializadorVarejista,
-        sigla,
-        situacao,
-        submercado,
-        perfilPrincipal,
-        regimeCotas,
-      });
-    } catch (error) {
-      console.log(`Failed to add ${codPerfil}: ${error}`);
-    }
   }
 
   async function updateParticipantInRetryList(
@@ -914,6 +792,10 @@ export default function DataSyncView() {
           console.log("Total: " + dataSourceItems.length);
           var codPerfis = dataSourceItems.map((x) => x.codPerfil);
 
+          codPerfis.forEach((x) => {
+            addProfileToRetryList(key, x, 0, 0, "listarAtivosDeMedicao");
+          });
+
           await listarAtivos(key, codPerfis);
           setPendingRequests(pendingRequests - 1);
           setSuccessDialogOpen(true);
@@ -922,7 +804,7 @@ export default function DataSyncView() {
       });
   };
 
-  async function listarAtivos(key, sourceItems, fromRetryList = false) {
+  async function listarAtivos(key, sourceItems) {
     try {
       var itemsProcessed = 0;
       const requestsQuantity = sourceItems.length;
@@ -958,31 +840,11 @@ export default function DataSyncView() {
             var ativos = responseDataPaginated.data;
             if (responseDataPaginated.code === 200) {
               if (ativos.length === undefined) {
-                mapResponseToResourceData(key, codPerfil, ativos);
+                apiMappings.mapResponseToResourceData(key, codPerfil, ativos);
               } else {
                 Array.prototype.forEach.call(ativos, async (item) => {
-                  mapResponseToResourceData(key, codPerfil, item);
+                  apiMappings.mapResponseToResourceData(key, codPerfil, item);
                 });
-              }
-
-              if (fromRetryList) {
-                removeProfileFromRetryList(key, codPerfil);
-              }
-            } else {
-              if (responseDataPaginated.code !== 500) {
-                if (!fromRetryList) {
-                  addProfileToRetryList(
-                    key,
-                    codPerfil,
-                    responseDataPaginated.code,
-                    0,
-                    "listarAtivosDeMedicao"
-                  );
-                }
-              } else {
-                if (fromRetryList) {
-                  removeProfileFromRetryList(key, codPerfil);
-                }
               }
             }
           }
@@ -990,34 +852,21 @@ export default function DataSyncView() {
           var ativos = responseData.data;
           if (responseData.code === 200) {
             if (ativos.length === undefined) {
-              mapResponseToResourceData(key, codPerfil, ativos);
+              apiMappings.mapResponseToResourceData(key, codPerfil, ativos);
             } else {
               Array.prototype.forEach.call(ativos, async (item) => {
-                mapResponseToResourceData(key, codPerfil, item);
+                apiMappings.mapResponseToResourceData(key, codPerfil, item);
               });
-            }
-
-            if (fromRetryList) {
-              removeProfileFromRetryList(key, codPerfil);
-            }
-          } else {
-            if (responseData.code !== 500) {
-              if (!fromRetryList) {
-                addProfileToRetryList(
-                  key,
-                  codPerfil,
-                  responseData.code,
-                  0,
-                  "listarAtivosDeMedicao"
-                );
-              }
-            } else {
-              if (fromRetryList) {
-                removeProfileFromRetryList(key, codPerfil);
-              }
             }
           }
         }
+
+        updateProfileInRetryList(
+          codPerfil,
+          key,
+          "listarPerfil",
+          responseData.code
+        );
 
         console.log(itemsProcessed);
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
@@ -1029,46 +878,31 @@ export default function DataSyncView() {
     }
   }
 
-  async function mapResponseToResourceData(key, codPerfil, item) {
-    const codAtivo = item["bov2:codigo"]._text.toString();
-    const nome = item["bov2:nome"]._text.toString();
-    const tipo = item["bov2:tipo"]["bov2:descricao"]._text.toString();
-    const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
-    const vigencia = item["bov2:vigencia"]["bov2:inicio"]._text.toString();
-    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
-
-    await addAtivo(
-      key,
-      codPerfil,
-      codAtivo,
-      nome,
-      tipo,
-      situacao,
-      periodoVigencia
-    );
-  }
-
-  async function addAtivo(
+  async function updateProfileInRetryList(
+    profileCode,
     key,
-    codPerfil,
-    codAtivo,
-    nome,
-    tipo,
-    situacao,
-    periodoVigencia
+    serviceFailed,
+    errorCode
   ) {
-    try {
-      await db.ativosMedicao.add({
-        key,
-        codPerfil,
-        codAtivo,
-        nome,
-        tipo,
-        situacao,
-        periodoVigencia,
-      });
-    } catch (error) {
-      console.log(`Failed to add Resource ${codAtivo}: ${error}`);
+    const retryKey = "retry_" + key;
+    let retryData = JSON.parse(localStorage.getItem(retryKey));
+    console.log("updateProfileInRetryList");
+
+    if (!retryData) return;
+
+    const itemToBeUpdated = retryData.find(
+      (x) => x.profileCode === profileCode
+    );
+    var itemToBeUpdatedClone = itemToBeUpdated;
+    itemToBeUpdatedClone.done = true;
+    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
+    itemToBeUpdatedClone.serviceFailed = serviceFailed;
+    itemToBeUpdatedClone.errorCode = errorCode;
+    const index = retryData.indexOf(itemToBeUpdated);
+
+    if (index !== -1) {
+      retryData[index] = itemToBeUpdatedClone;
+      localStorage.setItem(retryKey, JSON.stringify(retryData));
     }
   }
 
@@ -1077,7 +911,8 @@ export default function DataSyncView() {
     codPerfil,
     errorCode,
     attempts,
-    serviceFailed
+    serviceFailed,
+    done = false
   ) {
     try {
       const retryKey = "retry_" + key;
@@ -1243,7 +1078,6 @@ export default function DataSyncView() {
         const searchDate = filteredSource.map((x) => x.searchDate)[0];
         const parameter = filteredSource.map((x) => x.parameter)[0];
 
-
         await listarParcelasDeAtivos(
           key.substring(6),
           parametersCodes,
@@ -1267,7 +1101,7 @@ export default function DataSyncView() {
         await listarTopologias(key.substring(6), retryData, searchDate, true);
       } else if (key.includes("ativos")) {
         const codPerfis = retryData.map((x) => x.codPerfil);
-        await listarAtivos(key.substring(6), codPerfis, true);
+        await listarAtivos(key.substring(6), codPerfis);
       } else {
         return;
       }
@@ -1647,7 +1481,7 @@ export default function DataSyncView() {
               responseDataPaginated,
               key,
               codMedidor,
-              item,
+              item
             );
           }
         } else {
@@ -1655,7 +1489,7 @@ export default function DataSyncView() {
             responseData,
             key,
             codMedidor,
-            item,
+            item
           );
         }
 
@@ -1680,10 +1514,14 @@ export default function DataSyncView() {
       var parcelaAtivos = responseData.data;
 
       if (parcelaAtivos.length === undefined) {
-        mapResponseToPartialMeasurementData(key, codMedidor, parcelaAtivos);
+        apiMappings.mapResponseToPartialMeasurementData(
+          key,
+          codMedidor,
+          parcelaAtivos
+        );
       } else {
         Array.prototype.forEach.call(parcelaAtivos, async (x) => {
-          mapResponseToPartialMeasurementData(key, codMedidor, x);
+          apiMappings.mapResponseToPartialMeasurementData(key, codMedidor, x);
         });
       }
     }
@@ -1694,87 +1532,6 @@ export default function DataSyncView() {
       "listarParcelasDeAtivos",
       responseData.code
     );
-  }
-
-  async function mapResponseToPartialMeasurementData(key, codMedidor, item) {
-    const codParcelaAtivo =
-      item["bov2:codigo"] !== undefined
-        ? item["bov2:codigo"]._text.toString()
-        : "";
-    const codAtivoMedicao =
-      item["bov2:ativoMedicao"] !== undefined
-        ? item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString()
-        : "";
-    const nome =
-      item["bov2:nome"] !== undefined ? item["bov2:nome"]._text.toString() : "";
-    const codPerfil =
-      item["bov2:participanteMercado"] !== undefined
-        ? item["bov2:participanteMercado"]["bov2:perfis"]["bov2:perfil"][
-            "bov2:codigo"
-          ]._text.toString()
-        : "";
-    const idSubmercado =
-      item["bov2:submercado"] !== undefined
-        ? item["bov2:submercado"]["bov2:id"]._text.toString()
-        : "";
-    const cnpj =
-      item["bov2:identificacao"] !== undefined
-        ? item["bov2:identificacao"]["bov2:numero"]._text.toString()
-        : "";
-    const situacao =
-      item["bov2:status"] !== undefined
-        ? item["bov2:status"]["bov2:descricao"]._text.toString()
-        : "";
-    const vigencia =
-      item["bov2:vigencia"] !== undefined
-        ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
-        : "";
-    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
-
-    await addParcelaDeAtivo(
-      key,
-      codParcelaAtivo,
-      codAtivoMedicao,
-      nome,
-      codMedidor,
-      codPerfil,
-      idSubmercado,
-      cnpj,
-      situacao,
-      periodoVigencia
-    );
-  }
-
-  async function addParcelaDeAtivo(
-    key,
-    codParcelaAtivo,
-    codAtivoMedicao,
-    nome,
-    codMedidor,
-    codPerfil,
-    idSubmercado,
-    cnpj,
-    situacao,
-    periodoVigencia
-  ) {
-    try {
-      await db.parcelasAtivosMedicao.add({
-        key,
-        codParcelaAtivo,
-        codAtivoMedicao,
-        nome,
-        codMedidor,
-        codPerfil,
-        idSubmercado,
-        cnpj,
-        situacao,
-        periodoVigencia,
-      });
-    } catch (error) {
-      console.log(
-        `Failed to add Partial Measurement ${codParcelaAtivo}: ${error}`
-      );
-    }
   }
 
   const sendRequest_ListarParcelasDeCarga = async () => {
@@ -1904,10 +1661,10 @@ export default function DataSyncView() {
       var parcelaCarga = responseData.data;
 
       if (parcelaCarga.length === undefined) {
-        mapResponseToPartialLoadData(key, parcelaCarga);
+        apiMappings.mapResponseToPartialLoadData(key, parcelaCarga);
       } else {
         Array.prototype.forEach.call(parcelaCarga, async (x) => {
-          mapResponseToPartialLoadData(key, x);
+          apiMappings.mapResponseToPartialLoadData(key, x);
         });
       }
 
@@ -1928,144 +1685,6 @@ export default function DataSyncView() {
           "listarParcelasDeCarga"
         );
       }
-    }
-  }
-
-  async function mapResponseToPartialLoadData(key, item) {
-    const codParcelaCarga =
-      item["bov2:numeroSequencial"] !== undefined
-        ? item["bov2:numeroSequencial"]._text.toString()
-        : "";
-    const codAtivoMedicao =
-      item["bov2:ativoMedicao"] !== undefined
-        ? item["bov2:ativoMedicao"]["bov2:numero"]._text.toString()
-        : "";
-    const nome =
-      item["bov2:nomeReduzido"] !== undefined
-        ? item["bov2:nomeReduzido"]._text.toString()
-        : "";
-    const submercado =
-      item["bov2:submercado"] !== undefined
-        ? item["bov2:submercado"]["bov2:nome"]._text.toString()
-        : "";
-    const cnpj =
-      item["bov2:identificacao"] !== undefined
-        ? item["bov2:identificacao"]["bov2:numero"]._text.toString()
-        : "";
-    const situacao =
-      item["bov2:situacao"] !== undefined
-        ? item["bov2:situacao"]._text.toString()
-        : "";
-    const vigencia =
-      item["bov2:vigencia"] !== undefined
-        ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
-        : "";
-    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
-    const undCapacidadeCarga =
-      item["bov2:capacidadeCarga"] !== undefined
-        ? item["bov2:capacidadeCarga"]["bov2:unidadeMedida"]._text.toString()
-        : "";
-    const valorCapacidadeCarga =
-      item["bov2:capacidadeCarga"] !== undefined
-        ? item["bov2:capacidadeCarga"]["bov2:valor"]._text.toString()
-        : "";
-
-    var bairro,
-      cidade,
-      estado,
-      logradouro,
-      numero = "";
-    var endereco = item["bov2:endereco"];
-    if (endereco !== undefined) {
-      bairro =
-        endereco["bov2:bairro"] !== undefined
-          ? endereco["bov2:bairro"]["bov2:descricao"]._text.toString()
-          : "";
-      cidade =
-        endereco["bov2:cidade"] !== undefined
-          ? endereco["bov2:cidade"]["bov2:descricao"]._text.toString()
-          : "";
-      estado =
-        endereco["bov2:estado"] !== undefined
-          ? endereco["bov2:estado"]["bov2:descricao"]._text.toString()
-          : "";
-      logradouro =
-        endereco["bov2:logradouro"] !== undefined
-          ? endereco["bov2:logradouro"]._text.toString()
-          : "";
-      numero =
-        endereco["bov2:numero"] !== undefined
-          ? endereco["bov2:numero"]._text.toString()
-          : "";
-    }
-    var codConcessionaria = "";
-    if (item["bov2:partes"] !== undefined) {
-      var partes = item["bov2:partes"]["bov2:parte"];
-
-      codConcessionaria = partes
-        .filter((x) => x["bov2:papel"]._text.toString() === "CONCESSIONARIO")[0]
-        ["bov2:agente"]["bov2:codigo"]._text.toString();
-    }
-
-    await addParcelaDeCarga(
-      key,
-      codParcelaCarga,
-      codAtivoMedicao,
-      nome,
-      submercado,
-      cnpj,
-      situacao,
-      periodoVigencia,
-      codConcessionaria,
-      undCapacidadeCarga,
-      valorCapacidadeCarga,
-      bairro,
-      cidade,
-      estado,
-      logradouro,
-      numero
-    );
-  }
-
-  async function addParcelaDeCarga(
-    key,
-    codParcelaCarga,
-    codAtivoMedicao,
-    nome,
-    submercado,
-    cnpj,
-    situacao,
-    periodoVigencia,
-    codConcessionaria,
-    undCapacidadeCarga,
-    valorCapacidadeCarga,
-    bairro,
-    cidade,
-    estado,
-    logradouro,
-    numero
-  ) {
-    try {
-      await db.parcelasDeCarga.add({
-        key,
-        codParcelaCarga,
-        codAtivoMedicao,
-        nome,
-        submercado,
-        cnpj,
-        situacao,
-        periodoVigencia,
-        codConcessionaria,
-        undCapacidadeCarga,
-        valorCapacidadeCarga,
-        bairro,
-        cidade,
-        estado,
-        logradouro,
-        numero,
-      });
-    } catch (error) {
-      console.log(`Failed to add Partial Load ${codParcelaCarga}: ${error}`);
     }
   }
 
@@ -2220,10 +1839,10 @@ export default function DataSyncView() {
       var parcelaCarga = responseData.data;
 
       if (parcelaCarga.length === undefined) {
-        mapResponseToTopologyData(key, parcelaCarga);
+        apiMappings.mapResponseToTopologyData(key, parcelaCarga);
       } else {
         Array.prototype.forEach.call(parcelaCarga, async (x) => {
-          mapResponseToTopologyData(key, x);
+          apiMappings.mapResponseToTopologyData(key, x);
         });
       }
 
@@ -2244,57 +1863,6 @@ export default function DataSyncView() {
           "listarTopologiasPorAtivo"
         );
       }
-    }
-  }
-
-  async function mapResponseToTopologyData(key, item) {
-    const codAtivoMedicao =
-      item["bov2:ativoMedicao"] !== undefined
-        ? item["bov2:ativoMedicao"]["bov2:numero"]._text.toString()
-        : "";
-    const codMedidor =
-      item["bov2:ativoMedicao"] !== undefined
-        ? item["bov2:ativoMedicao"]["bov2:pontos"]["bov2:pontoMedicao"][
-            "bov2:codigo"
-          ]._text.toString()
-        : "";
-    const nomeConcessionaria =
-      item["bov2:nome"] !== undefined ? item["bov2:nome"]._text.toString() : "";
-    const vigencia =
-      item["bov2:vigencia"] !== undefined
-        ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
-        : "";
-    var periodoVigencia =
-      vigencia !== "" ? dayjs(vigencia).format("DD/MM/YYYY") : "";
-
-    await addTopologia(
-      key,
-      codAtivoMedicao,
-      codMedidor,
-      nomeConcessionaria,
-      periodoVigencia
-    );
-  }
-
-  async function addTopologia(
-    key,
-    codAtivoMedicao,
-    codMedidor,
-    nomeConcessionaria,
-    periodoVigencia
-  ) {
-    try {
-      await db.topologia.add({
-        key,
-        codAtivoMedicao,
-        codMedidor,
-        nomeConcessionaria,
-        periodoVigencia,
-      });
-    } catch (error) {
-      console.log(
-        `Failed to add Topology for resource: ${codAtivoMedicao}: ${error}`
-      );
     }
   }
 
@@ -2372,7 +1940,7 @@ export default function DataSyncView() {
         if (responseDataPaginated.code === 200) {
           const results = responseDataPaginated.data;
           results.forEach((r) => {
-            var measurements = mapResponseToMeasurementData(r);
+            var measurements = apiMappings.mapResponseToMeasurementData(r);
             measurementsArr.push(measurements);
           });
         }
@@ -2381,98 +1949,13 @@ export default function DataSyncView() {
       if (responseData.code === 200) {
         const results = responseData.data;
         results.forEach((r) => {
-          var measurements = mapResponseToMeasurementData(r);
+          var measurements = apiMappings.mapResponseToMeasurementData(r);
           measurementsArr.push(measurements);
         });
       }
     }
 
     return measurementsArr;
-  }
-
-  function mapResponseToMeasurementData(item) {
-    const coletaMedicao =
-      item["bov2:coletaMedicao"] !== undefined
-        ? item["bov2:coletaMedicao"]["bov2:tipo"]["bov2:nome"]._text.toString()
-        : "";
-    const dataPesquisada =
-      item["bov2:data"] !== undefined ? item["bov2:data"]._text.toString() : "";
-    const energiaAtiva_ConsumoUnd =
-      item["bov2:energiaAtiva"] !== undefined
-        ? item["bov2:energiaAtiva"]["bov2:consumo"][
-            "bov2:unidadeMedida"
-          ]._text.toString()
-        : "";
-    var energiaAtiva_ConsumoValor =
-      item["bov2:energiaAtiva"] !== undefined
-        ? item["bov2:energiaAtiva"]["bov2:consumo"][
-            "bov2:valor"
-          ]._text.toString()
-        : "";
-
-    energiaAtiva_ConsumoValor = energiaAtiva_ConsumoValor.replace(".", ",");
-    const energiaAtiva_GeracaoUnd =
-      item["bov2:energiaAtiva"] !== undefined
-        ? item["bov2:energiaAtiva"]["bov2:geracao"][
-            "bov2:unidadeMedida"
-          ]._text.toString()
-        : "";
-    var energiaAtiva_GeracaoValor =
-      item["bov2:energiaAtiva"] !== undefined
-        ? item["bov2:energiaAtiva"]["bov2:geracao"][
-            "bov2:valor"
-          ]._text.toString()
-        : "";
-    energiaAtiva_GeracaoValor = energiaAtiva_GeracaoValor.replace(".", ",");
-    const energiaReativa_ConsumoUnd =
-      item["bov2:energiaReativa"] !== undefined
-        ? item["bov2:energiaReativa"]["bov2:consumo"][
-            "bov2:unidadeMedida"
-          ]._text.toString()
-        : "";
-    var energiaReativa_ConsumoValor =
-      item["bov2:energiaReativa"] !== undefined
-        ? item["bov2:energiaReativa"]["bov2:consumo"][
-            "bov2:valor"
-          ]._text.toString()
-        : "";
-    energiaReativa_ConsumoValor = energiaReativa_ConsumoValor.replace(".", ",");
-    const energiaReativa_GeracaoUnd =
-      item["bov2:energiaReativa"] !== undefined
-        ? item["bov2:energiaReativa"]["bov2:geracao"][
-            "bov2:unidadeMedida"
-          ]._text.toString()
-        : "";
-    var energiaReativa_GeracaoValor =
-      item["bov2:energiaReativa"] !== undefined
-        ? item["bov2:energiaReativa"]["bov2:geracao"][
-            "bov2:valor"
-          ]._text.toString()
-        : "";
-    energiaReativa_GeracaoValor = energiaReativa_GeracaoValor.replace(".", ",");
-    const medidor =
-      item["bov2:medidor"] !== undefined
-        ? item["bov2:medidor"]["bov2:codigo"]._text.toString()
-        : "";
-    const tipoEnergia =
-      item["bov2:tipoEnergia"] !== undefined
-        ? item["bov2:tipoEnergia"]["bov2:codigo"]._text.toString()
-        : "";
-
-    return {
-      coletaMedicao,
-      dataPesquisada,
-      energiaAtiva_ConsumoUnd,
-      energiaAtiva_ConsumoValor,
-      energiaAtiva_GeracaoUnd,
-      energiaAtiva_GeracaoValor,
-      energiaReativa_ConsumoUnd,
-      energiaReativa_ConsumoValor,
-      energiaReativa_GeracaoUnd,
-      energiaReativa_GeracaoValor,
-      medidor,
-      tipoEnergia,
-    };
   }
 
   // Listar Medidas Finais
@@ -2504,58 +1987,12 @@ export default function DataSyncView() {
     if (response.code === 200) {
       const results = response.data;
       results.forEach((r) => {
-        var measurements = mapResponseToFinalMeasurementData(r);
+        var measurements = apiMappings.mapResponseToFinalMeasurementData(r);
         measurementsArr.push(measurements);
       });
     }
 
     return measurementsArr;
-  }
-
-  function mapResponseToFinalMeasurementData(item) {
-    var consumoAtivo =
-      item["out2:consumoAtivo"] !== undefined
-        ? item["out2:consumoAtivo"]._text.toString()
-        : "";
-    consumoAtivo = consumoAtivo.replace(".", ",");
-    var consumoReativo =
-      item["out2:consumoReativo"] !== undefined
-        ? item["out2:consumoReativo"]._text.toString()
-        : "";
-    consumoReativo = consumoReativo.replace(".", ",");
-    var geracaoAtiva =
-      item["out2:geracaoAtiva"] !== undefined
-        ? item["out2:geracaoAtiva"]._text.toString()
-        : "";
-    geracaoAtiva = geracaoAtiva.replace(".", ",");
-    var geracaoReativo =
-      item["out2:geracaoReativo"] !== undefined
-        ? item["out2:geracaoReativo"]._text.toString()
-        : "";
-    geracaoReativo = geracaoReativo.replace(".", ",");
-
-    const periodo =
-      item["out2:periodo"] !== undefined
-        ? item["out2:periodo"]["out2:fim"]._text.toString()
-        : "";
-    const status =
-      item["out2:status"] !== undefined
-        ? item["out2:status"]._text.toString()
-        : "";
-    const subTipo =
-      item["out2:subTipo"] !== undefined
-        ? item["out2:subTipo"]._text.toString()
-        : "";
-
-    return {
-      consumoAtivo,
-      consumoReativo,
-      geracaoAtiva,
-      geracaoReativo,
-      periodo,
-      status,
-      subTipo,
-    };
   }
 
   /**
@@ -2609,46 +2046,12 @@ export default function DataSyncView() {
     if (response.code === 200) {
       const results = response.data;
       results.forEach((r) => {
-        var resourcesModelling = mapResponseToModellingData(r);
+        var resourcesModelling = apiMappings.mapResponseToModellingData(r);
         modellingArr.push(resourcesModelling);
       });
     }
 
     return modellingArr;
-  }
-
-  function mapResponseToModellingData(item) {
-    const codAtivoMedicao =
-      item["bov2:ativoMedicao"] !== undefined
-        ? item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString()
-        : "";
-    let dataApta =
-      item["bov2:dataApta"] !== undefined
-        ? item["bov2:dataApta"]._text.toString()
-        : "";
-    dataApta = dataApta !== "" ? dayjs(dataApta).format("DD/MM/YYYY") : "";
-    let dataAutorizada =
-      item["bov2:dataAutorizada"] !== undefined
-        ? item["bov2:dataAutorizada"]._text.toString()
-        : "";
-    dataAutorizada =
-      dataAutorizada !== "" ? dayjs(dataAutorizada).format("DD/MM/YYYY") : "";
-    const situacao =
-      item["bov2:situacao"] !== undefined
-        ? item["bov2:situacao"]["bov2:nome"]._text.toString()
-        : "";
-    const tipo =
-      item["bov2:tipo"] !== undefined
-        ? item["bov2:tipo"]["bov2:descricao"]._text.toString()
-        : "";
-
-    return {
-      codAtivoMedicao,
-      dataApta,
-      dataAutorizada,
-      situacao,
-      tipo,
-    };
   }
 
   /**
@@ -2673,14 +2076,14 @@ export default function DataSyncView() {
         );
         if (responseDataPaginated.code === 200) {
           const results = responseDataPaginated.data;
-          var codes = await mapResponseToRepresentation(results);
+          var codes = await apiMappings.mapResponseToRepresentation(results);
           codes.forEach((x) => agentCodes.push(x));
         }
       }
     } else {
       if (responseData.code === 200) {
         const results = responseData.data;
-        var codes = await mapResponseToRepresentation(results);
+        var codes = await apiMappings.mapResponseToRepresentation(results);
         codes.forEach((x) => agentCodes.push(x));
       }
     }
@@ -2690,25 +2093,6 @@ export default function DataSyncView() {
     return agentCodes;
   };
 
-  async function mapResponseToRepresentation(representados) {
-    var codes = [];
-    var representado = "";
-    var codigo = "";
-
-    if (representados.length === undefined) {
-      representado = representados["bov2:representado"];
-      codigo = representado["bov2:id"]._text.toString();
-      codes.push(codigo);
-    } else {
-      for (var rep of representados) {
-        representado = rep["bov2:representado"];
-        codigo = representado["bov2:id"]._text.toString();
-        codes.push(codigo);
-      }
-    }
-
-    return codes;
-  }
 
   async function listarParticipantePorCodigo(agentCode, dataKey = "") {
     try {
@@ -2735,7 +2119,7 @@ export default function DataSyncView() {
         }
 
         Array.prototype.forEach.call(participantesData, async (item) => {
-          mapResponseToParticipantsData(key, item);
+          apiMappings.mapResponseToParticipantsData(key, item);
         });
       }
 
