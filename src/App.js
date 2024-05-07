@@ -17,6 +17,7 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import FileDownload from "@mui/icons-material/FileDownload";
 import FileUpload from "@mui/icons-material/FileUpload";
 import AccountTreeIcon from "@mui/icons-material/AccountTree";
+import WalletIcon from '@mui/icons-material/Wallet';
 import MenuIcon from "@mui/icons-material/Menu";
 import DescriptionIcon from "@mui/icons-material/Description";
 import Toolbar from "@mui/material/Toolbar";
@@ -91,6 +92,18 @@ function App(props: Props) {
               <DescriptionIcon />
             </ListItemIcon>
             <ListItemText primary={"Relatórios DRI"} />
+          </ListItem>
+        </NavLink>
+        <Divider />
+        <NavLink
+          to="/relatoriosDRI"
+          style={{ textDecoration: "none", color: "black" }}
+        >
+          <ListItem button>
+            <ListItemIcon>
+              <WalletIcon />
+            </ListItemIcon>
+            <ListItemText primary={"Gestão de Clientes"} />
           </ListItem>
         </NavLink>
         <Divider />

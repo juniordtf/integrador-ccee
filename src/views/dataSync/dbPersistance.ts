@@ -12,6 +12,7 @@ async function addParticipante(
   nomeClasse
 ) {
   try {
+    console.log(key);
     await db.participantes.add({
       key,
       cnpj,

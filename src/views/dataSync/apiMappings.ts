@@ -28,9 +28,9 @@ async function mapResponseToParticipantsData(key, item) {
       nomeEmpresarial,
       situacao,
       sigla,
-      codigo,
+      parseInt(codigo),
       periodoVigencia,
-      codClasse,
+      parseInt(codClasse),
       nomeClasse
     );
   }
@@ -38,7 +38,7 @@ async function mapResponseToParticipantsData(key, item) {
   async function mapResponseToProfileData(key, codAgente, item) {
     const classe = item["bov2:classe"]["bov2:descricao"]._text.toString();
     const codPerfil = item["bov2:codigo"]._text.toString();
-    var comercializadorVarejista =
+    let comercializadorVarejista =
       item["bov2:comercializadorVarejista"]._text.toString();
     const sigla = item["bov2:sigla"]._text.toString();
     const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
@@ -46,8 +46,8 @@ async function mapResponseToParticipantsData(key, item) {
       item["bov2:submercado"] === undefined
         ? "Sem informação"
         : item["bov2:submercado"]["bov2:nome"]._text.toString();
-    var perfilPrincipal = item["bov2:perfilPrincipal"]._text.toString();
-    var regimeCotas = item["bov2:regimeCotas"]._text.toString();
+    let perfilPrincipal = item["bov2:perfilPrincipal"]._text.toString();
+    let regimeCotas = item["bov2:regimeCotas"]._text.toString();
     comercializadorVarejista =
       comercializadorVarejista === "true" ? "Sim" : "Não";
     perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
@@ -55,9 +55,9 @@ async function mapResponseToParticipantsData(key, item) {
 
     await dbPersistance.addPerfil(
       key,
-      codAgente,
+      parseInt(codAgente),
       classe,
-      codPerfil,
+      parseInt(codPerfil),
       comercializadorVarejista,
       sigla,
       situacao,
@@ -73,12 +73,12 @@ async function mapResponseToParticipantsData(key, item) {
     const tipo = item["bov2:tipo"]["bov2:descricao"]._text.toString();
     const situacao = item["bov2:situacao"]["bov2:descricao"]._text.toString();
     const vigencia = item["bov2:vigencia"]["bov2:inicio"]._text.toString();
-    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
+    let periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
 
     await dbPersistance.addAtivo(
       key,
-      codPerfil,
-      codAtivo,
+      parseInt(codPerfil),
+      parseInt(codAtivo),
       nome,
       tipo,
       situacao,
@@ -119,16 +119,16 @@ async function mapResponseToParticipantsData(key, item) {
       item["bov2:vigencia"] !== undefined
         ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
         : "";
-    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
+    let periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
 
     await dbPersistance.addParcelaDeAtivo(
       key,
-      codParcelaAtivo,
-      codAtivoMedicao,
+      parseInt(codParcelaAtivo),
+      parseInt(codAtivoMedicao),
       nome,
       codMedidor,
-      codPerfil,
-      idSubmercado,
+      parseInt(codPerfil),
+      parseInt(idSubmercado),
       cnpj,
       situacao,
       periodoVigencia
@@ -164,7 +164,7 @@ async function mapResponseToParticipantsData(key, item) {
       item["bov2:vigencia"] !== undefined
         ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
         : "";
-    var periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
+    let periodoVigencia = dayjs(vigencia).format("DD/MM/YYYY");
     const undCapacidadeCarga =
       item["bov2:capacidadeCarga"] !== undefined
         ? item["bov2:capacidadeCarga"]["bov2:unidadeMedida"]._text.toString()
@@ -174,12 +174,12 @@ async function mapResponseToParticipantsData(key, item) {
         ? item["bov2:capacidadeCarga"]["bov2:valor"]._text.toString()
         : "";
 
-    var bairro,
+    let bairro,
       cidade,
       estado,
       logradouro,
       numero = "";
-    var endereco = item["bov2:endereco"];
+    let endereco = item["bov2:endereco"];
     if (endereco !== undefined) {
       bairro =
         endereco["bov2:bairro"] !== undefined
@@ -202,9 +202,9 @@ async function mapResponseToParticipantsData(key, item) {
           ? endereco["bov2:numero"]._text.toString()
           : "";
     }
-    var codConcessionaria = "";
+    let codConcessionaria = "";
     if (item["bov2:partes"] !== undefined) {
-      var partes = item["bov2:partes"]["bov2:parte"];
+      let partes = item["bov2:partes"]["bov2:parte"];
 
       codConcessionaria = partes
         .filter((x) => x["bov2:papel"]._text.toString() === "CONCESSIONARIO")[0]
@@ -213,8 +213,8 @@ async function mapResponseToParticipantsData(key, item) {
 
     await dbPersistance.addParcelaDeCarga(
       key,
-      codParcelaCarga,
-      codAtivoMedicao,
+      parseInt(codParcelaCarga),
+      parseInt(codAtivoMedicao),
       nome,
       submercado,
       cnpj,
@@ -222,7 +222,7 @@ async function mapResponseToParticipantsData(key, item) {
       periodoVigencia,
       codConcessionaria,
       undCapacidadeCarga,
-      valorCapacidadeCarga,
+      parseFloat(valorCapacidadeCarga),
       bairro,
       cidade,
       estado,
@@ -248,12 +248,12 @@ async function mapResponseToParticipantsData(key, item) {
       item["bov2:vigencia"] !== undefined
         ? item["bov2:vigencia"]["bov2:inicio"]._text.toString()
         : "";
-    var periodoVigencia =
+    let periodoVigencia =
       vigencia !== "" ? dayjs(vigencia).format("DD/MM/YYYY") : "";
 
     await dbPersistance.addTopologia(
       key,
-      codAtivoMedicao,
+      parseInt(codAtivoMedicao),
       codMedidor,
       nomeConcessionaria,
       periodoVigencia
@@ -273,7 +273,7 @@ async function mapResponseToParticipantsData(key, item) {
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    var energiaAtiva_ConsumoValor =
+    let energiaAtiva_ConsumoValor =
       item["bov2:energiaAtiva"] !== undefined
         ? item["bov2:energiaAtiva"]["bov2:consumo"][
             "bov2:valor"
@@ -287,7 +287,7 @@ async function mapResponseToParticipantsData(key, item) {
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    var energiaAtiva_GeracaoValor =
+    let energiaAtiva_GeracaoValor =
       item["bov2:energiaAtiva"] !== undefined
         ? item["bov2:energiaAtiva"]["bov2:geracao"][
             "bov2:valor"
@@ -300,7 +300,7 @@ async function mapResponseToParticipantsData(key, item) {
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    var energiaReativa_ConsumoValor =
+    let energiaReativa_ConsumoValor =
       item["bov2:energiaReativa"] !== undefined
         ? item["bov2:energiaReativa"]["bov2:consumo"][
             "bov2:valor"
@@ -313,7 +313,7 @@ async function mapResponseToParticipantsData(key, item) {
             "bov2:unidadeMedida"
           ]._text.toString()
         : "";
-    var energiaReativa_GeracaoValor =
+    let energiaReativa_GeracaoValor =
       item["bov2:energiaReativa"] !== undefined
         ? item["bov2:energiaReativa"]["bov2:geracao"][
             "bov2:valor"
@@ -346,22 +346,22 @@ async function mapResponseToParticipantsData(key, item) {
   }
 
   function mapResponseToFinalMeasurementData(item) {
-    var consumoAtivo =
+    let consumoAtivo =
       item["out2:consumoAtivo"] !== undefined
         ? item["out2:consumoAtivo"]._text.toString()
         : "";
     consumoAtivo = consumoAtivo.replace(".", ",");
-    var consumoReativo =
+    let consumoReativo =
       item["out2:consumoReativo"] !== undefined
         ? item["out2:consumoReativo"]._text.toString()
         : "";
     consumoReativo = consumoReativo.replace(".", ",");
-    var geracaoAtiva =
+    let geracaoAtiva =
       item["out2:geracaoAtiva"] !== undefined
         ? item["out2:geracaoAtiva"]._text.toString()
         : "";
     geracaoAtiva = geracaoAtiva.replace(".", ",");
-    var geracaoReativo =
+    let geracaoReativo =
       item["out2:geracaoReativo"] !== undefined
         ? item["out2:geracaoReativo"]._text.toString()
         : "";
@@ -426,16 +426,16 @@ async function mapResponseToParticipantsData(key, item) {
   }
 
   async function mapResponseToRepresentation(representados) {
-    var codes = [];
-    var representado = "";
-    var codigo = "";
+    let codes = [];
+    let representado = "";
+    let codigo = "";
 
     if (representados.length === undefined) {
       representado = representados["bov2:representado"];
       codigo = representado["bov2:id"]._text.toString();
       codes.push(codigo);
     } else {
-      for (var rep of representados) {
+      for (let rep of representados) {
         representado = rep["bov2:representado"];
         codigo = representado["bov2:id"]._text.toString();
         codes.push(codigo);

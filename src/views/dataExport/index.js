@@ -1091,7 +1091,7 @@ export default function DataExportView() {
     if (rowKey === "codigo") {
       filteredData = initialRows.filter(
         (x) =>
-          x.codigo.includes(searchText) ||
+          x.codigo.toString().includes(searchText) ||
           x.sigla.toUpperCase().includes(searchText) ||
           x.situacao.toUpperCase().includes(searchText) ||
           x.nomeEmpresarial.toUpperCase().includes(searchText) ||
@@ -1100,7 +1100,7 @@ export default function DataExportView() {
     } else if (rowKey === "codPerfil") {
       filteredData = initialRows.filter(
         (x) =>
-          x.codPerfil.includes(searchText) ||
+          x.codPerfil.toString().includes(searchText) ||
           x.classe.toUpperCase().includes(searchText) ||
           x.codAgente.includes(searchText) ||
           x.sigla.toUpperCase().includes(searchText) ||
@@ -1110,28 +1110,28 @@ export default function DataExportView() {
     } else if (rowKey === "codAtivo") {
       filteredData = initialRows.filter(
         (x) =>
-          x.codAtivo.includes(searchText) ||
-          x.codPerfil.includes(searchText) ||
+          x.codAtivo.toString().includes(searchText) ||
+          x.codPerfil.toString().includes(searchText) ||
           x.nome.toUpperCase().includes(searchText) ||
           x.situacao.toUpperCase().includes(searchText)
       );
     } else if (rowKey === "codParcelaAtivo") {
       filteredData = initialRows.filter(
         (x) =>
-          x.codParcelaAtivo.includes(searchText) ||
+          x.codParcelaAtivo.toString().includes(searchText) ||
           x.nome.toUpperCase().includes(searchText) ||
-          x.codPerfil.includes(searchText)
+          x.codPerfil.toString().includes(searchText)
       );
     } else if (rowKey === "codParcelaCarga") {
       filteredData = initialRows.filter(
         (x) =>
-          x.codParcelaCarga.includes(searchText) ||
+          x.codParcelaCarga.toString().includes(searchText) ||
           x.nome.toUpperCase().includes(searchText)
       );
     } else if (rowKey === "codAtivoMedicao") {
       filteredData = initialRows.filter(
         (x) =>
-          x.codAtivoMedicao.includes(searchText) ||
+          x.codAtivoMedicao.toString().includes(searchText) ||
           (x.nomeConcessionaria !== undefined &&
             x.nomeConcessionaria.toUpperCase().includes(searchText)) ||
           (x.nomeAtivo !== undefined &&

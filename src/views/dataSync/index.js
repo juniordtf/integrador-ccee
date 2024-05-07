@@ -62,6 +62,7 @@ export default function DataSyncView() {
   const [measurementsValues, setMeasurementsValues] = useState([]);
   const [modellingValues, setModellingValues] = useState([]);
   const [onlyRepresentedAgents, setOnlyRepresentedAgents] = useState(false);
+  const [webWorker, setWebWorker] = useState(null);
 
   const timerRef = useRef(null);
 
@@ -136,13 +137,27 @@ export default function DataSyncView() {
       date,
       category,
     };
-    workers.bla.postMessage(test);
+    webWorker.postMessage(test);
+  };
+
+  const fetchWebWorker_ListarPerfis = (key, codAgentes) => {
+    const msPayload = {
+      authData,
+      key,
+      codAgentes,
+    };
+
+    webWorker.postMessage(msPayload);
   };
 
   useEffect(() => {
     //localStorage.clear();
 
-    //workers.bla = new WebWorker(workers.bla);
+    const worker = new WebWorker(workers.perfis);
+
+    if (webWorker === null) {
+      setWebWorker(worker);
+    }
 
     async function fetchData() {
       var participantes = await db.participantes;
@@ -227,9 +242,9 @@ export default function DataSyncView() {
       handleClose();
     }
 
-    // workers.bla.addEventListener("message", (event) => {
-    //   console.log(event.data.length);
-    // });
+    worker.addEventListener("message", (event) => {
+      setSuccessDialogOpen(true);
+    });
   }, [pendingRequests]);
 
   const handleOpen = () => setOpen(true);
@@ -505,7 +520,7 @@ export default function DataSyncView() {
     key,
     category,
     page,
-    errorCode,
+    apiCode,
     attempts,
     serviceFailed
   ) {
@@ -514,7 +529,7 @@ export default function DataSyncView() {
       const retryParticipant = {
         page,
         category,
-        errorCode,
+        apiCode,
         date,
         attempts,
         serviceFailed,
@@ -545,7 +560,7 @@ export default function DataSyncView() {
   async function addParticipantCodeToRetryList(
     key,
     codAgente,
-    errorCode,
+    apiCode,
     attempts,
     serviceFailed,
     done = false
@@ -554,7 +569,7 @@ export default function DataSyncView() {
       const retryKey = "retry_" + key;
       const retryParticipant = {
         codAgente,
-        errorCode,
+        apiCode,
         attempts,
         serviceFailed,
         done,
@@ -613,6 +628,8 @@ export default function DataSyncView() {
           codAgentes.forEach((code) => {
             addParticipantCodeToRetryList(key, code, 0, 0, "listarPerfis");
           });
+
+          // fetchWebWorker_ListarPerfis(key, codAgentes);
 
           await listarPerfis(key, codAgentes);
           setPendingRequests(pendingRequests - 1);
@@ -684,7 +701,7 @@ export default function DataSyncView() {
       codAgente,
       key,
       "listarPerfis",
-      responseData.code
+      parseInt(responseData.code)
     );
   }
 
@@ -692,7 +709,7 @@ export default function DataSyncView() {
     codAgente,
     key,
     serviceFailed,
-    errorCode
+    apiCode
   ) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
@@ -705,7 +722,7 @@ export default function DataSyncView() {
     itemToBeUpdatedClone.done = true;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
     itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.errorCode = errorCode;
+    itemToBeUpdatedClone.apiCode = apiCode;
     const index = retryData.indexOf(itemToBeUpdated);
 
     if (index !== -1) {
@@ -736,11 +753,11 @@ export default function DataSyncView() {
     parameterCode,
     key,
     serviceFailed,
-    errorCode
+    apiCode
   ) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("updateParticipantInRetryList");
+    console.log("updatePartialResourceInRetryList");
 
     if (!retryData) return;
 
@@ -751,7 +768,7 @@ export default function DataSyncView() {
     itemToBeUpdatedClone.done = true;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
     itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.errorCode = errorCode;
+    itemToBeUpdatedClone.apiCode = apiCode;
     const index = retryData.indexOf(itemToBeUpdated);
 
     if (index !== -1) {
@@ -869,7 +886,7 @@ export default function DataSyncView() {
           codPerfil,
           key,
           "listarPerfil",
-          responseData.code
+          parseInt(responseData.code)
         );
 
         console.log(itemsProcessed);
@@ -886,7 +903,7 @@ export default function DataSyncView() {
     profileCode,
     key,
     serviceFailed,
-    errorCode
+    apiCode
   ) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
@@ -901,7 +918,7 @@ export default function DataSyncView() {
     itemToBeUpdatedClone.done = true;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
     itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.errorCode = errorCode;
+    itemToBeUpdatedClone.apiCode = apiCode;
     const index = retryData.indexOf(itemToBeUpdated);
 
     if (index !== -1) {
@@ -913,7 +930,7 @@ export default function DataSyncView() {
   async function addProfileToRetryList(
     key,
     codPerfil,
-    errorCode,
+    apiCode,
     attempts,
     serviceFailed,
     done = false
@@ -922,7 +939,7 @@ export default function DataSyncView() {
       const retryKey = "retry_" + key;
       const retryProfile = {
         codPerfil,
-        errorCode,
+        apiCode,
         attempts,
         serviceFailed,
         done,
@@ -955,7 +972,7 @@ export default function DataSyncView() {
     parameterCode,
     searchDate,
     parameter,
-    errorCode,
+    apiCode,
     attempts,
     serviceFailed,
     done = false
@@ -966,7 +983,7 @@ export default function DataSyncView() {
         parameterCode,
         searchDate,
         parameter,
-        errorCode,
+        apiCode,
         attempts,
         serviceFailed,
         done,
@@ -999,9 +1016,10 @@ export default function DataSyncView() {
     codAtivoMedicao,
     codPerfil,
     searchDate,
-    errorCode,
+    apiCode,
     attempts,
-    serviceFailed
+    serviceFailed,
+    done = false
   ) {
     try {
       const retryKey = "retry_" + key;
@@ -1009,9 +1027,10 @@ export default function DataSyncView() {
         codAtivoMedicao,
         codPerfil,
         searchDate,
-        errorCode,
+        apiCode,
         attempts,
         serviceFailed,
+        done,
       };
 
       let keys = [];
@@ -1051,13 +1070,13 @@ export default function DataSyncView() {
 
       if (key.includes("participantes_representados")) {
         for (const rd of retryData) {
-          if (rd.done === true && rd.errorCode !== 200) {
+          if (rd.apiCode !== 200) {
             await listarParticipantePorCodigo(rd.codAgente, key.substring(6));
           }
         }
       } else if (key.includes("participantes")) {
         for (const rd of retryData) {
-          if (rd.errorCode !== 200) {
+          if (rd.apiCode !== 200) {
             await listarParticipantes(
               key.substring(6),
               rd.page,
@@ -1069,15 +1088,11 @@ export default function DataSyncView() {
           }
         }
       } else if (key.includes("perfis")) {
-        const filteredSource = retryData.filter(
-          (x) => x.done === true && x.errorCode !== 200
-        );
+        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
         const codAgentes = filteredSource.map((x) => x.codAgente);
         await listarPerfis(key.substring(6), codAgentes);
       } else if (key.includes("parcelasDeAtivos")) {
-        const filteredSource = retryData.filter(
-          (x) => x.done === true && x.errorCode !== 200
-        );
+        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
 
         const parametersCodes = filteredSource.map((x) => x.parameterCode);
         const searchDate = filteredSource.map((x) => x.searchDate)[0];
@@ -1090,10 +1105,7 @@ export default function DataSyncView() {
           parameter
         );
       } else if (key.includes("parcelasDeCarga")) {
-        const filteredSource = retryData.filter(
-          (x) => x.done === true && x.errorCode !== 200
-        );
-
+        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
         const searchDate = filteredSource.map((x) => x.searchDate)[0];
         await listarParcelasDeCarga(
           key.substring(6),
@@ -1101,16 +1113,12 @@ export default function DataSyncView() {
           searchDate
         );
       } else if (key.includes("topologias")) {
-        const filteredSource = retryData.filter(
-          (x) => x.done === true && x.errorCode !== 200
-        );
+        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
 
         const searchDate = filteredSource.map((x) => x.searchDate)[0];
         await listarTopologias(key.substring(6), filteredSource, searchDate);
       } else if (key.includes("ativos")) {
-        const filteredSource = retryData.filter(
-          (x) => x.done === true && x.errorCode !== 200
-        );
+        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
         const codPerfis = filteredSource.map((x) => x.codPerfil);
         await listarAtivos(key.substring(6), codPerfis);
       } else {
@@ -1271,6 +1279,7 @@ export default function DataSyncView() {
   };
 
   const removeExpiredData = async () => {
+    // fetchWebWorker();
     if (retryKeys.length === 0) {
       setPendingRequests(0);
       return;
@@ -1282,15 +1291,14 @@ export default function DataSyncView() {
 
   async function removeExpiredDataFromList() {
     setPendingRequests(pendingRequests + 1);
-
     for (const key of retryKeys) {
       let retryData = JSON.parse(localStorage.getItem(key));
       let itemsToRemove = retryData.filter((z) => z.attempts > 1);
 
-      if (itemsToRemove.length === 0) {
-        setPendingRequests(0);
-        return;
-      }
+      // if (itemsToRemove.length === 0) {
+      //   setPendingRequests(0);
+      //   return;
+      // }
 
       if (key.includes("participantes")) {
         for (const x of itemsToRemove) {
@@ -1298,14 +1306,14 @@ export default function DataSyncView() {
         }
       } else if (key.includes("perfis")) {
         let removes = retryData.filter(
-          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
         );
         for (const x of removes) {
           await removeAgentFromRetryList(key.substring(6), x.codAgente);
         }
       } else if (key.includes("parcelasDeAtivos")) {
         let removes = retryData.filter(
-          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
         );
         for (const x of removes) {
           await removeParameterFromRetryList(key.substring(6), x.parameterCode);
@@ -1315,7 +1323,7 @@ export default function DataSyncView() {
         key.includes("topologias")
       ) {
         let removes = retryData.filter(
-          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
         );
 
         for (const x of removes) {
@@ -1326,7 +1334,7 @@ export default function DataSyncView() {
         }
       } else if (key.includes("ativos")) {
         let removes = retryData.filter(
-          (z) => z.done === true && (z.errorCode === 200 || z.attempts > 1)
+          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
         );
         for (const x of removes) {
           await removeProfileFromRetryList(key.substring(6), x.codPerfil);
@@ -1548,7 +1556,7 @@ export default function DataSyncView() {
       item,
       key,
       "listarParcelasDeAtivos",
-      responseData.code
+      parseInt(responseData.code)
     );
   }
 
@@ -1597,7 +1605,7 @@ export default function DataSyncView() {
               formDate,
               0,
               0,
-              "listarTopologiasPorAtivo"
+              "listarParcelasDeCarga"
             );
           });
 
@@ -1609,15 +1617,11 @@ export default function DataSyncView() {
       });
   };
 
-  async function listarParcelasDeCarga(
-    key,
-    dataSourceItems,
-    searchDate,
-    fromRetryList = false
-  ) {
+  async function listarParcelasDeCarga(key, dataSourceItems, searchDate) {
     try {
       var itemsProcessed = 0;
       const requestsQuantity = dataSourceItems.length;
+      console.log(requestsQuantity);
 
       for (const item of dataSourceItems) {
         var responseData = await ativosService.listarParcelaDeCarga(
@@ -1650,22 +1654,10 @@ export default function DataSyncView() {
                 paginaCorrente
               );
 
-            handlePartialLoadResponseData(
-              responseDataPaginated,
-              key,
-              searchDate,
-              item,
-              fromRetryList
-            );
+            handlePartialLoadResponseData(responseDataPaginated, key, item);
           }
         } else {
-          handlePartialLoadResponseData(
-            responseData,
-            key,
-            searchDate,
-            item,
-            fromRetryList
-          );
+          handlePartialLoadResponseData(responseData, key, item);
         }
 
         console.log(itemsProcessed);
@@ -1680,13 +1672,7 @@ export default function DataSyncView() {
     }
   }
 
-  function handlePartialLoadResponseData(
-    responseData,
-    key,
-    searchDate,
-    item,
-    fromRetryList
-  ) {
+  function handlePartialLoadResponseData(responseData, key, item) {
     if (responseData.code === 200) {
       var parcelaCarga = responseData.data;
 
@@ -1702,7 +1688,7 @@ export default function DataSyncView() {
       item.codAtivoMedicao,
       key,
       "listarParcelasDeCarga",
-      0
+      parseInt(responseData.code)
     );
   }
 
@@ -1710,7 +1696,7 @@ export default function DataSyncView() {
     codAtivoMedicao,
     key,
     serviceFailed,
-    errorCode
+    apiCode
   ) {
     const retryKey = "retry_" + key;
     let retryData = JSON.parse(localStorage.getItem(retryKey));
@@ -1726,7 +1712,7 @@ export default function DataSyncView() {
     itemToBeUpdatedClone.done = true;
     itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
     itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.errorCode = errorCode;
+    itemToBeUpdatedClone.apiCode = apiCode;
     const index = retryData.indexOf(itemToBeUpdated);
 
     if (index !== -1) {
@@ -1796,11 +1782,7 @@ export default function DataSyncView() {
       });
   };
 
-  async function listarTopologias(
-    key,
-    dataSourceItems,
-    searchDate
-  ) {
+  async function listarTopologias(key, dataSourceItems, searchDate) {
     try {
       var itemsProcessed = 0;
       const requestsQuantity = dataSourceItems.length;
@@ -1836,18 +1818,10 @@ export default function DataSyncView() {
                 paginaCorrente
               );
 
-            handleTopologyResponseData(
-              responseDataPaginated,
-              key,
-              item,
-            );
+            handleTopologyResponseData(responseDataPaginated, key, item);
           }
         } else {
-          handleTopologyResponseData(
-            responseData,
-            key,
-            item,
-          );
+          handleTopologyResponseData(responseData, key, item);
         }
 
         console.log(itemsProcessed);
@@ -1862,11 +1836,7 @@ export default function DataSyncView() {
     }
   }
 
-  function handleTopologyResponseData(
-    responseData,
-    key,
-    item,
-  ) {
+  function handleTopologyResponseData(responseData, key, item) {
     if (responseData.code === 200) {
       var parcelaCarga = responseData.data;
 
@@ -1883,7 +1853,7 @@ export default function DataSyncView() {
       item.codAtivoMedicao,
       key,
       "listarTopologiasPorAtivo",
-      0
+      parseInt(responseData.code)
     );
   }
 
@@ -2081,8 +2051,10 @@ export default function DataSyncView() {
    */
   const listarRepresentados = async () => {
     var responseData = await cadastrosService.listarRepresentacao(authData, 1);
-    var totalPaginas = responseData.totalPaginas;
-    var totalPaginasNumber = parseInt(totalPaginas._text.toString());
+    var totalPaginas = responseData.totalPaginas
+      ? responseData.totalPaginas
+      : 0;
+    var totalPaginasNumber = parseInt(totalPaginas?._text.toString());
 
     var agentCodes = [];
     if (totalPaginasNumber > 1) {
@@ -2165,6 +2137,12 @@ export default function DataSyncView() {
         authData,
         1
       );
+
+      if (parseInt(responseData.code) !== 200) {
+        console.log("Error ao listar representados");
+        return;
+      }
+
       var totalItens = responseData.totalItens;
       var totalItensNumber = parseInt(totalItens._text.toString());
 
@@ -2180,8 +2158,21 @@ export default function DataSyncView() {
         representedAgentCodes.push(agentCode);
       }
 
+      const key =
+        "participantes_representados_" + dayjs(date).format("DD/MM/YY");
+
+      representedAgentCodes.forEach(async (code) => {
+        await addParticipantCodeToRetryList(
+          key,
+          code,
+          0,
+          0,
+          "listarParticipantes"
+        );
+      });
+
       for (const code of representedAgentCodes) {
-        await listarParticipantePorCodigo(code);
+        await listarParticipantePorCodigo(code, key);
         itemsProcessed++;
         var totalAmount = representedAgentCodes.length;
         var amountDone = (itemsProcessed / totalAmount) * 100;
