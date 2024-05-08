@@ -431,6 +431,7 @@ export default function DataSyncView() {
       totalPages,
       date,
       cat,
+      false,
       isAutomatic
     );
 
