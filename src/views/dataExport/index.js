@@ -1102,7 +1102,7 @@ export default function DataExportView() {
         (x) =>
           x.codPerfil.toString().includes(searchText) ||
           x.classe.toUpperCase().includes(searchText) ||
-          x.codAgente.includes(searchText) ||
+          x.codAgente.toString().includes(searchText) ||
           x.sigla.toUpperCase().includes(searchText) ||
           x.situacao.toUpperCase().includes(searchText) ||
           x.submercado.toUpperCase().includes(searchText)

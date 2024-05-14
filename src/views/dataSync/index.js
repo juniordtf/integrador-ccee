@@ -45,6 +45,7 @@ export default function DataSyncView() {
   const [searchMethod, setSearchMethod] = useState("Automático");
   const [participantSearchMethod, setParticipantSearchMethod] =
     useState("Classe");
+  const [inputFieldType, setInputFieldType] = useState("Simples");
   const [selectedDataSource, setSelectedDataSource] = useState("");
   const [dataSourceItems, setDataSourceItems] = useState([]);
   const [service, setService] = useState("");
@@ -58,6 +59,7 @@ export default function DataSyncView() {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
+  const [fileName, setFileName] = useState("");
   const [scdeCode, setScdeCode] = useState("");
   const [measurementsValues, setMeasurementsValues] = useState([]);
   const [modellingValues, setModellingValues] = useState([]);
@@ -140,9 +142,8 @@ export default function DataSyncView() {
     webWorker.postMessage(test);
   };
 
-  const fetchWebWorker_ListarPerfis = (key, codAgentes) => {
+  const fetchWebWorker_createRetryProfilesList = (key, codAgentes) => {
     const msPayload = {
-      authData,
       key,
       codAgentes,
     };
@@ -153,7 +154,7 @@ export default function DataSyncView() {
   useEffect(() => {
     //localStorage.clear();
 
-    const worker = new WebWorker(workers.perfis);
+    const worker = new WebWorker(workers.createProfilesRetryList);
 
     if (webWorker === null) {
       setWebWorker(worker);
@@ -626,11 +627,11 @@ export default function DataSyncView() {
           console.log("Total: " + dataSourceItems.length);
           var codAgentes = dataSourceItems.map((x) => x.codigo);
 
-          codAgentes.forEach((code) => {
-            addParticipantCodeToRetryList(key, code, 0, 0, "listarPerfis");
-          });
+          // codAgentes.forEach((code) => {
+          //   addParticipantCodeToRetryList(key, code, 0, 0, "listarPerfis");
+          // });
 
-          // fetchWebWorker_ListarPerfis(key, codAgentes);
+          fetchWebWorker_createRetryProfilesList(key, codAgentes);
 
           await listarPerfis(key, codAgentes);
           setPendingRequests(pendingRequests - 1);
@@ -1350,10 +1351,11 @@ export default function DataSyncView() {
   const exportMeasurementData = async () => {
     var medService =
       servicos.id === 6 ? "medidasCincoMinutos" : "medidasFinais";
-    var fileName = medService + "_" + scdeCode;
+    var medName = inputFieldType === "Simples" ? scdeCode : fileName.toString();
+    var exportfileName = medService + "_" + medName;
     let exportType = exportFromJSON.types.xls;
 
-    exportFromJSON({ data: measurementsValues, fileName, exportType });
+    exportFromJSON({ data: measurementsValues, exportfileName, exportType });
   };
 
   const exportModellingData = async () => {
@@ -1414,17 +1416,17 @@ export default function DataSyncView() {
         } else {
           console.log("Total: " + sourceData.length);
 
-          sourceData.forEach((x) => {
-            addParameterToRetryList(
-              key,
-              x,
-              formDate,
-              selectedParameter,
-              0,
-              0,
-              ""
-            );
-          });
+          // sourceData.forEach((x) => {
+          //   addParameterToRetryList(
+          //     key,
+          //     x,
+          //     formDate,
+          //     selectedParameter,
+          //     0,
+          //     0,
+          //     ""
+          //   );
+          // });
 
           await listarParcelasDeAtivos(
             key,
@@ -1956,20 +1958,42 @@ export default function DataSyncView() {
 
     const initialDate = dayjs(date).startOf("month");
     const endDate = initialDate.endOf("month");
+    let results = [];
 
-    var results = await listarMedidasFinais(
-      dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
-      dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss")
-    );
+    if (inputFieldType === "Simples") {
+      results = await listarMedidasFinais(
+        scdeCode,
+        dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
+        dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss")
+      );
+    } else {
+      const sourceData = rows.map((x) => x[0]);
+      let itemsProcessed = 0;
+      let totalAmount = sourceData.length;
+
+      for (const medScde of sourceData) {
+        let innerResults = await listarMedidasFinais(
+          medScde,
+          dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
+          dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss")
+        );
+        itemsProcessed++;
+        var amountDone = (itemsProcessed / totalAmount) * 100;
+        setProgress(amountDone);
+
+        if (results.length === 0) results = innerResults;
+        else results = results.concat(innerResults);
+      }
+    }
 
     setMeasurementsValues(results);
     setPendingRequests(pendingRequests - 1);
   };
 
-  async function listarMedidasFinais(initialDate, endDate) {
+  async function listarMedidasFinais(scde, initialDate, endDate) {
     var response = await medicaoService.listarMedidasFinais(
       authData,
-      scdeCode,
+      scde,
       initialDate,
       endDate
     );
@@ -2201,6 +2225,8 @@ export default function DataSyncView() {
       if (err) {
         console.log(err);
       } else {
+        let name = fileObj.name;
+        setFileName(name.substring(0, name.length - 5));
         setColumns(resp.cols);
         setRows(resp.rows);
       }
@@ -2213,6 +2239,10 @@ export default function DataSyncView() {
 
   const handleParticipantSearchMethodChange = (event) => {
     setParticipantSearchMethod(event.target.value);
+  };
+
+  const handleInputFieldTypeChange = (event) => {
+    setInputFieldType(event.target.value);
   };
 
   const sendRequest = () => {
@@ -2519,12 +2549,43 @@ export default function DataSyncView() {
             renderInput={(params) => <TextField {...params} />}
           />
         </LocalizationProvider>
-
-        <TextField
-          id="outlined-password-input"
-          label="Cód Medidor"
-          onChange={(event) => setScdeCode(event.target.value)}
-        />
+        <FormControl>
+          <FormLabel id="demo-radio-buttons-group-label-x">
+            Tipo de entrada
+          </FormLabel>
+          <RadioGroup
+            row
+            aria-labelledby="participant-radio-buttons-group-label"
+            defaultValue="Automático"
+            name="participant-radio-buttons-group"
+            value={inputFieldType}
+            onChange={handleInputFieldTypeChange}
+          >
+            <FormControlLabel
+              value="Simples"
+              control={<Radio />}
+              label="Simples"
+            />
+            <FormControlLabel
+              value="Múltipla"
+              control={<Radio />}
+              label="Múltipla"
+            />
+          </RadioGroup>
+        </FormControl>
+        {inputFieldType === "Simples" ? (
+          <div>
+            <TextField
+              id="outlined-password-input"
+              label="Cód Medidor"
+              onChange={(event) => setScdeCode(event.target.value)}
+            />
+          </div>
+        ) : (
+          <div>
+            <input type="file" onChange={fileHandler.bind(this)} />
+          </div>
+        )}
       </Stack>
     );
   };

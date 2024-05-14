@@ -1,5 +1,3 @@
-import { cadastrosService } from "../services/cadastrosService.ts";
-
 var bla = async () => {
   // eslint-disable-next-line no-restricted-globals
   self.addEventListener("message", async (e) => {
@@ -26,7 +24,7 @@ var bla = async () => {
   });
 };
 
-var perfis = async () => {
+var createProfilesRetryList = async () => {
   // eslint-disable-next-line no-restricted-globals
   self.addEventListener("message", async (e) => {
     // eslint-disable-line no-restricted-globals
@@ -34,50 +32,59 @@ var perfis = async () => {
 
     let payload = e.data;
     let sourceItems = payload.codAgentes;
-    let authData = payload.authData;
     let key = payload.key;
 
-    console.log(key);
+    sourceItems.forEach(async (code) => {
+      //addToRetryProfileList(key, code, 0, 0, "listarParticipantes");
+    });
 
-
-    for (const codAgente of sourceItems) {
-      var responseData = await cadastrosService.listarPerfis(
-        authData,
-        codAgente
-      );
-
-      console.log(responseData);
-
-      var totalPaginas = responseData.totalPaginas;
-      var totalPaginasNumber = totalPaginas._text
-        ? parseInt(totalPaginas._text.toString())
-        : 0;
-
-      if (totalPaginasNumber > 1) {
-        for (
-          let paginaCorrente = 1;
-          paginaCorrente <= totalPaginasNumber;
-          paginaCorrente++
-        ) {
-          // eslint-disable-next-line no-loop-func
-          var responseDataPaginated = await cadastrosService.listarPerfis(
-            authData,
-            codAgente,
-            paginaCorrente
-          );
-
-          //handleProfileResponseData(responseDataPaginated, key, codAgente);
-        }
-      } else {
-        //handleProfileResponseData(responseData, key, codAgente);
-      }
-    }
-
-    postMessage(key);
+    postMessage("Agent's codes added to retry list!");
   });
+};
+
+const addToRetryProfileList = async (
+  key,
+  codAgente,
+  apiCode,
+  attempts,
+  serviceFailed,
+  done = false
+) => {
+  try {
+    const retryKey = "retry_" + key;
+    const retryParticipant = {
+      codAgente,
+      apiCode,
+      attempts,
+      serviceFailed,
+      done,
+    };
+
+    let keys = [];
+    const retryKeys = JSON.parse(localStorage.getItem("RETRY_KEYS"));
+
+    if (retryKeys.length === 0) {
+      keys = [retryKey];
+    } else {
+      keys = retryKeys.concat(retryKey);
+    }
+    localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
+
+    let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
+    if (retryParticipants === null) {
+      retryParticipants = [retryParticipant];
+    } else {
+      retryParticipants = retryParticipants.concat(retryParticipant);
+    }
+    localStorage.setItem(retryKey, JSON.stringify(retryParticipants));
+  } catch (error) {
+    console.log(
+      `Failed to add page number ${codAgente} to Retry Participant's page list: ${error}`
+    );
+  }
 };
 
 export const workers = {
   bla,
-  perfis,
+  createProfilesRetryList,
 };

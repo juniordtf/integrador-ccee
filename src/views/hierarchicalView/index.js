@@ -108,7 +108,8 @@ export default function HierarchicalView() {
     handleOpen();
 
     var selectedParticipant = participants.find(
-      (x) => x.codigo === participantsCode && x.key === selectedDataSource
+      (x) =>
+        x.codigo.toString() === participantsCode && x.key === selectedDataSource
     );
 
     if (selectedParticipant === undefined) {
@@ -118,7 +119,7 @@ export default function HierarchicalView() {
 
     var relatedProfiles = profiles.filter(
       (x) =>
-        x.codAgente === participantsCode &&
+        x.codAgente.toString() === participantsCode &&
         selectedParticipant.key
           .substring(selectedParticipant.key.length - 8)
           .toString() === x.key.substring(x.key.length - 8).toString()

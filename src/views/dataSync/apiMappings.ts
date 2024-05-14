@@ -346,6 +346,10 @@ async function mapResponseToParticipantsData(key, item) {
   }
 
   function mapResponseToFinalMeasurementData(item) {
+    let pontoMedicao =
+      item["out2:pontoMedicao"] !== undefined
+        ? item["out2:pontoMedicao"]["out2:codigo"]._text.toString()
+        : "";
     let consumoAtivo =
       item["out2:consumoAtivo"] !== undefined
         ? item["out2:consumoAtivo"]._text.toString()
@@ -381,6 +385,7 @@ async function mapResponseToParticipantsData(key, item) {
         : "";
 
     return {
+      pontoMedicao,
       consumoAtivo,
       consumoReativo,
       geracaoAtiva,

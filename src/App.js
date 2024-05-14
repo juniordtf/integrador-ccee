@@ -28,6 +28,7 @@ import DataExportView from "./views/dataExport/index";
 import HierarchicalView from "./views/hierarchicalView/index";
 import SettingsView from "./views/settings/index";
 import DriReportsView from "./views/driReports/index";
+import ClientsManagementView from "./views/clientsManagement/index";
 import routes from "./routes";
 
 const drawerWidth = 240;
@@ -71,6 +72,7 @@ function App(props: Props) {
             <ListItemText primary={"Exportar Dados"} />
           </ListItem>
         </NavLink>
+        <Divider />
         <NavLink
           to="/visualizacaoHierarquica"
           style={{ textDecoration: "none", color: "black" }}
@@ -96,7 +98,7 @@ function App(props: Props) {
         </NavLink>
         <Divider />
         <NavLink
-          to="/relatoriosDRI"
+          to="/gestaoDeClientes"
           style={{ textDecoration: "none", color: "black" }}
         >
           <ListItem button>
@@ -207,6 +209,7 @@ function App(props: Props) {
               element={<HierarchicalView />}
             />
             <Route exact path="/relatoriosDRI" element={<DriReportsView />} />
+            <Route exact path="/gestaoDeClientes" element={<ClientsManagementView />} />
             <Route exact path="/configuracoes" element={<SettingsView />} />
           </Routes>
         </Box>
