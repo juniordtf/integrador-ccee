@@ -1,3 +1,5 @@
+import { db } from "../database/db.js";
+
 var bla = async () => {
   // eslint-disable-next-line no-restricted-globals
   self.addEventListener("message", async (e) => {
@@ -35,54 +37,34 @@ var createProfilesRetryList = async () => {
     let key = payload.key;
 
     sourceItems.forEach(async (code) => {
-      //addToRetryProfileList(key, code, 0, 0, "listarParticipantes");
+      addGenericFaultyRequest(key, code, 0, "listarParticipantes", 0);
     });
 
     postMessage("Agent's codes added to retry list!");
   });
 };
 
-const addToRetryProfileList = async (
+async function addGenericFaultyRequest(
   key,
-  codAgente,
+  requestCode,
   apiCode,
-  attempts,
-  serviceFailed,
-  done = false
-) => {
+  serviceRequested,
+  attempts
+) {
   try {
-    const retryKey = "retry_" + key;
-    const retryParticipant = {
-      codAgente,
+    await db.genericFaultyRequest.add({
+      key,
+      requestCode,
       apiCode,
+      serviceRequested,
       attempts,
-      serviceFailed,
-      done,
-    };
-
-    let keys = [];
-    const retryKeys = JSON.parse(localStorage.getItem("RETRY_KEYS"));
-
-    if (retryKeys.length === 0) {
-      keys = [retryKey];
-    } else {
-      keys = retryKeys.concat(retryKey);
-    }
-    localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
-
-    let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
-    if (retryParticipants === null) {
-      retryParticipants = [retryParticipant];
-    } else {
-      retryParticipants = retryParticipants.concat(retryParticipant);
-    }
-    localStorage.setItem(retryKey, JSON.stringify(retryParticipants));
+    });
   } catch (error) {
     console.log(
-      `Failed to add page number ${codAgente} to Retry Participant's page list: ${error}`
+      `Failed to add Topology for resource: ${requestCode}: ${error}`
     );
   }
-};
+}
 
 export const workers = {
   bla,

@@ -59,12 +59,13 @@ export default function DataSyncView() {
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
-  const [fileName, setFileName] = useState("");
+  const [excelFileName, setExcelFileName] = useState("");
   const [scdeCode, setScdeCode] = useState("");
   const [measurementsValues, setMeasurementsValues] = useState([]);
   const [modellingValues, setModellingValues] = useState([]);
   const [onlyRepresentedAgents, setOnlyRepresentedAgents] = useState(false);
   const [webWorker, setWebWorker] = useState(null);
+  const [genericFaultyRequests, setGenericFaultyRequests] = useState([]);
 
   const timerRef = useRef(null);
 
@@ -161,6 +162,15 @@ export default function DataSyncView() {
     }
 
     async function fetchData() {
+      var genericRequestData = await db.genericFaultyRequest;
+      if (genericRequestData === undefined) {
+        genericRequestData = [];
+      } else {
+        genericRequestData = await db.genericFaultyRequest.toArray();
+      }
+
+      setGenericFaultyRequests(genericRequestData);
+
       var participantes = await db.participantes;
       if (participantes === undefined) {
         participantes = [];
@@ -244,7 +254,7 @@ export default function DataSyncView() {
     }
 
     worker.addEventListener("message", (event) => {
-      setSuccessDialogOpen(true);
+      console.log("Done!");
     });
   }, [pendingRequests]);
 
@@ -351,23 +361,26 @@ export default function DataSyncView() {
 
       let itemsProcessed = 0;
 
-      sourceData.forEach(async (code) => {
-        await addParticipantCodeToRetryList(
+      sourceData.forEach((code) => {
+        dbPersistance.addGenericFaultyRequest(
           key,
           code,
           0,
+          "",
           0,
-          "listarParticipantes"
+          0,
+          "listarParticipantes",
+          0
         );
       });
 
-      for (const code of sourceData) {
-        await listarParticipantePorCodigo(code, key);
-        itemsProcessed++;
-        var totalAmount = sourceData.length;
-        var amountDone = (itemsProcessed / totalAmount) * 100;
-        setProgress(amountDone);
-      }
+      // for (const code of sourceData) {
+      //   await listarParticipantePorCodigo(code, key);
+      //   itemsProcessed++;
+      //   var totalAmount = sourceData.length;
+      //   var amountDone = (itemsProcessed / totalAmount) * 100;
+      //   setProgress(amountDone);
+      // }
       setSuccessDialogOpen(true);
     }
   };
@@ -427,6 +440,17 @@ export default function DataSyncView() {
       key = "participantes_" + dayjs(date).format("DD/MM/YY");
     }
 
+    dbPersistance.addGenericFaultyRequest(
+      key,
+      cat,
+      totalPages,
+      date,
+      0,
+      0,
+      "listarParticipantes",
+      0
+    );
+
     var done = await listarParticipantes(
       key,
       totalPages,
@@ -484,24 +508,23 @@ export default function DataSyncView() {
           Array.prototype.forEach.call(participantesData, async (item) => {
             apiMappings.mapResponseToParticipantsData(key, item);
           });
-
-          if (fromRetryList) {
-            removeParticipantsPageFromRetryList(key, currentPage);
-          }
-        } else {
-          if (fromRetryList) {
-            updateParticipantPageInRetryList(key, currentPage);
-          } else {
-            addParticipantsPageToRetryList(
-              key,
-              category,
-              responseData.data,
-              responseData.code,
-              0,
-              "listarParticipantes"
-            );
-          }
         }
+
+        let agentPageInRetryList = genericFaultyRequests.find(
+          (x) =>
+            x.requestCode === category &&
+            x.key === key &&
+            x.additionalRequestCode === x.totalPages
+        );
+
+        if (agentPageInRetryList === undefined) return;
+
+        dbPersistance.updateGenericFaultyRequest(
+          category,
+          agentPageInRetryList.id,
+          responseData.code,
+          agentPageInRetryList.attempts + 1
+        );
 
         if (!isAutomatic) {
           itemsProcessed++;
@@ -515,87 +538,6 @@ export default function DataSyncView() {
       console.log("Erro ao listar participantes");
       console.error(e);
       return true;
-    }
-  }
-
-  async function addParticipantsPageToRetryList(
-    key,
-    category,
-    page,
-    apiCode,
-    attempts,
-    serviceFailed
-  ) {
-    try {
-      const retryKey = "retry_" + key;
-      const retryParticipant = {
-        page,
-        category,
-        apiCode,
-        date,
-        attempts,
-        serviceFailed,
-      };
-
-      let keys = [];
-      if (retryKeys.length === 0) {
-        keys = [retryKey];
-      } else {
-        keys = retryKeys.concat(retryKey);
-      }
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
-
-      let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
-      if (retryParticipants === null) {
-        retryParticipants = [retryParticipant];
-      } else {
-        retryParticipants = retryParticipants.concat(retryParticipant);
-      }
-      localStorage.setItem(retryKey, JSON.stringify(retryParticipants));
-    } catch (error) {
-      console.log(
-        `Failed to add page number ${page} to Retry Participant's page list: ${error}`
-      );
-    }
-  }
-
-  async function addParticipantCodeToRetryList(
-    key,
-    codAgente,
-    apiCode,
-    attempts,
-    serviceFailed,
-    done = false
-  ) {
-    try {
-      const retryKey = "retry_" + key;
-      const retryParticipant = {
-        codAgente,
-        apiCode,
-        attempts,
-        serviceFailed,
-        done,
-      };
-
-      let keys = [];
-      if (retryKeys.length === 0) {
-        keys = [retryKey];
-      } else {
-        keys = retryKeys.concat(retryKey);
-      }
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
-
-      let retryParticipants = JSON.parse(localStorage.getItem(retryKey));
-      if (retryParticipants === null) {
-        retryParticipants = [retryParticipant];
-      } else {
-        retryParticipants = retryParticipants.concat(retryParticipant);
-      }
-      localStorage.setItem(retryKey, JSON.stringify(retryParticipants));
-    } catch (error) {
-      console.log(
-        `Failed to add page number ${codAgente} to Retry Participant's page list: ${error}`
-      );
     }
   }
 
@@ -627,11 +569,20 @@ export default function DataSyncView() {
           console.log("Total: " + dataSourceItems.length);
           var codAgentes = dataSourceItems.map((x) => x.codigo);
 
-          // codAgentes.forEach((code) => {
-          //   addParticipantCodeToRetryList(key, code, 0, 0, "listarPerfis");
-          // });
+          codAgentes.forEach((code) => {
+            dbPersistance.addGenericFaultyRequest(
+              key,
+              code,
+              0,
+              "",
+              0,
+              0,
+              "listarPerfis",
+              0
+            );
+          });
 
-          fetchWebWorker_createRetryProfilesList(key, codAgentes);
+          //fetchWebWorker_createRetryProfilesList(key, codAgentes);
 
           await listarPerfis(key, codAgentes);
           setPendingRequests(pendingRequests - 1);
@@ -699,84 +650,18 @@ export default function DataSyncView() {
       }
     }
 
-    updateParticipantInRetryList(
+    let agentInRetryList = genericFaultyRequests.find(
+      (x) => x.requestCode === codAgente && x.key === key
+    );
+
+    if (agentInRetryList === undefined) return;
+
+    dbPersistance.updateGenericFaultyRequest(
       codAgente,
-      key,
-      "listarPerfis",
-      parseInt(responseData.code)
+      agentInRetryList.id,
+      responseData.code,
+      agentInRetryList.attempts + 1
     );
-  }
-
-  async function updateParticipantInRetryList(
-    codAgente,
-    key,
-    serviceFailed,
-    apiCode
-  ) {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("updateParticipantInRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeUpdated = retryData.find((x) => x.codAgente === codAgente);
-    var itemToBeUpdatedClone = itemToBeUpdated;
-    itemToBeUpdatedClone.done = true;
-    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
-    itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.apiCode = apiCode;
-    const index = retryData.indexOf(itemToBeUpdated);
-
-    if (index !== -1) {
-      retryData[index] = itemToBeUpdatedClone;
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  }
-
-  async function updateParticipantPageInRetryList(page, key) {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("updateParticipantPageInRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeUpdated = retryData.find((x) => x.page === page);
-    var itemToBeUpdatedClone = itemToBeUpdated;
-    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
-    const index = retryData.indexOf(itemToBeUpdated);
-
-    if (index !== -1) {
-      retryData[index] = itemToBeUpdatedClone;
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  }
-
-  async function updatePartialResourceInRetryList(
-    parameterCode,
-    key,
-    serviceFailed,
-    apiCode
-  ) {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("updatePartialResourceInRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeUpdated = retryData.find(
-      (x) => x.parameterCode === parameterCode
-    );
-    var itemToBeUpdatedClone = itemToBeUpdated;
-    itemToBeUpdatedClone.done = true;
-    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
-    itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.apiCode = apiCode;
-    const index = retryData.indexOf(itemToBeUpdated);
-
-    if (index !== -1) {
-      retryData[index] = itemToBeUpdatedClone;
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
   }
 
   const sendRequest_ListarAtivosDeMedicao = async () => {
@@ -815,8 +700,17 @@ export default function DataSyncView() {
           console.log("Total: " + dataSourceItems.length);
           var codPerfis = dataSourceItems.map((x) => x.codPerfil);
 
-          codPerfis.forEach((x) => {
-            addProfileToRetryList(key, x, 0, 0, "listarAtivosDeMedicao");
+          codPerfis.forEach((code) => {
+            dbPersistance.addGenericFaultyRequest(
+              key,
+              code,
+              0,
+              "",
+              0,
+              0,
+              "listarAtivosDeMedicao",
+              0
+            );
           });
 
           await listarAtivos(key, codPerfis);
@@ -884,11 +778,17 @@ export default function DataSyncView() {
           }
         }
 
-        updateProfileInRetryList(
+        let resourceInRetryList = genericFaultyRequests.find(
+          (x) => x.requestCode === codPerfil && x.key === key
+        );
+
+        if (resourceInRetryList === undefined) return;
+
+        dbPersistance.updateGenericFaultyRequest(
           codPerfil,
-          key,
-          "listarPerfil",
-          parseInt(responseData.code)
+          resourceInRetryList.id,
+          responseData.code,
+          resourceInRetryList.attempts + 1
         );
 
         console.log(itemsProcessed);
@@ -899,236 +799,6 @@ export default function DataSyncView() {
       console.log("Erro ao listar ativos");
       console.error(e);
     }
-  }
-
-  async function updateProfileInRetryList(
-    profileCode,
-    key,
-    serviceFailed,
-    apiCode
-  ) {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("updateProfileInRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeUpdated = retryData.find(
-      (x) => x.profileCode === profileCode
-    );
-    var itemToBeUpdatedClone = itemToBeUpdated;
-    itemToBeUpdatedClone.done = true;
-    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
-    itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.apiCode = apiCode;
-    const index = retryData.indexOf(itemToBeUpdated);
-
-    if (index !== -1) {
-      retryData[index] = itemToBeUpdatedClone;
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  }
-
-  async function addProfileToRetryList(
-    key,
-    codPerfil,
-    apiCode,
-    attempts,
-    serviceFailed,
-    done = false
-  ) {
-    try {
-      const retryKey = "retry_" + key;
-      const retryProfile = {
-        codPerfil,
-        apiCode,
-        attempts,
-        serviceFailed,
-        done,
-      };
-
-      let keys = [];
-      if (retryKeys.length === 0) {
-        keys = [retryKey];
-      } else {
-        keys = retryKeys.concat(retryKey);
-      }
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
-
-      let retryProfiles = JSON.parse(localStorage.getItem(retryKey));
-      if (retryProfiles === null) {
-        retryProfiles = [retryProfile];
-      } else {
-        retryProfiles = retryProfiles.concat(retryProfile);
-      }
-      localStorage.setItem(retryKey, JSON.stringify(retryProfiles));
-    } catch (error) {
-      console.log(
-        `Failed to add ${codPerfil} to Retry Profile's list: ${error}`
-      );
-    }
-  }
-
-  async function addParameterToRetryList(
-    key,
-    parameterCode,
-    searchDate,
-    parameter,
-    apiCode,
-    attempts,
-    serviceFailed,
-    done = false
-  ) {
-    try {
-      const retryKey = "retry_" + key;
-      const retryParameter = {
-        parameterCode,
-        searchDate,
-        parameter,
-        apiCode,
-        attempts,
-        serviceFailed,
-        done,
-      };
-
-      let keys = [];
-      if (retryKeys.length === 0) {
-        keys = [retryKey];
-      } else {
-        keys = retryKeys.concat(retryKey);
-      }
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
-
-      let retryParameters = JSON.parse(localStorage.getItem(retryKey));
-      if (retryParameters === null) {
-        retryParameters = [retryParameter];
-      } else {
-        retryParameters = retryParameters.concat(retryParameter);
-      }
-      localStorage.setItem(retryKey, JSON.stringify(retryParameters));
-    } catch (error) {
-      console.log(
-        `Failed to add ${parameterCode} to Retry Parameter's list: ${error}`
-      );
-    }
-  }
-
-  async function addResourceToRetryList(
-    key,
-    codAtivoMedicao,
-    codPerfil,
-    searchDate,
-    apiCode,
-    attempts,
-    serviceFailed,
-    done = false
-  ) {
-    try {
-      const retryKey = "retry_" + key;
-      const retryParameter = {
-        codAtivoMedicao,
-        codPerfil,
-        searchDate,
-        apiCode,
-        attempts,
-        serviceFailed,
-        done,
-      };
-
-      let keys = [];
-      if (retryKeys.length === 0) {
-        keys = [retryKey];
-      } else {
-        keys = retryKeys.concat(retryKey);
-      }
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(keys));
-
-      let retryResources = JSON.parse(localStorage.getItem(retryKey));
-      if (retryResources === null) {
-        retryResources = [retryParameter];
-      } else {
-        retryResources = retryResources.concat(retryParameter);
-      }
-      localStorage.setItem(retryKey, JSON.stringify(retryResources));
-    } catch (error) {
-      console.log(
-        `Failed to add ${codAtivoMedicao} to Retry Resource's list: ${error}`
-      );
-    }
-  }
-
-  const retryFaultyRequests = async () => {
-    if (retryKeys.length === 0) return;
-
-    await proccessRetryList();
-    setSuccessDialogOpen(true);
-  };
-
-  async function proccessRetryList() {
-    setPendingRequests(pendingRequests + 1);
-
-    for (const key of retryKeys) {
-      let retryData = JSON.parse(localStorage.getItem(key));
-
-      if (key.includes("participantes_representados")) {
-        for (const rd of retryData) {
-          if (rd.apiCode !== 200) {
-            await listarParticipantePorCodigo(rd.codAgente, key.substring(6));
-          }
-        }
-      } else if (key.includes("participantes")) {
-        for (const rd of retryData) {
-          if (rd.apiCode !== 200) {
-            await listarParticipantes(
-              key.substring(6),
-              rd.page,
-              rd.date,
-              rd.category,
-              true,
-              false
-            );
-          }
-        }
-      } else if (key.includes("perfis")) {
-        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
-        const codAgentes = filteredSource.map((x) => x.codAgente);
-        await listarPerfis(key.substring(6), codAgentes);
-      } else if (key.includes("parcelasDeAtivos")) {
-        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
-
-        const parametersCodes = filteredSource.map((x) => x.parameterCode);
-        const searchDate = filteredSource.map((x) => x.searchDate)[0];
-        const parameter = filteredSource.map((x) => x.parameter)[0];
-
-        await listarParcelasDeAtivos(
-          key.substring(6),
-          parametersCodes,
-          searchDate,
-          parameter
-        );
-      } else if (key.includes("parcelasDeCarga")) {
-        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
-        const searchDate = filteredSource.map((x) => x.searchDate)[0];
-        await listarParcelasDeCarga(
-          key.substring(6),
-          filteredSource,
-          searchDate
-        );
-      } else if (key.includes("topologias")) {
-        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
-
-        const searchDate = filteredSource.map((x) => x.searchDate)[0];
-        await listarTopologias(key.substring(6), filteredSource, searchDate);
-      } else if (key.includes("ativos")) {
-        const filteredSource = retryData.filter((x) => x.apiCode !== 200);
-        const codPerfis = filteredSource.map((x) => x.codPerfil);
-        await listarAtivos(key.substring(6), codPerfis);
-      } else {
-        return;
-      }
-    }
-
-    setPendingRequests(0);
   }
 
   const removeAgentFromRetryList = (key, codAgente) => {
@@ -1282,14 +952,32 @@ export default function DataSyncView() {
 
   const removeExpiredData = async () => {
     // fetchWebWorker();
-    if (retryKeys.length === 0) {
-      setPendingRequests(0);
-      return;
-    }
+    // if (retryKeys.length === 0) {
+    //   setPendingRequests(0);
+    //   return;
+    // }
 
-    await removeExpiredDataFromList();
+    //await removeExpiredDataFromList();
+
+    await removeFaultyRequests();
+
     setSuccessDialogOpen(true);
   };
+
+  async function removeFaultyRequests() {
+    let removes = genericFaultyRequests.filter(
+      (z) => z.apiCode === 200 || (z.apiCode === 500 && z.attempts > 1)
+    );
+
+    console.log(removes.length);
+
+    for (const expiredData of removes) {
+      dbPersistance.deleteGenericFaultyRequest(
+        expiredData.requestCode,
+        expiredData.id
+      );
+    }
+  }
 
   async function removeExpiredDataFromList() {
     setPendingRequests(pendingRequests + 1);
@@ -1351,11 +1039,12 @@ export default function DataSyncView() {
   const exportMeasurementData = async () => {
     var medService =
       servicos.id === 6 ? "medidasCincoMinutos" : "medidasFinais";
-    var medName = inputFieldType === "Simples" ? scdeCode : fileName.toString();
-    var exportfileName = medService + "_" + medName;
+    var medName =
+      inputFieldType === "Simples" ? scdeCode : excelFileName.toString();
+    var fileName = medService + "_" + medName;
     let exportType = exportFromJSON.types.xls;
 
-    exportFromJSON({ data: measurementsValues, exportfileName, exportType });
+    exportFromJSON({ data: measurementsValues, fileName, exportType });
   };
 
   const exportModellingData = async () => {
@@ -1416,17 +1105,18 @@ export default function DataSyncView() {
         } else {
           console.log("Total: " + sourceData.length);
 
-          // sourceData.forEach((x) => {
-          //   addParameterToRetryList(
-          //     key,
-          //     x,
-          //     formDate,
-          //     selectedParameter,
-          //     0,
-          //     0,
-          //     ""
-          //   );
-          // });
+          sourceData.forEach((code) => {
+            dbPersistance.addGenericFaultyRequest(
+              key,
+              code,
+              0,
+              formDate,
+              selectedParameter,
+              0,
+              "listarParcelasDeAtivo",
+              0
+            );
+          });
 
           await listarParcelasDeAtivos(
             key,
@@ -1555,11 +1245,17 @@ export default function DataSyncView() {
       }
     }
 
-    updatePartialResourceInRetryList(
+    let partialResourceInRetryList = genericFaultyRequests.find(
+      (x) => x.requestCode === item && x.key === key
+    );
+
+    if (partialResourceInRetryList === undefined) return;
+
+    dbPersistance.updateGenericFaultyRequest(
       item,
-      key,
-      "listarParcelasDeAtivos",
-      parseInt(responseData.code)
+      partialResourceInRetryList.id,
+      responseData.code,
+      partialResourceInRetryList.attempts + 1
     );
   }
 
@@ -1601,18 +1297,19 @@ export default function DataSyncView() {
           console.log("Total: " + dataSourceItems.length);
 
           dataSourceItems.forEach((x) => {
-            addResourceToRetryList(
+            dbPersistance.addGenericFaultyRequest(
               key,
               x.codAtivoMedicao,
               x.codPerfil,
               formDate,
               0,
               0,
-              "listarParcelasDeCarga"
+              "listarParcelasDeCarga",
+              0
             );
           });
 
-          await listarParcelasDeCarga(key, dataSourceItems, formDate);
+          //await listarParcelasDeCarga(key, dataSourceItems, formDate);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
           setSuccessDialogOpen(true);
@@ -1687,41 +1384,19 @@ export default function DataSyncView() {
         });
       }
     }
-    updateResourceInRetryList(
+
+    let resourceInRetryList = genericFaultyRequests.find(
+      (x) => x.requestCode === item.codAtivoMedicao && x.key === key
+    );
+
+    if (resourceInRetryList === undefined) return;
+
+    dbPersistance.updateGenericFaultyRequest(
       item.codAtivoMedicao,
-      key,
-      "listarParcelasDeCarga",
-      parseInt(responseData.code)
+      resourceInRetryList.id,
+      responseData.code,
+      resourceInRetryList.attempts + 1
     );
-  }
-
-  async function updateResourceInRetryList(
-    codAtivoMedicao,
-    key,
-    serviceFailed,
-    apiCode
-  ) {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("updatePartialLoadInRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeUpdated = retryData.find(
-      (x) => x.codAtivoMedicao.toString() === codAtivoMedicao.toString()
-    );
-
-    var itemToBeUpdatedClone = itemToBeUpdated;
-    itemToBeUpdatedClone.done = true;
-    itemToBeUpdatedClone.attempts = itemToBeUpdated.attempts + 1;
-    itemToBeUpdatedClone.serviceFailed = serviceFailed;
-    itemToBeUpdatedClone.apiCode = apiCode;
-    const index = retryData.indexOf(itemToBeUpdated);
-
-    if (index !== -1) {
-      retryData[index] = itemToBeUpdatedClone;
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
   }
 
   /**
@@ -1766,18 +1441,19 @@ export default function DataSyncView() {
           console.log("Total: " + dataSourceItems.length);
 
           dataSourceItems.forEach((x) => {
-            addResourceToRetryList(
+            dbPersistance.addGenericFaultyRequest(
               key,
               x.codAtivoMedicao,
               x.codPerfil,
               formDate,
               0,
               0,
-              "listarTopologiasPorAtivo"
+              "listarTopologiasPorAtivo",
+              0
             );
           });
 
-          await listarTopologias(key, dataSourceItems, formDate);
+          //await listarTopologias(key, dataSourceItems, formDate);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
           setSuccessDialogOpen(true);
@@ -1852,11 +1528,17 @@ export default function DataSyncView() {
       }
     }
 
-    updateResourceInRetryList(
+    let resourceInRetryList = genericFaultyRequests.find(
+      (x) => x.requestCode === item.codAtivoMedicao && x.key === key
+    );
+
+    if (resourceInRetryList === undefined) return;
+
+    dbPersistance.updateGenericFaultyRequest(
       item.codAtivoMedicao,
-      key,
-      "listarTopologiasPorAtivo",
-      parseInt(responseData.code)
+      resourceInRetryList.id,
+      responseData.code,
+      resourceInRetryList.attempts + 1
     );
   }
 
@@ -2106,12 +1788,14 @@ export default function DataSyncView() {
       }
     }
 
-    console.log(agentCodes.length);
-
     return agentCodes;
   };
 
-  async function listarParticipantePorCodigo(agentCode, dataKey = "") {
+  async function listarParticipantePorCodigo(
+    agentCode,
+    searchDate,
+    dataKey = ""
+  ) {
     try {
       var key =
         dataKey !== ""
@@ -2121,7 +1805,7 @@ export default function DataSyncView() {
       var responseData =
         await cadastrosService.listarParticipantesDeMercadoPorAgente(
           authData,
-          dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+          searchDate,
           agentCode
         );
 
@@ -2140,11 +1824,17 @@ export default function DataSyncView() {
         });
       }
 
-      updateParticipantInRetryList(
+      let agentInRetryList = genericFaultyRequests.find(
+        (x) => x.requestCode === agentCode && x.key === key
+      );
+
+      if (agentInRetryList === undefined) return;
+
+      dbPersistance.updateGenericFaultyRequest(
         agentCode,
-        key,
-        "listarParticipantes",
-        parseInt(responseData.code)
+        agentInRetryList.id,
+        responseData.code,
+        agentInRetryList.attempts + 1
       );
     } catch (e) {
       console.log("Erro ao listar participantes");
@@ -2175,6 +1865,7 @@ export default function DataSyncView() {
 
       while (totalItensNumber !== representedAgentCodes.length) {
         representedAgentCodes = await listarRepresentados();
+        console.log(representedAgentCodes.length);
       }
 
       var agentCode = authData.AuthCodigoPerfilAgente;
@@ -2185,24 +1876,20 @@ export default function DataSyncView() {
 
       const key =
         "participantes_representados_" + dayjs(date).format("DD/MM/YY");
+      const formDate = dayjs(date).format("YYYY-MM-DDTHH:mm:ss");
 
-      representedAgentCodes.forEach(async (code) => {
-        await addParticipantCodeToRetryList(
+      representedAgentCodes.forEach((code) => {
+        dbPersistance.addGenericFaultyRequest(
           key,
           code,
           0,
+          formDate,
           0,
-          "listarParticipantes"
+          0,
+          "listarParticipantes",
+          0
         );
       });
-
-      for (const code of representedAgentCodes) {
-        await listarParticipantePorCodigo(code, key);
-        itemsProcessed++;
-        var totalAmount = representedAgentCodes.length;
-        var amountDone = (itemsProcessed / totalAmount) * 100;
-        setProgress(amountDone);
-      }
 
       setPendingRequests(pendingRequests - 1);
     } else {
@@ -2217,6 +1904,69 @@ export default function DataSyncView() {
     }
   };
 
+  const retryFaultyRequests = async () => {
+    await proccessFaultyRequestList();
+    setSuccessDialogOpen(true);
+  };
+
+  async function proccessFaultyRequestList() {
+    setPendingRequests(pendingRequests + 1);
+
+    for (const request of genericFaultyRequests) {
+      if (request.apiCode === 200) {
+        continue;
+      }
+
+      if (request.key.includes("participantes_representados")) {
+        await listarParticipantePorCodigo(
+          request.requestCode,
+          request.searchDate,
+          request.key
+        );
+      } else if (request.key.includes("participantes")) {
+        await listarParticipantes(
+          request.key,
+          request.additionalRequestCode,
+          request.searchDate,
+          request.requestCode,
+          true,
+          false
+        );
+      } else if (request.key.includes("perfis")) {
+        await listarPerfis(request.key, [request.requestCode]);
+      } else if (request.key.includes("parcelasDeAtivos")) {
+        await listarParcelasDeAtivos(
+          request.key,
+          [request.requestCode],
+          request.searchDate,
+          request.parameter
+        );
+      } else if (request.key.includes("parcelasDeCarga")) {
+        let partialLoadMap = {};
+        partialLoadMap["codPerfil"] = request.additionalRequestCode;
+        partialLoadMap["codAtivoMedicao"] = request.requestCode;
+
+        await listarParcelasDeCarga(
+          request.key,
+          [partialLoadMap],
+          request.searchDate
+        );
+      } else if (request.key.includes("topologias")) {
+        let topologyMap = {};
+        topologyMap["codPerfil"] = request.additionalRequestCode;
+        topologyMap["codAtivoMedicao"] = request.requestCode;
+
+        await listarTopologias(request.key, [topologyMap], request.searchDate);
+      } else if (request.key.includes("ativos")) {
+        await listarAtivos(request.key, [request.requestCode]);
+      } else {
+        continue;
+      }
+    }
+
+    setPendingRequests(0);
+  }
+
   const fileHandler = (event) => {
     let fileObj = event.target.files[0];
 
@@ -2226,7 +1976,7 @@ export default function DataSyncView() {
         console.log(err);
       } else {
         let name = fileObj.name;
-        setFileName(name.substring(0, name.length - 5));
+        setExcelFileName(name.substring(0, name.length - 5));
         setColumns(resp.cols);
         setRows(resp.rows);
       }
@@ -2681,7 +2431,7 @@ export default function DataSyncView() {
         Enviar
       </Button>
 
-      {retryKeys.length > 0 ? (
+      {genericFaultyRequests.length > 0 ? (
         <div>
           <Button
             variant="outlined"

@@ -398,25 +398,26 @@ const listarRepresentacao = async (
     },
   };
 
-  var xmlBodyStr = `<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap-env:Header>
-   <ns2:messageHeader xsi:type="ns2:MessageHeaderType" xmlns:ns2="http://xmlns.energia.org.br/MH/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <ns2:codigoPerfilAgente>${authData.AuthCodigoPerfilAgente}</ns2:codigoPerfilAgente>
-     </ns2:messageHeader>
-   <ns1:Security xsi:type="ns1:SecurityHeaderType" xmlns:ns1="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <ns1:UsernameToken>
-           <ns1:Username>${authData.AuthUsername}</ns1:Username>
-           <ns1:Password>${authData.AuthPassword}</ns1:Password>
-        </ns1:UsernameToken>
-     </ns1:Security>
-   <ns0:paginacao xsi:type="ns0:Pagina" xmlns:ns0="http://xmlns.energia.org.br/MH/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <ns0:numero>${paginaAtual}</ns0:numero>
-        <ns0:quantidadeItens>50</ns0:quantidadeItens>
-     </ns0:paginacao> 
-  </soap-env:Header>
-  <soap-env:Body>
-     <ns0:listarRepresentacaoRequest xmlns:ns0="http://xmlns.energia.org.br/BM/v2"/>
-  </soap-env:Body>
+  var xmlBodyStr = `<?xml version="1.0" encoding="UTF-8"?>
+<soap-env:Envelope xmlns:soap-env="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap-env:Header>
+	  <ns2:messageHeader xsi:type="ns2:MessageHeaderType" xmlns:ns2="http://xmlns.energia.org.br/MH/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+         <ns2:codigoPerfilAgente>${authData.AuthCodigoPerfilAgente}</ns2:codigoPerfilAgente>
+      </ns2:messageHeader>
+	  <ns1:Security xsi:type="ns1:SecurityHeaderType" xmlns:ns1="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+         <ns1:UsernameToken>
+            <ns1:Username>${authData.AuthUsername}</ns1:Username>
+            <ns1:Password>${authData.AuthPassword}</ns1:Password>
+         </ns1:UsernameToken>
+      </ns1:Security>
+	  <ns0:paginacao xsi:type="ns0:Pagina" xmlns:ns0="http://xmlns.energia.org.br/MH/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+         <ns0:numero>${paginaAtual}</ns0:numero>
+         <ns0:quantidadeItens>100</ns0:quantidadeItens>
+      </ns0:paginacao> 
+   </soap-env:Header>
+   <soap-env:Body>
+      <ns0:listarRepresentacaoRequest xmlns:ns0="http://xmlns.energia.org.br/BM/v2"/>
+   </soap-env:Body>
 </soap-env:Envelope>`;
 
   return new Promise((resolve) => {
@@ -427,18 +428,20 @@ const listarRepresentacao = async (
           let resBody = new Buffer.from(response.data).toString();
           var xml = xml2json(resBody, { compact: true, spaces: 4 });
           var json = JSON.parse(xml);
-          var representacoes =
-            json["soapenv:Envelope"]["soapenv:Body"][
+
+          const representacoes =
+            json["NS1:Envelope"]["NS1:Body"][
               "bmv2:listarRepresentacaoResponse"
             ]["bmv2:representacoes"]["bov2:representacao"];
+
           const totalPaginas =
-            json["soapenv:Envelope"]["soapenv:Header"]["mhv2:paginacao"][
-              "mhv2:totalPaginas"
+            json["NS1:Envelope"]["NS1:Header"]["NS3:paginacao"][
+              "NS3:totalPaginas"
             ];
 
           const totalItens =
-            json["soapenv:Envelope"]["soapenv:Header"]["mhv2:paginacao"][
-              "mhv2:quantidadeTotalItens"
+            json["NS1:Envelope"]["NS1:Header"]["NS3:paginacao"][
+              "NS3:quantidadeTotalItens"
             ];
 
           var responseData = {
@@ -447,6 +450,7 @@ const listarRepresentacao = async (
             totalPaginas,
             totalItens,
           };
+
           resolve(responseData);
         } else {
           var responseData = {

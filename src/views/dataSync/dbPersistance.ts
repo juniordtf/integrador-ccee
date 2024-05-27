@@ -1,4 +1,4 @@
-import { db } from "../../database/db";
+import { db } from "../../database/db.js";
 
 async function addParticipante(
   key,
@@ -179,6 +179,53 @@ async function addTopologia(
   }
 }
 
+async function addGenericFaultyRequest(
+  key,
+  requestCode,
+  additionalRequestCode,
+  searchDate,
+  parameter,
+  apiCode,
+  serviceRequested,
+  attempts
+) {
+  try {
+    await db.genericFaultyRequest.add({
+      key,
+      requestCode,
+      additionalRequestCode,
+      searchDate,
+      parameter,
+      apiCode,
+      serviceRequested,
+      attempts,
+    });
+  } catch (error) {
+    console.log(
+      `Failed to add Topology for resource: ${requestCode}: ${error}`
+    );
+  }
+}
+
+async function updateGenericFaultyRequest(requestCode, id, apiCode, attempts) {
+  try {
+    await db.genericFaultyRequest.update(id, {
+      apiCode,
+      attempts,
+    });
+  } catch (error) {
+    console.log(`Failed to update faulty request: ${requestCode}: ${error}`);
+  }
+}
+
+async function deleteGenericFaultyRequest(requestCode, id) {
+  try {
+    await db.genericFaultyRequest.delete(id);
+  } catch (error) {
+    console.log(`Failed to delete faulty request: ${requestCode}: ${error}`);
+  }
+}
+
 export const dbPersistance = {
   addParticipante,
   addPerfil,
@@ -186,4 +233,7 @@ export const dbPersistance = {
   addParcelaDeAtivo,
   addParcelaDeCarga,
   addTopologia,
+  addGenericFaultyRequest,
+  updateGenericFaultyRequest,
+  deleteGenericFaultyRequest,
 };
