@@ -118,6 +118,7 @@ async function addParcelaDeAtivo(
 async function addParcelaDeCarga(
   key,
   codParcelaCarga,
+  codAlphaAtivoMedicao,
   codAtivoMedicao,
   nome,
   submercado,
@@ -137,6 +138,7 @@ async function addParcelaDeCarga(
     await db.parcelasDeCarga.add({
       key,
       codParcelaCarga,
+      codAlphaAtivoMedicao,
       codAtivoMedicao,
       nome,
       submercado,

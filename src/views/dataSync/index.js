@@ -440,42 +440,47 @@ export default function DataSyncView() {
       key = "participantes_" + dayjs(date).format("DD/MM/YY");
     }
 
-    dbPersistance.addGenericFaultyRequest(
-      key,
-      cat,
-      totalPages,
-      date,
-      0,
-      0,
-      "listarParticipantes",
-      0
-    );
-
-    var done = await listarParticipantes(
-      key,
-      totalPages,
-      date,
-      cat,
-      false,
-      isAutomatic
-    );
-
-    if (done) {
-      setPendingRequests(pendingRequests - 1);
-      setProgress(0);
-
-      var catInArr = classes.find((x) => x.id === cat);
-
-      if (classes.indexOf(catInArr) + 1 === classes.length) {
-        setSuccessDialogOpen(true);
-      }
+    for (let index = 1; index <= totalPages; index++) {
+      dbPersistance.addGenericFaultyRequest(
+        key,
+        cat,
+        index,
+        dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+        0,
+        0,
+        "listarParticipantes",
+        0
+      );
     }
+
+    // var done = await listarParticipantes(
+    //   key,
+    //   totalPages,
+    //   date,
+    //   cat,
+    //   false,
+    //   isAutomatic
+    // );
+
+    // if (done) {
+    //   setPendingRequests(pendingRequests - 1);
+    //   setProgress(0);
+
+    //   var catInArr = classes.find((x) => x.id === cat);
+
+    //   if (classes.indexOf(catInArr) + 1 === classes.length) {
+    //     setSuccessDialogOpen(true);
+    //   }
+    // }
+
+    setPendingRequests(pendingRequests - 1);
+    setProgress(0);
   };
 
   async function listarParticipantes(
     key,
     totalPages,
-    date,
+    queryDate,
     category,
     fromRetryList,
     isAutomatic = false
@@ -490,7 +495,7 @@ export default function DataSyncView() {
         var responseData = await cadastrosService.listarParticipantesDeMercado(
           authData,
           currentPage,
-          dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+          queryDate,
           category
         );
 
@@ -510,21 +515,23 @@ export default function DataSyncView() {
           });
         }
 
-        let agentPageInRetryList = genericFaultyRequests.find(
+        let agentPagesInRetryList = genericFaultyRequests.filter(
           (x) =>
             x.requestCode === category &&
             x.key === key &&
-            x.additionalRequestCode === x.totalPages
+            x.additionalRequestCode === currentPage
         );
 
-        if (agentPageInRetryList === undefined) return;
+        if (agentPagesInRetryList.length === 0) return;
 
-        dbPersistance.updateGenericFaultyRequest(
-          category,
-          agentPageInRetryList.id,
-          responseData.code,
-          agentPageInRetryList.attempts + 1
-        );
+        agentPagesInRetryList.forEach((res) => {
+          dbPersistance.updateGenericFaultyRequest(
+            category,
+            res.id,
+            responseData.code,
+            res.attempts + 1
+          );
+        });
 
         if (!isAutomatic) {
           itemsProcessed++;
@@ -584,7 +591,7 @@ export default function DataSyncView() {
 
           //fetchWebWorker_createRetryProfilesList(key, codAgentes);
 
-          await listarPerfis(key, codAgentes);
+          // await listarPerfis(key, codAgentes);
           setPendingRequests(pendingRequests - 1);
           setSuccessDialogOpen(true);
           setProgress(0);
@@ -650,18 +657,20 @@ export default function DataSyncView() {
       }
     }
 
-    let agentInRetryList = genericFaultyRequests.find(
+    let agentsInRetryList = genericFaultyRequests.filter(
       (x) => x.requestCode === codAgente && x.key === key
     );
 
-    if (agentInRetryList === undefined) return;
+    if (agentsInRetryList.length === 0) return;
 
-    dbPersistance.updateGenericFaultyRequest(
-      codAgente,
-      agentInRetryList.id,
-      responseData.code,
-      agentInRetryList.attempts + 1
-    );
+    agentsInRetryList.forEach((res) => {
+      dbPersistance.updateGenericFaultyRequest(
+        codAgente,
+        res.id,
+        responseData.code,
+        res.attempts + 1
+      );
+    });
   }
 
   const sendRequest_ListarAtivosDeMedicao = async () => {
@@ -778,18 +787,20 @@ export default function DataSyncView() {
           }
         }
 
-        let resourceInRetryList = genericFaultyRequests.find(
+        let resourcesInRetryList = genericFaultyRequests.filter(
           (x) => x.requestCode === codPerfil && x.key === key
         );
 
-        if (resourceInRetryList === undefined) return;
+        if (resourcesInRetryList.length === 0) return;
 
-        dbPersistance.updateGenericFaultyRequest(
-          codPerfil,
-          resourceInRetryList.id,
-          responseData.code,
-          resourceInRetryList.attempts + 1
-        );
+        resourcesInRetryList.forEach((res) => {
+          dbPersistance.updateGenericFaultyRequest(
+            codPerfil,
+            res.id,
+            responseData.code,
+            res.attempts + 1
+          );
+        });
 
         console.log(itemsProcessed);
         var amountDone = (itemsProcessed / requestsQuantity) * 100;
@@ -979,63 +990,6 @@ export default function DataSyncView() {
     }
   }
 
-  async function removeExpiredDataFromList() {
-    setPendingRequests(pendingRequests + 1);
-    for (const key of retryKeys) {
-      let retryData = JSON.parse(localStorage.getItem(key));
-      let itemsToRemove = retryData.filter((z) => z.attempts > 1);
-
-      // if (itemsToRemove.length === 0) {
-      //   setPendingRequests(0);
-      //   return;
-      // }
-
-      if (key.includes("participantes")) {
-        for (const x of itemsToRemove) {
-          await removeParticipantsPageFromRetryList(key.substring(6), x.page);
-        }
-      } else if (key.includes("perfis")) {
-        let removes = retryData.filter(
-          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
-        );
-        for (const x of removes) {
-          await removeAgentFromRetryList(key.substring(6), x.codAgente);
-        }
-      } else if (key.includes("parcelasDeAtivos")) {
-        let removes = retryData.filter(
-          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
-        );
-        for (const x of removes) {
-          await removeParameterFromRetryList(key.substring(6), x.parameterCode);
-        }
-      } else if (
-        key.includes("parcelasDeCarga") ||
-        key.includes("topologias")
-      ) {
-        let removes = retryData.filter(
-          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
-        );
-
-        for (const x of removes) {
-          await removeResourceFromRetryList(
-            key.substring(6),
-            x.codAtivoMedicao
-          );
-        }
-      } else if (key.includes("ativos")) {
-        let removes = retryData.filter(
-          (z) => z.done === true && (z.apiCode === 200 || z.attempts > 1)
-        );
-        for (const x of removes) {
-          await removeProfileFromRetryList(key.substring(6), x.codPerfil);
-        }
-      } else {
-        return;
-      }
-    }
-    setPendingRequests(0);
-  }
-
   const exportMeasurementData = async () => {
     var medService =
       servicos.id === 6 ? "medidasCincoMinutos" : "medidasFinais";
@@ -1105,8 +1059,8 @@ export default function DataSyncView() {
         } else {
           console.log("Total: " + sourceData.length);
 
-          sourceData.forEach((code) => {
-            dbPersistance.addGenericFaultyRequest(
+          sourceData.forEach(async (code) => {
+            await dbPersistance.addGenericFaultyRequest(
               key,
               code,
               0,
@@ -1118,12 +1072,6 @@ export default function DataSyncView() {
             );
           });
 
-          await listarParcelasDeAtivos(
-            key,
-            sourceData,
-            formDate,
-            selectedParameter
-          );
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
           setSuccessDialogOpen(true);
@@ -1245,18 +1193,20 @@ export default function DataSyncView() {
       }
     }
 
-    let partialResourceInRetryList = genericFaultyRequests.find(
+    let partialResourcesInRetryList = genericFaultyRequests.filter(
       (x) => x.requestCode === item && x.key === key
     );
 
-    if (partialResourceInRetryList === undefined) return;
+    if (partialResourcesInRetryList.length === 0) return;
 
-    dbPersistance.updateGenericFaultyRequest(
-      item,
-      partialResourceInRetryList.id,
-      responseData.code,
-      partialResourceInRetryList.attempts + 1
-    );
+    partialResourcesInRetryList.forEach((res) => {
+      dbPersistance.updateGenericFaultyRequest(
+        item,
+        res.id,
+        responseData.code,
+        res.attempts + 1
+      );
+    });
   }
 
   const sendRequest_ListarParcelasDeCarga = async () => {
@@ -1385,18 +1335,23 @@ export default function DataSyncView() {
       }
     }
 
-    let resourceInRetryList = genericFaultyRequests.find(
-      (x) => x.requestCode === item.codAtivoMedicao && x.key === key
+    let resourcesInRetryList = genericFaultyRequests.filter(
+      (x) =>
+        x.requestCode === item.codAtivoMedicao &&
+        x.additionalRequestCode === item.codPerfil &&
+        x.key === key
     );
 
-    if (resourceInRetryList === undefined) return;
+    if (resourcesInRetryList.length === 0) return;
 
-    dbPersistance.updateGenericFaultyRequest(
-      item.codAtivoMedicao,
-      resourceInRetryList.id,
-      responseData.code,
-      resourceInRetryList.attempts + 1
-    );
+    resourcesInRetryList.forEach((res) => {
+      dbPersistance.updateGenericFaultyRequest(
+        item.codAtivoMedicao,
+        res.id,
+        responseData.code,
+        res.attempts + 1
+      );
+    });
   }
 
   /**
@@ -1528,18 +1483,25 @@ export default function DataSyncView() {
       }
     }
 
-    let resourceInRetryList = genericFaultyRequests.find(
-      (x) => x.requestCode === item.codAtivoMedicao && x.key === key
+    let resourcesInRetryList = genericFaultyRequests.filter(
+      (x) =>
+        x.requestCode === item.codAtivoMedicao &&
+        x.additionalRequestCode === item.codPerfil &&
+        x.key === key
     );
 
-    if (resourceInRetryList === undefined) return;
+    console.log(resourcesInRetryList.length);
 
-    dbPersistance.updateGenericFaultyRequest(
-      item.codAtivoMedicao,
-      resourceInRetryList.id,
-      responseData.code,
-      resourceInRetryList.attempts + 1
-    );
+    if (resourcesInRetryList.length === 0) return;
+
+    resourcesInRetryList.forEach((res) => {
+      dbPersistance.updateGenericFaultyRequest(
+        item.codAtivoMedicao,
+        res.id,
+        responseData.code,
+        res.attempts + 1
+      );
+    });
   }
 
   // Listar Medidas - 5 minutos
@@ -1743,10 +1705,17 @@ export default function DataSyncView() {
 
     if (response.code === 200) {
       const results = response.data;
-      results.forEach((r) => {
-        var resourcesModelling = apiMappings.mapResponseToModellingData(r);
+      var resourcesModelling = [];
+
+      if (results.length > 0) {
+        results.forEach((r) => {
+          resourcesModelling = apiMappings.mapResponseToModellingData(r);
+          modellingArr.push(resourcesModelling);
+        });
+      } else {
+        resourcesModelling = apiMappings.mapResponseToModellingData(results);
         modellingArr.push(resourcesModelling);
-      });
+      }
     }
 
     return modellingArr;
@@ -1824,18 +1793,20 @@ export default function DataSyncView() {
         });
       }
 
-      let agentInRetryList = genericFaultyRequests.find(
+      let agentsInRetryList = genericFaultyRequests.filter(
         (x) => x.requestCode === agentCode && x.key === key
       );
 
-      if (agentInRetryList === undefined) return;
+      if (agentsInRetryList.length === 0) return;
 
-      dbPersistance.updateGenericFaultyRequest(
-        agentCode,
-        agentInRetryList.id,
-        responseData.code,
-        agentInRetryList.attempts + 1
-      );
+      agentsInRetryList.forEach((res) => {
+        dbPersistance.updateGenericFaultyRequest(
+          agentCode,
+          res.id,
+          responseData.code,
+          res.attempts + 1
+        );
+      });
     } catch (e) {
       console.log("Erro ao listar participantes");
       console.error(e);
@@ -1912,6 +1883,10 @@ export default function DataSyncView() {
   async function proccessFaultyRequestList() {
     setPendingRequests(pendingRequests + 1);
 
+    let amountDone = 0;
+    let itemsProcessed = 0;
+    let requestsQuantity = genericFaultyRequests.length;
+
     for (const request of genericFaultyRequests) {
       if (request.apiCode === 200) {
         continue;
@@ -1962,6 +1937,10 @@ export default function DataSyncView() {
       } else {
         continue;
       }
+
+      itemsProcessed++;
+      amountDone = (itemsProcessed / requestsQuantity) * 100;
+      setProgress(amountDone);
     }
 
     setPendingRequests(0);

@@ -141,8 +141,13 @@ const PartialLoadColumns = [
     minWidth: 100,
   },
   {
-    id: "codAtivoMedicao",
+    id: "codAlphaAtivoMedicao",
     label: "Código de Ativo de Medição",
+    minWidth: 100,
+  },
+  {
+    id: "codAtivoMedicao",
+    label: "Número de Ativo de Medição",
     minWidth: 100,
   },
   { id: "nome", label: "Nome Empresarial", minWidth: 170 },

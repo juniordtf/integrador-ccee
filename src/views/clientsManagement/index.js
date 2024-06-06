@@ -146,6 +146,7 @@ export default function ClientsManagementView() {
 
   const handleAgentChange = async (event) => {
     const selectedParticipant = event.target.value;
+    console.log(selectedParticipant);
     setSelectedAgent(selectedParticipant);
   };
 
@@ -179,7 +180,7 @@ export default function ClientsManagementView() {
             onChange={handleAgentChange}
           >
             {participants.map((x) => (
-              <MenuItem key={x.id} value={x.sigla}>
+              <MenuItem key={x.id} value={x}>
                 {x.sigla}
               </MenuItem>
             ))}

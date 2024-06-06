@@ -2,7 +2,7 @@
 import Dexie from "dexie";
 
 export const db = new Dexie("integratorDatabase");
-db.version(14).stores({
+db.version(15).stores({
   participantes:
     "++id, key, cnpj, nomeEmpresarial, situacao, sigla, codigo, periodoVigencia, codClasse, nomeClasse",
   perfis:
@@ -12,7 +12,7 @@ db.version(14).stores({
   parcelasAtivosMedicao:
     "++id, key, codParcelaAtivo, codAtivoMedicao, nome, codMedidor, codPerfil, idSubmercado, cnpj, situacao, periodoVigencia",
   parcelasDeCarga:
-    "++id, key, codParcelaCarga, codAtivoMedicao, nome, nomeSubmercado, cnpj, situacao, periodoVigencia, codConcessionaria, undCapacidadeCarga, valorCapacidadeCarga, bairro, cidade, estado, logradouro, numPredial",
+    "++id, key, codParcelaCarga, codAlphaAtivoMedicao, codAtivoMedicao, nome, nomeSubmercado, cnpj, situacao, periodoVigencia, codConcessionaria, undCapacidadeCarga, valorCapacidadeCarga, bairro, cidade, estado, logradouro, numPredial",
   topologia:
     "++id, key, codAtivoMedicao, codMedidor, nomeConcessionaria, periodoVigencia",
   genericFaultyRequest:
