@@ -286,6 +286,22 @@ const SinteticColumns = [
     label: "Código da Parcela de Carga",
     minWidth: 100,
   },
+  {
+    id: "dataApta",
+    label: "Data Apta",
+    minWidth: 100,
+  },
+  { id: "dataAutorizada", label: "Data Autorizada", minWidth: 100 },
+  {
+    id: "tipo",
+    label: "Tipo",
+    minWidth: 100,
+  },
+  {
+    id: "situacaoModelagem",
+    label: "Situação de Modelagem",
+    minWidth: 100,
+  },
 ];
 
 const ModellingColumns = [
@@ -675,7 +691,9 @@ export default function DataExportView() {
       (x) => x.key === dataSourceKey
     );
     var filteredTopologies = topologies.filter((x) => x.key === dataSourceKey);
-    var filteredModellingData = modellingData.filter((x) => x.key === dataSourceKey);
+    var filteredModellingData = modellingData.filter(
+      (x) => x.key === dataSourceKey
+    );
 
     if (participants.length > 0 && filteredParticipants.length > 0) {
       return filteredParticipants;
@@ -717,6 +735,9 @@ export default function DataExportView() {
     var sinteticTopologies = sinteticDatasetName.find((x) =>
       x.includes("topologias")
     );
+    var sinteticModellingData = sinteticDatasetName.find(
+      (x) => x.includes("modelagens") && sinteticDatasetName.length < 18
+    );
 
     if (sinteticPartialResources === undefined) return;
 
@@ -729,11 +750,11 @@ export default function DataExportView() {
     let sinteticTableC = [];
     let sinteticTableD = [];
     let sinteticTableE = [];
+    let sinteticTableF = [];
 
     const key =
       "dadosSintéticos_" +
       sinteticPartialResources.substring(sinteticPartialResources.length - 8);
-    console.log(key);
 
     sinteticTableA = sinteticPartialResourcesValues.map((x) => ({
       key,
@@ -846,17 +867,42 @@ export default function DataExportView() {
       "codAgente"
     );
 
+    if (sinteticModellingData !== undefined) {
+      var sinteticModellingValues = modellingData.filter(
+        (x) => x.key === sinteticModellingData
+      );
+
+      var filteredSinteticModellingData = sinteticModellingValues.filter((x) =>
+        sinteticTableA.map((z) => z.codAtivoMedicao).includes(x.codAtivoMedicao)
+      );
+
+      sinteticTableF = filteredSinteticModellingData.map((x) => ({
+        codAtivoMedicao: x.codAtivoMedicao,
+        dataApta: x.dataApta,
+        dataAutorizada: x.dataAutorizada,
+        tipo: x.tipo,
+        situacaoModelagem: x.situacao,
+      }));
+
+    }
+
+    var resultTableE = mergeArraysByKey(
+      resultTableD,
+      sinteticTableF,
+      "codAtivoMedicao"
+    );
+
     var finalResultTable = [];
 
-    for (const res of resultTableD) {
+    for (const res of resultTableE) {
       if (res !== undefined) {
         finalResultTable.push(res);
       }
     }
 
     setSelectedDataSource(key);
-    setRows(resultTableD);
-    setInitialRows(resultTableD);
+    setRows(resultTableE);
+    setInitialRows(resultTableE);
 
     handleLoadingModalClose();
   };
@@ -1023,8 +1069,6 @@ export default function DataExportView() {
       var data = dataSource.filter((x) => x.key === dt);
       content = content.concat(data);
     }
-
-    console.log(content.length);
 
     setRows(content);
     setInitialRows(content);
@@ -1198,7 +1242,6 @@ export default function DataExportView() {
   };
 
   const handleConfirm = () => {
-    console.log(dialogReason);
     if (dialogReason === "deleteData") {
       deleteData();
     } else {
