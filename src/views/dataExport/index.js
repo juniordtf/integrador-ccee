@@ -288,6 +288,26 @@ const SinteticColumns = [
   },
 ];
 
+const ModellingColumns = [
+  { id: "codAtivoMedicao", label: "Código de Ativo", minWidth: 100 },
+  {
+    id: "dataApta",
+    label: "Data Apta",
+    minWidth: 100,
+  },
+  { id: "dataAutorizada", label: "Data Autorizada", minWidth: 100 },
+  {
+    id: "tipo",
+    label: "Tipo",
+    minWidth: 100,
+  },
+  {
+    id: "situacao",
+    label: "Situação",
+    minWidth: 100,
+  },
+];
+
 export default function DataExportView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [filteredDataSourceKeys, setFilteredDataSourceKeys] = useState([]);
@@ -297,6 +317,7 @@ export default function DataExportView() {
   const [partialResources, setPartialResources] = useState([]);
   const [partialLoads, setPartialLoads] = useState([]);
   const [topologies, setTopologies] = useState([]);
+  const [modellingData, setModellingData] = useState([]);
   const [initialRows, setInitialRows] = useState([]);
   const [rows, setRows] = useState([]);
   const [rowKey, setRowKey] = useState("");
@@ -446,6 +467,15 @@ export default function DataExportView() {
 
       setTopologies(topologias);
 
+      var modelagens = await db.modelagem;
+      if (modelagens === undefined) {
+        modelagens = [];
+      } else {
+        modelagens = await db.modelagem.toArray();
+      }
+
+      setModellingData(modelagens);
+
       var dataSources = [];
 
       if (participantes.length > 0) {
@@ -495,6 +525,14 @@ export default function DataExportView() {
         );
       }
 
+      if (modelagens.length > 0) {
+        dataSources = dataSources.concat(
+          modelagens.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
       const distinctDataSources = [...new Set(dataSources)];
 
       if (distinctDataSources) {
@@ -530,6 +568,9 @@ export default function DataExportView() {
       setRowKey("codAtivoMedicao");
     } else if (selectedDataSource.includes("dadosSintéticos")) {
       setTableHeader(SinteticColumns);
+      setRowKey("codAtivoMedicao");
+    } else if (selectedDataSource.includes("modelagens")) {
+      setTableHeader(ModellingColumns);
       setRowKey("codAtivoMedicao");
     } else {
       setTableHeader([]);
@@ -634,6 +675,7 @@ export default function DataExportView() {
       (x) => x.key === dataSourceKey
     );
     var filteredTopologies = topologies.filter((x) => x.key === dataSourceKey);
+    var filteredModellingData = modellingData.filter((x) => x.key === dataSourceKey);
 
     if (participants.length > 0 && filteredParticipants.length > 0) {
       return filteredParticipants;
@@ -650,6 +692,8 @@ export default function DataExportView() {
       return filteredPartialLoads;
     } else if (topologies.length > 0 && filteredTopologies.length > 0) {
       return filteredTopologies;
+    } else if (modellingData.length > 0 && modellingData.length > 0) {
+      return filteredModellingData;
     } else {
       return [];
     }

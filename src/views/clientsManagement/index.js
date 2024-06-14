@@ -21,10 +21,14 @@ export default function ClientsManagementView() {
   const [authData, setAuthData] = useState([]);
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [participants, setParticipants] = useState([]);
+  const [profiles, setProfiles] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState("");
+  const [selectedProfile, setSelectedProfile] = useState("");
   const [activeTab, setActiveTab] = useState("1");
+  const [accountingDates, setAccountingDates] = useState([]);
 
   const date = dayjs().format("MM/YYYY");
+  const initialMonth = dayjs().subtract(12, "month").format("MM/YYYY");
 
   useEffect(() => {
     async function fetchData() {
@@ -41,50 +45,14 @@ export default function ClientsManagementView() {
 
       setParticipants(repParticipants);
 
-      // var perfis = await db.perfis;
-      // if (perfis === undefined) {
-      //   perfis = [];
-      // } else {
-      //   perfis = await db.perfis.toArray();
-      // }
+      var perfis = await db.perfis;
+      if (perfis === undefined) {
+        perfis = [];
+      } else {
+        perfis = await db.perfis.toArray();
+      }
 
-      // setProfiles(perfis);
-
-      // var ativosMedicao = await db.ativosMedicao;
-      // if (ativosMedicao === undefined) {
-      //   ativosMedicao = [];
-      // } else {
-      //   ativosMedicao = await db.ativosMedicao.toArray();
-      // }
-
-      // setResources(ativosMedicao);
-
-      // var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
-      // if (parcelasAtivosMedicao === undefined) {
-      //   parcelasAtivosMedicao = [];
-      // } else {
-      //   parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
-      // }
-
-      // setPartialResources(parcelasAtivosMedicao);
-
-      // var parcelasDeCarga = await db.parcelasDeCarga;
-      // if (parcelasDeCarga === undefined) {
-      //   parcelasDeCarga = [];
-      // } else {
-      //   parcelasDeCarga = await db.parcelasDeCarga.toArray();
-      // }
-
-      // setPartialLoads(parcelasDeCarga);
-
-      // var topologias = await db.topologia;
-      // if (topologias === undefined) {
-      //   topologias = [];
-      // } else {
-      //   topologias = await db.topologia.toArray();
-      // }
-
-      // setTopologies(topologias);
+      setProfiles(perfis);
 
       var dataSources = [];
 
@@ -95,45 +63,6 @@ export default function ClientsManagementView() {
           })
         );
       }
-      // if (perfis.length > 0) {
-      //   dataSources = dataSources.concat(
-      //     perfis.map(function (v) {
-      //       return v.key;
-      //     })
-      //   );
-      // }
-
-      // if (ativosMedicao.length > 0) {
-      //   dataSources = dataSources.concat(
-      //     ativosMedicao.map(function (v) {
-      //       return v.key;
-      //     })
-      //   );
-      // }
-
-      // if (parcelasAtivosMedicao.length > 0) {
-      //   dataSources = dataSources.concat(
-      //     parcelasAtivosMedicao.map(function (v) {
-      //       return v.key;
-      //     })
-      //   );
-      // }
-
-      // if (parcelasDeCarga.length > 0) {
-      //   dataSources = dataSources.concat(
-      //     parcelasDeCarga.map(function (v) {
-      //       return v.key;
-      //     })
-      //   );
-      // }
-
-      // if (topologias.length > 0) {
-      //   dataSources = dataSources.concat(
-      //     topologias.map(function (v) {
-      //       return v.key;
-      //     })
-      //   );
-      // }
 
       const distinctDataSources = [...new Set(dataSources)];
 
@@ -146,21 +75,77 @@ export default function ClientsManagementView() {
 
   const handleAgentChange = async (event) => {
     const selectedParticipant = event.target.value;
-    console.log(selectedParticipant);
     setSelectedAgent(selectedParticipant);
+    filterProfiles(selectedParticipant);
+    fillAccountingDatesArr();
+  };
+
+  const filterProfiles = (selectedParticipant) => {
+    let filteredProfiles = profiles.filter(
+      (x) =>
+        x.codAgente === selectedParticipant.codigo &&
+        selectedParticipant.key.includes("representados") &&
+        selectedParticipant.key
+          .substring(selectedParticipant.key.length - 8)
+          .toString() === x.key.substring(x.key.length - 8).toString()
+    );
+
+    setProfiles([...new Set(filteredProfiles)]);
+  };
+
+  const handleProfileChange = async (event) => {
+    const selectedProfile = event.target.value;
+    setSelectedProfile(selectedProfile);
   };
 
   const handleTabChange = (event, newValue) => {
     setActiveTab(newValue);
   };
 
+  const fillAccountingDatesArr = () => {
+    const finalDate = dayjs().subtract(2, "month");
+    let currentDate = dayjs().subtract(12, "month");
+    let dates = [currentDate];
+
+    while (currentDate.format("MM/YYYY") !== finalDate.format("MM/YYYY")) {
+      currentDate = currentDate.add(1, "month");
+      dates.push(currentDate);
+    }
+
+    setAccountingDates(dates);
+  };
+
+  function RenderAccountingTab() {
+    return (
+      <Stack divider={<Divider flexItem />}>
+        <FormControl sx={{ width: "50%" }}>
+          <InputLabel id="data-source-select-profile-label">Perfil</InputLabel>
+          <Select
+            labelId="profile-select-label"
+            id="profile-simple-select"
+            value={selectedProfile}
+            label="Perfil"
+            input={<OutlinedInput label="Sigla" />}
+            onChange={handleProfileChange}
+          >
+            {profiles.map((x) => (
+              <MenuItem key={x.id} value={x}>
+                {x.sigla}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
+    );
+  }
+
   return (
     <Container className={styles.container}>
       <Typography variant="h5" mb={5}>
         Gestão de clientes
       </Typography>
-      <Stack divider={<flexItem />} sx={{ marginTop: 2 }} spacing={2}>
-        <Stack divider={<flexItem />}>
+      <Stack sx={{ marginTop: 2 }} spacing={2}>
+        <Stack>
           <Typography variant="h8" mb={1}>
             Total de clientes representados: {participants.length}
           </Typography>
@@ -168,7 +153,6 @@ export default function ClientsManagementView() {
             Total de migrações em {date}: {participants.length}
           </Typography>
         </Stack>
-        <Divider orientation="horizontal" flexItem />
         <FormControl sx={{ width: "50%" }}>
           <InputLabel id="data-source-select-label">Agente</InputLabel>
           <Select
@@ -186,22 +170,28 @@ export default function ClientsManagementView() {
             ))}
           </Select>
         </FormControl>
-
-        <TabContext value={activeTab}>
-          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <TabList
-              onChange={handleTabChange}
-              aria-label="lab API tabs example"
-            >
-              <Tab label="Análise de Contabilização" value="1" />
-              <Tab label="Proinfa" value="2" />
-              <Tab label="Encargos" value="3" />
-            </TabList>
-          </Box>
-          <TabPanel value="1">Item One</TabPanel>
-          <TabPanel value="2">Item Two</TabPanel>
-          <TabPanel value="3">Item Three</TabPanel>
-        </TabContext>
+        <Divider orientation="horizontal" flexItem />
+        {selectedAgent !== "" ? (
+          <div>
+            <TabContext value={activeTab}>
+              <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+                <TabList
+                  onChange={handleTabChange}
+                  aria-label="lab API tabs example"
+                >
+                  <Tab label="Análise de Contabilização" value="1" />
+                  <Tab label="Proinfa" value="2" />
+                  <Tab label="Encargos" value="3" />
+                </TabList>
+              </Box>
+              <TabPanel value="1">{RenderAccountingTab()}</TabPanel>
+              <TabPanel value="2">Item Two</TabPanel>
+              <TabPanel value="3">Item Three</TabPanel>
+            </TabContext>
+          </div>
+        ) : (
+          <div />
+        )}
       </Stack>
     </Container>
   );

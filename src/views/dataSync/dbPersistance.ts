@@ -181,6 +181,30 @@ async function addTopologia(
   }
 }
 
+async function addModelagem(
+  key,
+  codAtivoMedicao,
+  dataApta,
+  dataAutorizada,
+  situacao,
+  tipo
+) {
+  try {
+    await db.modelagem.add({
+      key,
+      codAtivoMedicao,
+      dataApta,
+      dataAutorizada,
+      situacao,
+      tipo,
+    });
+  } catch (error) {
+    console.log(
+      `Failed to add Topology for resource: ${codAtivoMedicao}: ${error}`
+    );
+  }
+}
+
 async function addGenericFaultyRequest(
   key,
   requestCode,
@@ -235,6 +259,7 @@ export const dbPersistance = {
   addParcelaDeAtivo,
   addParcelaDeCarga,
   addTopologia,
+  addModelagem,
   addGenericFaultyRequest,
   updateGenericFaultyRequest,
   deleteGenericFaultyRequest,

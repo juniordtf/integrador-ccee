@@ -397,7 +397,7 @@ function mapResponseToFinalMeasurementData(item) {
   };
 }
 
-function mapResponseToModellingData(item) {
+async function mapResponseToModellingData(key, item) {
   const codAtivoMedicao =
     item["bov2:ativoMedicao"] !== undefined
       ? item["bov2:ativoMedicao"]["bov2:codigo"]._text.toString()
@@ -421,6 +421,15 @@ function mapResponseToModellingData(item) {
     item["bov2:tipo"] !== undefined
       ? item["bov2:tipo"]["bov2:descricao"]._text.toString()
       : "";
+
+  await dbPersistance.addModelagem(
+    key,
+    parseInt(codAtivoMedicao),
+    dataApta,
+    dataAutorizada,
+    situacao,
+    tipo
+  );
 
   return {
     codAtivoMedicao,

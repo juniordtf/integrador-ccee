@@ -195,6 +195,12 @@ export default function DataSyncView() {
       } else {
         parcelasDeAtivos = await db.parcelasAtivosMedicao.toArray();
       }
+      var modelagens = await db.modelagem;
+      if (modelagens === undefined) {
+        modelagens = [];
+      } else {
+        modelagens = await db.modelagem.toArray();
+      }
 
       var dataSources = [];
 
@@ -224,6 +230,14 @@ export default function DataSyncView() {
       if (parcelasDeAtivos.length > 0) {
         dataSources = dataSources.concat(
           parcelasDeAtivos.map(function (v) {
+            return v.key;
+          })
+        );
+      }
+
+      if (modelagens.length > 0) {
+        dataSources = dataSources.concat(
+          modelagens.map(function (v) {
             return v.key;
           })
         );
@@ -304,6 +318,12 @@ export default function DataSyncView() {
     } else {
       parcelasDeAtivos = await db.parcelasAtivosMedicao.toArray();
     }
+    var modelagens = await db.modelagem;
+    if (modelagens === undefined) {
+      modelagens = [];
+    } else {
+      modelagens = await db.modelagem.toArray();
+    }
 
     if (
       participantes.length > 0 &&
@@ -332,6 +352,15 @@ export default function DataSyncView() {
       );
       console.log(selectedPartialResource.length);
       setDataSourceItems(selectedPartialResource);
+    } else if (
+      modelagens.length > 0 &&
+      modelagens.filter((x) => x.key === selectedDataSourceKey).length > 0
+    ) {
+      var selectedModellingData = modelagens.filter(
+        (x) => x.key === selectedDataSourceKey
+      );
+      console.log(selectedModellingData.length);
+      setDataSourceItems(selectedModellingData);
     } else {
       var selectedResource = ativosMedicao.filter(
         (x) => x.key === selectedDataSourceKey
@@ -812,203 +841,6 @@ export default function DataSyncView() {
     }
   }
 
-  const removeAgentFromRetryList = (key, codAgente) => {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("removeProfileFromRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeRemoved = retryData.find((x) => x.codAgente === codAgente);
-    const index = retryData.indexOf(itemToBeRemoved);
-
-    if (index > -1) {
-      retryData.splice(index, 1);
-    }
-
-    if (retryData.length === 0) {
-      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
-      const idx = retryKeys.indexOf(keyToBeRemoved);
-
-      if (idx > -1) {
-        retryKeys.splice(idx, 1);
-      }
-
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
-      localStorage.removeItem(retryKey);
-    } else {
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  };
-
-  const removeProfileFromRetryList = (key, codPerfil) => {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("removeProfileFromRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeRemoved = retryData.find((x) => x.codPerfil === codPerfil);
-    const index = retryData.indexOf(itemToBeRemoved);
-
-    if (index > -1) {
-      retryData.splice(index, 1);
-    }
-
-    if (retryData.length === 0) {
-      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
-      const idx = retryKeys.indexOf(keyToBeRemoved);
-
-      if (idx > -1) {
-        retryKeys.splice(idx, 1);
-      }
-
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
-      localStorage.removeItem(retryKey);
-    } else {
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  };
-
-  const removeParameterFromRetryList = (key, parameterCode) => {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("removeParameterFromRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeRemoved = retryData.find(
-      (x) => x.parameterCode === parameterCode
-    );
-    const index = retryData.indexOf(itemToBeRemoved);
-
-    if (index > -1) {
-      retryData.splice(index, 1);
-    }
-
-    if (retryData.length === 0) {
-      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
-      const idx = retryKeys.indexOf(keyToBeRemoved);
-
-      if (idx > -1) {
-        retryKeys.splice(idx, 1);
-      }
-
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
-      localStorage.removeItem(retryKey);
-    } else {
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  };
-
-  const removeResourceFromRetryList = (key, codAtivoMedicao) => {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("removeResourceFromRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeRemoved = retryData.find(
-      (x) => x.codAtivoMedicao === codAtivoMedicao
-    );
-    const index = retryData.indexOf(itemToBeRemoved);
-
-    if (index > -1) {
-      retryData.splice(index, 1);
-    }
-
-    if (retryData.length === 0) {
-      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
-      const idx = retryKeys.indexOf(keyToBeRemoved);
-
-      if (idx > -1) {
-        retryKeys.splice(idx, 1);
-      }
-
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
-      localStorage.removeItem(retryKey);
-    } else {
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  };
-
-  const removeParticipantsPageFromRetryList = (key, page) => {
-    const retryKey = "retry_" + key;
-    let retryData = JSON.parse(localStorage.getItem(retryKey));
-    console.log("removeParticipantsPageFromRetryList");
-
-    if (!retryData) return;
-
-    const itemToBeRemoved = retryData.find((x) => x.page === page);
-    const index = retryData.indexOf(itemToBeRemoved);
-
-    if (index > -1) {
-      retryData.splice(index, 1);
-    }
-
-    if (retryData.length === 0) {
-      const keyToBeRemoved = retryKeys.find((x) => x === retryKey);
-      const idx = retryKeys.indexOf(keyToBeRemoved);
-
-      if (idx > -1) {
-        retryKeys.splice(idx, 1);
-      }
-
-      localStorage.setItem("RETRY_KEYS", JSON.stringify(retryKeys));
-      localStorage.removeItem(retryKey);
-    } else {
-      localStorage.setItem(retryKey, JSON.stringify(retryData));
-    }
-  };
-
-  const removeExpiredData = async () => {
-    // fetchWebWorker();
-    // if (retryKeys.length === 0) {
-    //   setPendingRequests(0);
-    //   return;
-    // }
-
-    //await removeExpiredDataFromList();
-
-    await removeFaultyRequests();
-
-    setSuccessDialogOpen(true);
-  };
-
-  async function removeFaultyRequests() {
-    let removes = genericFaultyRequests.filter(
-      (z) => z.apiCode === 200 || (z.apiCode === 500 && z.attempts > 1)
-    );
-
-    console.log(removes.length);
-
-    for (const expiredData of removes) {
-      dbPersistance.deleteGenericFaultyRequest(
-        expiredData.requestCode,
-        expiredData.id
-      );
-    }
-  }
-
-  const exportMeasurementData = async () => {
-    var medService =
-      servicos.id === 6 ? "medidasCincoMinutos" : "medidasFinais";
-    var medName =
-      inputFieldType === "Simples" ? scdeCode : excelFileName.toString();
-    var fileName = medService + "_" + medName;
-    let exportType = exportFromJSON.types.xls;
-
-    exportFromJSON({ data: measurementsValues, fileName, exportType });
-  };
-
-  const exportModellingData = async () => {
-    var fileName =
-      "modelagens_" + parseInt(date.month() + 1) + "-" + date.year();
-    let exportType = exportFromJSON.types.xls;
-
-    exportFromJSON({ data: modellingValues, fileName, exportType });
-  };
-
   const sendRequest_ListarParcelasDeAtivo = async () => {
     setPendingRequests(pendingRequests + 1);
 
@@ -1024,23 +856,38 @@ export default function DataSyncView() {
       sourceData = rows.map((x) => x[0]);
       selectedParameter = parameter;
     } else {
-      var date = selectedDataSource.substring(selectedDataSource.length - 5);
-      formDate =
-        "20" +
-        date.substring(date.length - 2) +
-        "-" +
-        date.substring(0, 2) +
-        "-01";
-      formDate = dayjs(formDate).format("YYYY-MM-DDTHH:mm:ss");
-      key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
-
       if (dataSourceItems === null) {
         setPendingRequests(pendingRequests - 1);
         return;
       }
 
-      sourceData = dataSourceItems.map((x) => x.codPerfil);
-      selectedParameter = 4;
+      if (selectedDataSource.includes("modelagens")) {
+        sourceData = dataSourceItems.map((x) => x.codAtivoMedicao);
+        selectedParameter = 3;
+        key =
+          selectedDataSource.substring(0, 10) +
+          "_parcelasDeAtivos_" +
+          selectedDataSource.substring(11);
+
+        let modellingDate =
+          "0" +
+          selectedDataSource.substring(11, 13) +
+          "01-" +
+          selectedDataSource.substring(13);
+        formDate = dayjs(modellingDate).format("YYYY-MM-DDTHH:mm:ss");
+      } else {
+        sourceData = dataSourceItems.map((x) => x.codPerfil);
+        selectedParameter = 4;
+        key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
+        var date = selectedDataSource.substring(selectedDataSource.length - 5);
+        formDate =
+          "20" +
+          date.substring(date.length - 2) +
+          "-" +
+          date.substring(0, 2) +
+          "-01";
+        formDate = dayjs(formDate).format("YYYY-MM-DDTHH:mm:ss");
+      }
     }
 
     db.parcelasAtivosMedicao
@@ -1677,11 +1524,12 @@ export default function DataSyncView() {
     }
 
     var totalPages = parseInt(modellingResponse.totalPaginas._text.toString());
-
+    const key = "modelagens_" + parseInt(date.month() + 1) + "-" + date.year();
     let results = [];
 
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {
       var innerResults = await listarModelagens(
+        key,
         dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
         dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss"),
         currentPage
@@ -1693,7 +1541,7 @@ export default function DataSyncView() {
     setPendingRequests(pendingRequests - 1);
   };
 
-  async function listarModelagens(initialDate, endDate, currentPage) {
+  async function listarModelagens(key, initialDate, endDate, currentPage) {
     var response = await ativosService.listarModelagemDeAtivo(
       authData,
       initialDate,
@@ -1709,11 +1557,14 @@ export default function DataSyncView() {
 
       if (results.length > 0) {
         results.forEach((r) => {
-          resourcesModelling = apiMappings.mapResponseToModellingData(r);
+          resourcesModelling = apiMappings.mapResponseToModellingData(key, r);
           modellingArr.push(resourcesModelling);
         });
       } else {
-        resourcesModelling = apiMappings.mapResponseToModellingData(results);
+        resourcesModelling = apiMappings.mapResponseToModellingData(
+          key,
+          results
+        );
         modellingArr.push(resourcesModelling);
       }
     }
@@ -1946,6 +1797,45 @@ export default function DataSyncView() {
     setPendingRequests(0);
   }
 
+  const removeExpiredData = async () => {
+    await removeFaultyRequests();
+    setSuccessDialogOpen(true);
+  };
+
+  async function removeFaultyRequests() {
+    let removes = genericFaultyRequests.filter(
+      (z) => z.apiCode === 200 || (z.apiCode === 500 && z.attempts > 1)
+    );
+
+    console.log(removes.length);
+
+    for (const expiredData of removes) {
+      dbPersistance.deleteGenericFaultyRequest(
+        expiredData.requestCode,
+        expiredData.id
+      );
+    }
+  }
+
+  const exportMeasurementData = async () => {
+    var medService =
+      servicos.id === 6 ? "medidasCincoMinutos" : "medidasFinais";
+    var medName =
+      inputFieldType === "Simples" ? scdeCode : excelFileName.toString();
+    var fileName = medService + "_" + medName;
+    let exportType = exportFromJSON.types.xls;
+
+    exportFromJSON({ data: measurementsValues, fileName, exportType });
+  };
+
+  const exportModellingData = async () => {
+    var fileName =
+      "modelagens_" + parseInt(date.month() + 1) + "-" + date.year();
+    let exportType = exportFromJSON.types.xls;
+
+    exportFromJSON({ data: modellingValues, fileName, exportType });
+  };
+
   const fileHandler = (event) => {
     let fileObj = event.target.files[0];
 
@@ -2170,8 +2060,8 @@ export default function DataSyncView() {
 
   const renderFractionalMeasurementFields = () => {
     var sortedDataSourceKeys = [];
-    sortedDataSourceKeys = dataSourceKeys.filter((item) =>
-      item.includes("perfis")
+    sortedDataSourceKeys = dataSourceKeys.filter(
+      (item) => item.includes("perfis") || item.includes("modelagens")
     );
 
     return (
