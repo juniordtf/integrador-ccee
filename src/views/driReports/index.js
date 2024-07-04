@@ -47,6 +47,7 @@ import {
 } from "@react-pdf/renderer";
 import { driService } from "../../services/driService.ts";
 import { cadastrosService } from "../../services/cadastrosService.ts";
+import { apiMappings } from "./apiMappings.ts";
 import { db } from "../../database/db";
 import { saveAs } from "file-saver";
 import styles from "./styles.module.css";
@@ -502,8 +503,15 @@ export default function DriReportsView() {
             (resValue !== undefined && resValue.rows !== undefined) ||
             (Array.isArray(resValue) && resValue.length > 0)
           ) {
-            columnData = resValue.columns;
-            rowsValues = resValue.rows;
+            resValue.forEach((x) => {
+              if (x !== undefined) {
+                columnData = x.columns;
+                let row = x.rows;
+                row?.forEach((y) => {
+                  rowsValues.push(y);
+                });
+              }
+            });
 
             if (rowsValues !== undefined && rowsValues.length > 0) {
               if (rowsValues[0] !== undefined) {
@@ -516,12 +524,14 @@ export default function DriReportsView() {
                 rowData.push(r);
                 idx++;
               }
+
+              rowData = [...new Set(rowData)];
             }
           }
 
           if (resIdx === codes.length - 1) {
-            if (rowData !== undefined && rowData.length > 0) {
-              addReportData(rowData, columnData, boardId);
+            if (rowsValues !== undefined && rowsValues.length > 0) {
+              addReportData(rowsValues, columnData, boardId);
             }
           }
         });
@@ -572,6 +582,7 @@ export default function DriReportsView() {
 
     if (inputId === 1) {
       setLoadingText("Buscando resultados");
+      setProgress(25);
       setLoadingModalOpen(true);
     }
 
@@ -583,8 +594,16 @@ export default function DriReportsView() {
       if (inputId === 1) {
         tableData = await getResults(participantCode, boardId);
         if (tableData !== undefined) {
-          columnData = tableData.columns;
-          rowData = tableData.rows;
+          tableData.forEach((x) => {
+            if (x !== undefined) {
+              columnData = x.columns;
+              let row = x.rows;
+              row?.forEach((y) => {
+                rowData.push(y);
+              });
+            }
+          });
+
           setParticipantsQueryCodes([participantCode]);
 
           if (rowData !== undefined && rowData.length > 0) {
@@ -607,6 +626,7 @@ export default function DriReportsView() {
   };
 
   const getResults = async (agentCode, boardId) => {
+    let results = [];
     var responseData = await driService.listarResultadoDeRelatorio(
       authData,
       selectedAccountingEventCode,
@@ -615,14 +635,51 @@ export default function DriReportsView() {
       agentCode
     );
 
-    if (responseData.code === 200) {
-      const results = responseData.data;
-      var tableData = await mapResponseToTableData(results, agentCode);
-      return tableData;
+    var totalPaginas = responseData.totalPaginas;
+    var totalPaginasNumber = totalPaginas._text
+      ? parseInt(totalPaginas._text.toString())
+      : 0;
+
+    if (totalPaginasNumber > 1) {
+      for (
+        let paginaCorrente = 1;
+        paginaCorrente <= totalPaginasNumber;
+        paginaCorrente++
+      ) {
+        var responseDataPaginated = await driService.listarResultadoDeRelatorio(
+          authData,
+          selectedAccountingEventCode,
+          boardId,
+          selectedReport.reportId,
+          agentCode,
+          paginaCorrente
+        );
+
+        const idx = paginaCorrente === 1 ? 0 : 100 * (paginaCorrente - 1);
+
+        results.push(
+          await handleReportResponse(responseDataPaginated, agentCode, idx)
+        );
+      }
     } else {
-      return [];
+      results.push(await handleReportResponse(responseData, agentCode, 0));
     }
+
+    return results;
   };
+
+  async function handleReportResponse(responseData, agentCode, idx) {
+    if (responseData.code !== 200) return [];
+
+    const results = responseData.data;
+    var tableData = await apiMappings.mapResponseToTableData(
+      results,
+      agentCode,
+      idx
+    );
+
+    return tableData;
+  }
 
   function addReportData(rowData, columnData, boardId) {
     var resultRowsArrClone = queryResultRows;
@@ -747,86 +804,6 @@ export default function DriReportsView() {
     }
 
     setBoards(boardsClone);
-  }
-
-  async function mapResponseToTableData(item, agentCode) {
-    const cabecalho = item["bov2:cabecalho"]._text.toString();
-    const cabecalhoArr = cabecalho.split("','");
-    const valores =
-      item["bov2:valores"] !== undefined
-        ? item["bov2:valores"]["bov2:valor"]
-        : null;
-    var rowsArr = [];
-    var headerFields = [];
-    var rowData = {};
-
-    if (valores === null) {
-      return;
-    }
-
-    const initalColumn = {
-      field: "col0",
-      headerName: "CÓDIGO DE AGENTE",
-      minWidth: 200,
-    };
-    headerFields.push(initalColumn);
-
-    var colIdx = 1;
-    for (var headerField of cabecalhoArr) {
-      const columnAttributes = {
-        field: "col" + colIdx,
-        headerName: headerField.replace(/'/g, ""),
-        minWidth: 200,
-      };
-      headerFields.push(columnAttributes);
-      colIdx++;
-    }
-
-    if (valores.length !== undefined) {
-      var rowIdx = 1;
-      for (var v of valores) {
-        rowData = {};
-        const valor = v._text.toString();
-        var valorArr = valor.split("','");
-        rowData["id"] = rowIdx;
-
-        valorArr.unshift(agentCode);
-
-        for (let i = 0; i < valorArr.length; i++) {
-          const element = valorArr[i];
-
-          rowData[headerFields[i].field] =
-            i === 0 ? element : element.replace(/'/g, "").replace(/\./g, ",");
-        }
-
-        if (rowsArr.length === 0) {
-          rowsArr = [rowData];
-        } else {
-          rowsArr.push(rowData);
-        }
-        rowIdx++;
-      }
-    } else {
-      const valor = valores._text.toString();
-      const valorArr = valor.split("','");
-      rowData["id"] = 1;
-
-      valorArr.unshift(agentCode);
-
-      for (let i = 0; i < valorArr.length; i++) {
-        const element = valorArr[i];
-        rowData[headerFields[i].field] =
-          i === 0 ? element : element.replace(/'/g, "").replace(/\./g, ",");
-      }
-
-      if (rowsArr.length === 0) {
-        rowsArr = [rowData];
-      } else {
-        rowsArr.push(rowData);
-      }
-    }
-
-    return { columns: headerFields, rows: rowsArr };
   }
 
   const handleChipClick = (idx, label) => {

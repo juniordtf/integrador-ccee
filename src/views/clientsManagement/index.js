@@ -15,6 +15,8 @@ import TabList from "@mui/lab/TabList";
 import TabPanel from "@mui/lab/TabPanel";
 import dayjs from "dayjs";
 import { db } from "../../database/db";
+import { driService } from "../../services/driService.ts";
+import { apiMappings } from "../driReports/apiMappings.ts";
 import styles from "./styles.module.css";
 
 export default function ClientsManagementView() {
@@ -22,6 +24,7 @@ export default function ClientsManagementView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [modellingData, setModellingData] = useState([]);
   const [selectedAgent, setSelectedAgent] = useState("");
   const [selectedProfile, setSelectedProfile] = useState("");
   const [activeTab, setActiveTab] = useState("1");
@@ -29,6 +32,8 @@ export default function ClientsManagementView() {
 
   const date = dayjs().format("MM/YYYY");
   const initialMonth = dayjs().subtract(12, "month").format("MM/YYYY");
+  const REPORT_CTO003_ID = 51;
+  const BOARD_CTO003_Q1_ID = 267;
 
   useEffect(() => {
     async function fetchData() {
@@ -54,6 +59,15 @@ export default function ClientsManagementView() {
 
       setProfiles(perfis);
 
+      var modelagens = await db.modelagem;
+      if (modelagens === undefined) {
+        modelagens = [];
+      } else {
+        modelagens = await db.modelagem.toArray();
+      }
+
+      setModellingData(modelagens);
+
       var dataSources = [];
 
       if (participantes.length > 0) {
@@ -71,6 +85,11 @@ export default function ClientsManagementView() {
       }
     }
     fetchData();
+
+    const data = JSON.parse(localStorage.getItem("authData"));
+    if (data) {
+      setAuthData(data);
+    }
   }, []);
 
   const handleAgentChange = async (event) => {
@@ -115,6 +134,35 @@ export default function ClientsManagementView() {
     setAccountingDates(dates);
   };
 
+  function getFullPeriodReportResults() {
+    let reportResults = [];
+    accountingDates.forEach((dt) => {
+      reportResults.push(getReportResults(dt));
+    });
+  }
+
+  const getReportResults = async (accountingDate) => {
+    let agentCode = selectedAgent.codigo;
+    var responseData = await driService.listarResultadoDeRelatorio(
+      authData,
+      accountingDate.format("YYYYMM") + "001000",
+      BOARD_CTO003_Q1_ID,
+      REPORT_CTO003_ID,
+      agentCode
+    );
+
+    if (responseData.code === 200) {
+      const results = responseData.data;
+      var tableData = await apiMappings.mapResponseToTableData(
+        results,
+        agentCode
+      );
+      return tableData;
+    } else {
+      return [];
+    }
+  };
+
   function RenderAccountingTab() {
     return (
       <Stack divider={<Divider flexItem />}>
@@ -150,7 +198,7 @@ export default function ClientsManagementView() {
             Total de clientes representados: {participants.length}
           </Typography>
           <Typography variant="h8" mb={1}>
-            Total de migrações em {date}: {participants.length}
+            Total de migrações em {date}: {modellingData.length}
           </Typography>
         </Stack>
         <FormControl sx={{ width: "50%" }}>

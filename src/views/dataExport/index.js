@@ -192,13 +192,19 @@ const TopologiesColumns = [
 ];
 
 const SinteticColumns = [
-  { id: "codAtivoMedicao", label: "Código de Ativo", minWidth: 100 },
+  { id: "codAlphaAtivoMedicao", label: "Código de Ativo", minWidth: 100 },
+  { id: "codAtivoMedicao", label: "Número de Ativo", minWidth: 100 },
   {
     id: "nomeAtivo",
     label: "Nome do Ativo",
     minWidth: 170,
   },
-  { id: "cnpj", label: "CNPJ do ativo", minWidth: 170 },
+  {
+    id: "cnpj",
+    label: "CNPJ do ativo",
+    minWidth: 170,
+    format: (value) => formatStringByPattern("XX.XXX.XXX/XXXX-XX", value),
+  },
   { id: "situacao", label: "Situação", minWidth: 100 },
   {
     id: "undCapacidadeCarga",
@@ -780,6 +786,7 @@ export default function DataExportView() {
       );
 
       sinteticTableB = filteredSinteticPartialLoadValues.map((x) => ({
+        codAlphaAtivoMedicao: x.codAlphaAtivoMedicao,
         codAtivoMedicao: x.codAtivoMedicao,
         logradouro: x.logradouro,
         numeroPredial: x.numero,
@@ -883,7 +890,6 @@ export default function DataExportView() {
         tipo: x.tipo,
         situacaoModelagem: x.situacao,
       }));
-
     }
 
     var resultTableE = mergeArraysByKey(
@@ -1023,6 +1029,15 @@ export default function DataExportView() {
         });
     } else if (selectedDataSource.includes("topologias")) {
       db.topologia
+        .where("key")
+        .equals(selectedDataSource)
+        .delete()
+        .then(function (deleteCount) {
+          console.log(deleteCount + " objects deleted");
+          handleLoadingModalClose();
+        });
+    } else if (selectedDataSource.includes("modelagens")) {
+      db.modelagem
         .where("key")
         .equals(selectedDataSource)
         .delete()

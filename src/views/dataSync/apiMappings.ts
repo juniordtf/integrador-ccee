@@ -1,3 +1,4 @@
+import { db } from "../../database/db";
 import { dbPersistance } from "./dbPersistance.ts";
 import dayjs from "dayjs";
 
@@ -52,6 +53,15 @@ async function mapResponseToProfileData(key, codAgente, item) {
     comercializadorVarejista === "true" ? "Sim" : "Não";
   perfilPrincipal = perfilPrincipal === "true" ? "Sim" : "Não";
   regimeCotas = regimeCotas === "true" ? "Sim" : "Não";
+
+  let profiles = await db.perfis.toArray();
+
+  if (
+    profiles.filter(
+      (x) => parseInt(x.codPerfil) === parseInt(codPerfil) && x.key === key
+    ).length > 0
+  )
+    return;
 
   await dbPersistance.addPerfil(
     key,
