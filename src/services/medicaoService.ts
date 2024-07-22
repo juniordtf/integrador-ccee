@@ -158,6 +158,7 @@ const listarMedidasFinais = async (
       .catch(function (error) {
         if (error.response) {
           console.log(error.response.status);
+          console.log(error.response);
           var responseData = {
             data: codMedidor,
             code: error.response.status,

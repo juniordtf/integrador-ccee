@@ -1452,6 +1452,10 @@ export default function DataSyncView() {
     let results = [];
 
     if (inputFieldType === "Simples") {
+      console.log(scdeCode);
+      console.log(dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"));
+      console.log(dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss"));
+
       results = await listarMedidasFinais(
         scdeCode,
         dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
@@ -2026,7 +2030,7 @@ export default function DataSyncView() {
     var sortedDataSourceKeys = [];
     if (serviceIdx === 2) {
       sortedDataSourceKeys = dataSourceKeys.filter((item) =>
-        item.includes("participantes") 
+        item.includes("participantes")
       );
     } else {
       sortedDataSourceKeys = dataSourceKeys.filter((item) =>
