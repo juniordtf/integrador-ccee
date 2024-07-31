@@ -13,7 +13,6 @@ const listarMedidasCincoMinutos = async (
       "Content-Type": "text/xml; charset=utf-8",
       SOAPAction: "listarMedidaCincoMinutos",
     },
-    timeout: 60000,
   };
 
   var xmlBodyStr = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:mh="http://xmlns.energia.org.br/MH/v2" xmlns:oas="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:bm="http://xmlns.energia.org.br/BM/v2" xmlns:bo="http://xmlns.energia.org.br/BO/v2">
@@ -98,7 +97,6 @@ const listarMedidasFinais = async (
       "Content-Type": "text/xml; charset=utf-8",
       SOAPAction: "listarMedida",
     },
-    timeout: 60000,
   };
 
   var xmlBodyStr = `<?xml version="1.0" encoding="UTF-8"?>
@@ -131,16 +129,16 @@ const listarMedidasFinais = async (
 
   return new Promise((resolve) => {
     medApi()
-      .post("/ws/medc/ListarMedidaBSv1", xmlBodyStr, options)
+      .post("ListarMedidaBSv1", xmlBodyStr, options)
       .then((response) => {
         if (response.status === 200) {
           let resBody = Buffer.from(response.data).toString();
           var xml = xml2json(resBody, { compact: true, spaces: 4 });
           var json = JSON.parse(xml);
           var parcelaDeAtivos =
-            json["io2:Envelope"]["io2:Body"]["out:listarMedidaResponse"][
-              "out:medidas"
-            ]["out:medida"];
+            json["soapenv:Envelope"]["soapenv:Body"]["bm:listarMedidaResponse"][
+              "bm:medidas"
+            ]["bm:medida"];
 
           var responseData = {
             data: parcelaDeAtivos,

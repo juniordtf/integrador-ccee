@@ -358,41 +358,41 @@ function mapResponseToMeasurementData(item) {
 
 function mapResponseToFinalMeasurementData(item) {
   let pontoMedicao =
-    item["out2:pontoMedicao"] !== undefined
-      ? item["out2:pontoMedicao"]["out2:codigo"]._text.toString()
+    item["bo:pontoMedicao"] !== undefined
+      ? item["bo:pontoMedicao"]["bo:codigo"]._text.toString()
       : "";
   let consumoAtivo =
-    item["out2:consumoAtivo"] !== undefined
-      ? item["out2:consumoAtivo"]._text.toString()
+    item["bo:consumoAtivo"] !== undefined
+      ? item["bo:consumoAtivo"]._text.toString()
       : "";
   consumoAtivo = consumoAtivo.replace(".", ",");
   let consumoReativo =
-    item["out2:consumoReativo"] !== undefined
-      ? item["out2:consumoReativo"]._text.toString()
+    item["bo:consumoReativo"] !== undefined
+      ? item["bo:consumoReativo"]._text.toString()
       : "";
   consumoReativo = consumoReativo.replace(".", ",");
   let geracaoAtiva =
-    item["out2:geracaoAtiva"] !== undefined
-      ? item["out2:geracaoAtiva"]._text.toString()
+    item["bo:geracaoAtiva"] !== undefined
+      ? item["bo:geracaoAtiva"]._text.toString()
       : "";
   geracaoAtiva = geracaoAtiva.replace(".", ",");
   let geracaoReativo =
-    item["out2:geracaoReativo"] !== undefined
-      ? item["out2:geracaoReativo"]._text.toString()
+    item["bo:geracaoReativo"] !== undefined
+      ? item["bo:geracaoReativo"]._text.toString()
       : "";
   geracaoReativo = geracaoReativo.replace(".", ",");
 
   const periodo =
-    item["out2:periodo"] !== undefined
-      ? item["out2:periodo"]["out2:fim"]._text.toString()
+    item["bo:periodo"] !== undefined
+      ? item["bo:periodo"]["bo:fim"]._text.toString()
       : "";
   const status =
-    item["out2:status"] !== undefined
-      ? item["out2:status"]._text.toString()
+    item["bo:status"] !== undefined
+      ? item["bo:status"]._text.toString()
       : "";
   const subTipo =
-    item["out2:subTipo"] !== undefined
-      ? item["out2:subTipo"]._text.toString()
+    item["bo:subTipo"] !== undefined
+      ? item["bo:subTipo"]._text.toString()
       : "";
 
   return {

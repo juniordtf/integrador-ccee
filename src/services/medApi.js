@@ -5,7 +5,7 @@ const medApi = () => {
   const serverAddress =
     serverData !== null ? serverData.serverAddress : "localhost:5000";
   const axiosInstance = axios.create({
-    baseURL: "http://" + serverAddress,
+    baseURL: "http://" + serverAddress + "/ws/medc/",
   });
 
   return axiosInstance;

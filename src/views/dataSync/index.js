@@ -1452,10 +1452,6 @@ export default function DataSyncView() {
     let results = [];
 
     if (inputFieldType === "Simples") {
-      console.log(scdeCode);
-      console.log(dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"));
-      console.log(dayjs(endDate).format("YYYY-MM-DDTHH:mm:ss"));
-
       results = await listarMedidasFinais(
         scdeCode,
         dayjs(initialDate).format("YYYY-MM-DDTHH:mm:ss"),
