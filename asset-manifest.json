@@ -1,15 +1,15 @@
 {
   "files": {
-    "main.css": "/integrador-ccee/static/css/main.151f132e.css",
-    "main.js": "/integrador-ccee/static/js/main.e90eaf37.js",
+    "main.css": "/integrador-ccee/static/css/main.64b3b5b7.css",
+    "main.js": "/integrador-ccee/static/js/main.55766352.js",
     "static/js/787.420c6dca.chunk.js": "/integrador-ccee/static/js/787.420c6dca.chunk.js",
     "index.html": "/integrador-ccee/index.html",
-    "main.151f132e.css.map": "/integrador-ccee/static/css/main.151f132e.css.map",
-    "main.e90eaf37.js.map": "/integrador-ccee/static/js/main.e90eaf37.js.map",
+    "main.64b3b5b7.css.map": "/integrador-ccee/static/css/main.64b3b5b7.css.map",
+    "main.55766352.js.map": "/integrador-ccee/static/js/main.55766352.js.map",
     "787.420c6dca.chunk.js.map": "/integrador-ccee/static/js/787.420c6dca.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.151f132e.css",
-    "static/js/main.e90eaf37.js"
+    "static/css/main.64b3b5b7.css",
+    "static/js/main.55766352.js"
   ]
 }
