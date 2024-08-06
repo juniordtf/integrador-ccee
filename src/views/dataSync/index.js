@@ -66,6 +66,7 @@ export default function DataSyncView() {
   const [onlyRepresentedAgents, setOnlyRepresentedAgents] = useState(false);
   const [webWorker, setWebWorker] = useState(null);
   const [genericFaultyRequests, setGenericFaultyRequests] = useState([]);
+  const [requestSent, setRequestSent] = useState(false);
 
   const timerRef = useRef(null);
 
@@ -265,6 +266,15 @@ export default function DataSyncView() {
       handleOpen();
     } else {
       handleClose();
+    }
+
+    async function sendRequest() {
+      await retryFaultyRequests();
+      setRequestSent(false);
+    }
+
+    if (requestSent) {
+      sendRequest();
     }
 
     worker.addEventListener("message", (event) => {
@@ -870,10 +880,9 @@ export default function DataSyncView() {
           selectedDataSource.substring(11);
 
         let modellingDate =
-          "0" +
           selectedDataSource.substring(11, 13) +
-          "01-" +
-          selectedDataSource.substring(13);
+          "-01-" +
+          selectedDataSource.substring(14);
         formDate = dayjs(modellingDate).format("YYYY-MM-DDTHH:mm:ss");
       } else {
         sourceData = dataSourceItems.map((x) => x.codPerfil);
@@ -919,6 +928,7 @@ export default function DataSyncView() {
             );
           });
 
+          requestSent(true);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
           setSuccessDialogOpen(true);
@@ -1424,19 +1434,25 @@ export default function DataSyncView() {
 
         if (responseDataPaginated.code === 200) {
           const results = responseDataPaginated.data;
-          results.forEach((r) => {
-            var measurements = apiMappings.mapResponseToMeasurementData(r);
-            measurementsArr.push(measurements);
-          });
+
+          if (results.length > 0) {
+            results.forEach((r) => {
+              var measurements = apiMappings.mapResponseToMeasurementData(r);
+              measurementsArr.push(measurements);
+            });
+          }
         }
       }
     } else {
       if (responseData.code === 200) {
         const results = responseData.data;
-        results.forEach((r) => {
-          var measurements = apiMappings.mapResponseToMeasurementData(r);
-          measurementsArr.push(measurements);
-        });
+
+        if (results.length > 0) {
+          results.forEach((r) => {
+            var measurements = apiMappings.mapResponseToMeasurementData(r);
+            measurementsArr.push(measurements);
+          });
+        }
       }
     }
 
@@ -1524,7 +1540,7 @@ export default function DataSyncView() {
     }
 
     var totalPages = parseInt(modellingResponse.totalPaginas._text.toString());
-    const key = "modelagens_" + parseInt(date.month() + 1) + "-" + date.year();
+    const key = "modelagens_" + date.format("MM-YYYY");
     let results = [];
 
     for (let currentPage = 1; currentPage <= totalPages; currentPage++) {

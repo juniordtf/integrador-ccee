@@ -23,6 +23,7 @@ import { db } from "../../database/db";
 import { driService } from "../../services/driService.ts";
 import { apiMappings } from "../driReports/apiMappings.ts";
 import styles from "./styles.module.css";
+import { width } from "@mui/system";
 
 export default function ClientsManagementView() {
   const [authData, setAuthData] = useState([]);
@@ -45,11 +46,18 @@ export default function ClientsManagementView() {
   const [progress, setProgress] = useState(0);
   const [loadingModalOpen, setLoadingModalOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(false);
+  const [accountingSummaryRows, setAccountingSummaryRows] = useState([]);
 
   const date = dayjs().format("MM/YYYY");
   const initialMonth = dayjs().subtract(12, "month").format("MM/YYYY");
   const REPORT_SUM001_ID = 51;
   const BOARD_SUM001_Q1_ID = 249;
+
+  const accountingSummaryColumns = [
+    { field: "recurso", headerName: "Recurso (MWh)", width: 150 },
+    { field: "requisito", headerName: "Requisito (MWh)", width: 150 },
+    { field: "lastro", headerName: "Lastro (MWh)", width: 150 },
+  ];
 
   const style = {
     position: "absolute",
@@ -251,16 +259,20 @@ export default function ClientsManagementView() {
 
     let consumptionSum = seriesSum(consumptionRow);
     let contractSum = seriesSum(contractRow);
+    let summaryRow = {
+      id: 1,
+      recurso: parseFloat(contractSum),
+      requisito: parseFloat(consumptionSum),
+      lastro: parseFloat(contractSum - consumptionSum),
+    };
 
-    console.log(consumptionSum);
-    console.log(contractSum);
-
+    setAccountingSummaryRows([summaryRow]);
     setAccountingChartLabels(eventLabels);
     setConsumptionSeries(consumptionRow);
     setContractSeries(contractRow);
   }
 
-  function seriesSum(series){
+  function seriesSum(series) {
     let sum = 0;
     for (let i = 0; i < series.length; i++) {
       sum += series[i];
@@ -361,6 +373,11 @@ export default function ClientsManagementView() {
                 { data: contractSeries, label: "Recurso (MWh)", color: "blue" },
               ]}
               xAxis={[{ scaleType: "point", data: accountingChartLabels }]}
+            />
+            <DataGrid
+              rows={accountingSummaryRows}
+              columns={accountingSummaryColumns}
+              sx={{ maxHeight: 440, maxWidth: 450, marginTop: 2 }}
             />
           </Stack>
         ) : (
