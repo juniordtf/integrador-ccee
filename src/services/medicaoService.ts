@@ -28,7 +28,7 @@ const listarMedidasCincoMinutos = async (
        </oas:Security>
        <mh:paginacao>
           <mh:numero>${paginaAtual}</mh:numero>
-          <mh:quantidadeItens>100</mh:quantidadeItens>
+          <mh:quantidadeItens>500</mh:quantidadeItens>
        </mh:paginacao>
     </soapenv:Header>	
     <soapenv:Body>

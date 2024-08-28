@@ -46,6 +46,7 @@ export default function DataSyncView() {
   const [participantSearchMethod, setParticipantSearchMethod] =
     useState("Classe");
   const [inputFieldType, setInputFieldType] = useState("Simples");
+  const [dateType, setDateType] = useState("Mês completo");
   const [selectedDataSource, setSelectedDataSource] = useState("");
   const [dataSourceItems, setDataSourceItems] = useState([]);
   const [service, setService] = useState("");
@@ -1364,39 +1365,79 @@ export default function DataSyncView() {
   // Listar Medidas - 5 minutos
   const sendRequest_ListarMedidasCincoMinutos = async () => {
     setPendingRequests(pendingRequests + 1);
+    const dateInFinalHour = date.endOf("day");
 
-    var daysArr = [];
-    const initialDate = dayjs(date).startOf("month");
-    const endDate = initialDate.endOf("month");
-    const totalDays = endDate.date() - 1;
+    if (inputFieldType === "Simples" && dateType === "Mês completo") {
+      var daysArr = [];
+      const initialDate = dayjs(date).startOf("month");
+      const endDate = initialDate.endOf("month");
+      const totalDays = endDate.date() - 1;
 
-    let i = 0;
-    while (i <= totalDays) {
-      const calculatedDate = initialDate.add(i, "day");
-      daysArr.push(calculatedDate.format("YYYY-MM-DDTHH:mm:ss"));
-      i++;
-    }
-
-    var resultArr = [];
-
-    getIndividualResults_listarMedidasCincoMinutos(daysArr).then((res) => {
-      if (res !== undefined && res.length > 0) {
-        res.forEach((resValue, resIdx) => {
-          if (resValue !== undefined && resValue.length > 0) {
-            resValue.forEach((rs) => {
-              resultArr.push(rs);
-            });
-          }
-        });
-        setMeasurementsValues(resultArr);
-        setPendingRequests(pendingRequests - 1);
+      let i = 0;
+      while (i <= totalDays) {
+        const calculatedDate = initialDate.add(i, "day");
+        daysArr.push(calculatedDate.format("YYYY-MM-DDTHH:mm:ss"));
+        i++;
       }
-    });
+
+      var resultArr = [];
+
+      getIndividualResults_listarMedidasCincoMinutos(daysArr, scdeCode).then(
+        (res) => {
+          if (res !== undefined && res.length > 0) {
+            res.forEach((resValue, resIdx) => {
+              if (resValue !== undefined && resValue.length > 0) {
+                resValue.forEach((rs) => {
+                  resultArr.push(rs);
+                });
+              }
+            });
+            setMeasurementsValues(resultArr);
+            setPendingRequests(pendingRequests - 1);
+          }
+        }
+      );
+    } else if (inputFieldType === "Simples" && dateType === "Data específica") {
+      let results = await listarMedidasCincoMinutos(
+        dateInFinalHour.format("YYYY-MM-DDTHH:mm:ss"),
+        scdeCode
+      );
+      setMeasurementsValues(results);
+      setPendingRequests(pendingRequests - 1);
+    } else if (
+      inputFieldType === "Múltipla" &&
+      dateType === "Data específica"
+    ) {
+      const sourceData = rows.map((x) => x[0]);
+      let itemsProcessed = 0;
+      let totalAmount = sourceData.length;
+      let results = [];
+
+      for (const medScde of sourceData) {
+        let innerResults = await listarMedidasCincoMinutos(
+          dateInFinalHour.format("YYYY-MM-DDTHH:mm:ss"),
+          medScde
+        );
+        itemsProcessed++;
+        var amountDone = (itemsProcessed / totalAmount) * 100;
+        setProgress(amountDone);
+
+        if (results.length === 0) results = innerResults;
+        else results = results.concat(innerResults);
+      }
+
+      setMeasurementsValues(results);
+      setPendingRequests(pendingRequests - 1);
+    } else {
+    }
   };
 
-  const getIndividualResults_listarMedidasCincoMinutos = async (dates) => {
+  const getIndividualResults_listarMedidasCincoMinutos = async (
+    dates,
+    codMedidor
+  ) => {
     const requests = dates.map((d) => {
-      return listarMedidasCincoMinutos(d).then((res) => {
+      return listarMedidasCincoMinutos(d, codMedidor).then((res) => {
         return res;
       });
     });
@@ -1404,10 +1445,10 @@ export default function DataSyncView() {
     return Promise.all(requests);
   };
 
-  async function listarMedidasCincoMinutos(currentDate) {
+  async function listarMedidasCincoMinutos(currentDate, codMedidor) {
     var responseData = await medicaoService.listarMedidasCincoMinutos(
       authData,
-      scdeCode,
+      codMedidor,
       currentDate
     );
 
@@ -1880,6 +1921,10 @@ export default function DataSyncView() {
     setInputFieldType(event.target.value);
   };
 
+  const handleDateTypeChange = (event) => {
+    setDateType(event.target.value);
+  };
+
   const sendRequest = () => {
     if (searchMethod === "Automático") {
       sendRequest_FullAutomatic();
@@ -1962,7 +2007,9 @@ export default function DataSyncView() {
       return <div>{renderFractionalMeasurementFields()}</div>;
     } else if (serviceId === 5) {
       return <div>{renderLoadOrTopologyFields()}</div>;
-    } else if (serviceId === 6 || serviceId === 7) {
+    } else if (serviceId === 6) {
+      return <div>{renderFiveMinutesMeasurementFields()}</div>;
+    } else if (serviceId === 7) {
       return <div>{renderMeasurementFields()}</div>;
     } else if (serviceId === 8) {
       return <div>{renderLoadOrTopologyFields()}</div>;
@@ -2184,6 +2231,106 @@ export default function DataSyncView() {
             renderInput={(params) => <TextField {...params} />}
           />
         </LocalizationProvider>
+        <FormControl>
+          <FormLabel id="demo-radio-buttons-group-label-x">
+            Tipo de entrada
+          </FormLabel>
+          <RadioGroup
+            row
+            aria-labelledby="participant-radio-buttons-group-label"
+            defaultValue="Automático"
+            name="participant-radio-buttons-group"
+            value={inputFieldType}
+            onChange={handleInputFieldTypeChange}
+          >
+            <FormControlLabel
+              value="Simples"
+              control={<Radio />}
+              label="Simples"
+            />
+            <FormControlLabel
+              value="Múltipla"
+              control={<Radio />}
+              label="Múltipla"
+            />
+          </RadioGroup>
+        </FormControl>
+        {inputFieldType === "Simples" ? (
+          <div>
+            <TextField
+              id="outlined-password-input"
+              label="Cód Medidor"
+              onChange={(event) => setScdeCode(event.target.value)}
+            />
+          </div>
+        ) : (
+          <div>
+            <input type="file" onChange={fileHandler.bind(this)} />
+          </div>
+        )}
+      </Stack>
+    );
+  };
+
+  const renderFiveMinutesMeasurementFields = () => {
+    return (
+      <Stack spacing={2}>
+        <FormControl>
+          <FormLabel id="radio-buttons-group-label-x2">Tipo de data</FormLabel>
+          <RadioGroup
+            row
+            aria-labelledby="date-type-radio-buttons-group-label"
+            defaultValue="Mês completo"
+            name="date-type-radio-buttons-group"
+            value={dateType}
+            onChange={handleDateTypeChange}
+          >
+            <FormControlLabel
+              value="Data específica"
+              control={<Radio />}
+              label="Data específica"
+            />
+            <FormControlLabel
+              value="Mês completo"
+              control={<Radio />}
+              label="Mês completo"
+            />
+          </RadioGroup>
+        </FormControl>
+        {dateType === "Mês completo" ? (
+          <div>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Mês & ano"
+                value={date}
+                views={["year", "month"]}
+                openTo="month"
+                maxDate={dayjs()}
+                onChange={(newValue) => {
+                  setDate(newValue);
+                }}
+                renderInput={(params) => <TextField {...params} />}
+              />
+            </LocalizationProvider>
+          </div>
+        ) : (
+          <div>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Data"
+                value={date}
+                views={["day", "month", "year"]}
+                openTo="day"
+                maxDate={dayjs()}
+                onChange={(newValue) => {
+                  setDate(newValue);
+                }}
+                renderInput={(params) => <TextField {...params} />}
+              />
+            </LocalizationProvider>
+          </div>
+        )}
+
         <FormControl>
           <FormLabel id="demo-radio-buttons-group-label-x">
             Tipo de entrada
