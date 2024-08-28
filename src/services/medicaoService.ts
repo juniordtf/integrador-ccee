@@ -41,6 +41,13 @@ const listarMedidasCincoMinutos = async (
     </soapenv:Body>
  </soapenv:Envelope>`;
 
+  if (
+    codMedidor === "" ||
+    codMedidor === undefined ||
+    dataReferencia === undefined
+  )
+    return [];
+
   return new Promise((resolve) => {
     api()
       .post("/MedidaCincoMinutosBSv2", xmlBodyStr, options)

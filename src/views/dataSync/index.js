@@ -1416,7 +1416,7 @@ export default function DataSyncView() {
       for (const medScde of sourceData) {
         let innerResults = await listarMedidasCincoMinutos(
           dateInFinalHour.format("YYYY-MM-DDTHH:mm:ss"),
-          medScde
+          medScde.trim()
         );
         itemsProcessed++;
         var amountDone = (itemsProcessed / totalAmount) * 100;
@@ -1468,7 +1468,7 @@ export default function DataSyncView() {
         var responseDataPaginated =
           await medicaoService.listarMedidasCincoMinutos(
             authData,
-            scdeCode,
+            codMedidor,
             currentDate,
             paginaCorrente
           );
