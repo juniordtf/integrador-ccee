@@ -398,7 +398,7 @@ export default function ClientsManagementView() {
             Total de clientes representados: {participants.length}
           </Typography>
           <Typography variant="h8" mb={1}>
-            Total de migrações em {date}: {modellingData.length}
+            Total de unidades consumidoras migradas em {date}: {modellingData.length}
           </Typography>
         </Stack>
         <FormControl sx={{ width: "50%" }}>

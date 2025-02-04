@@ -36,7 +36,9 @@ async function mapResponseToParticipantsData(key, item) {
   );
 }
 
-async function mapResponseToProfileData(key, codAgente, item) {
+async function mapResponseToProfileData(key, item) {
+  const codAgente =
+    item["bov2:participanteMercado"]["bov2:codigo"]._text.toString();
   const classe = item["bov2:classe"]["bov2:descricao"]._text.toString();
   const codPerfil = item["bov2:codigo"]._text.toString();
   let comercializadorVarejista =
@@ -387,13 +389,9 @@ function mapResponseToFinalMeasurementData(item) {
       ? item["bo:periodo"]["bo:fim"]._text.toString()
       : "";
   const status =
-    item["bo:status"] !== undefined
-      ? item["bo:status"]._text.toString()
-      : "";
+    item["bo:status"] !== undefined ? item["bo:status"]._text.toString() : "";
   const subTipo =
-    item["bo:subTipo"] !== undefined
-      ? item["bo:subTipo"]._text.toString()
-      : "";
+    item["bo:subTipo"] !== undefined ? item["bo:subTipo"]._text.toString() : "";
 
   return {
     pontoMedicao,

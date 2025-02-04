@@ -590,8 +590,13 @@ export default function DataSyncView() {
 
   const sendRequest_ListarPerfis = async () => {
     setPendingRequests(pendingRequests + 1);
+    let key = [];
 
-    const key = selectedDataSource.replace("participantes", "perfis");
+    if (selectedDataSource.includes("participantes")) {
+      key = selectedDataSource.replace("participantes", "perfis");
+    } else {
+      key = selectedDataSource.replace("parcelasDeAtivos", "perfis");
+    }
     console.log(key);
 
     db.perfis
@@ -614,20 +619,38 @@ export default function DataSyncView() {
           }
 
           console.log("Total: " + dataSourceItems.length);
-          var codAgentes = dataSourceItems.map((x) => x.codigo);
 
-          codAgentes.forEach((code) => {
-            dbPersistance.addGenericFaultyRequest(
-              key,
-              code,
-              0,
-              "",
-              0,
-              0,
-              "listarPerfis",
-              0
-            );
-          });
+          if (selectedDataSource.includes("participantes")) {
+            var codAgentes = dataSourceItems.map((x) => x.codigo);
+
+            codAgentes.forEach((code) => {
+              dbPersistance.addGenericFaultyRequest(
+                key,
+                code,
+                0,
+                "",
+                0,
+                0,
+                "listarPerfis",
+                0
+              );
+            });
+          } else {
+            var codPerfis = dataSourceItems.map((x) => x.codPerfil);
+
+            codPerfis.forEach((code) => {
+              dbPersistance.addGenericFaultyRequest(
+                key,
+                "",
+                code,
+                "",
+                0,
+                0,
+                "listarPerfis",
+                0
+              );
+            });
+          }
 
           //fetchWebWorker_createRetryProfilesList(key, codAgentes);
 
@@ -639,44 +662,12 @@ export default function DataSyncView() {
       });
   };
 
-  async function listarPerfis(key, sourceItems) {
+  async function listarPerfis(key, sourceItems, additinalSourceItems) {
     try {
-      var itemsProcessed = 0;
-      const requestsQuantity = sourceItems.length;
-
-      for (const codAgente of sourceItems) {
-        var responseData = await cadastrosService.listarPerfis(
-          authData,
-          codAgente
-        );
-        itemsProcessed++;
-
-        var totalPaginas = responseData.totalPaginas;
-        var totalPaginasNumber = totalPaginas._text
-          ? parseInt(totalPaginas._text.toString())
-          : 0;
-
-        if (totalPaginasNumber > 1) {
-          for (
-            let paginaCorrente = 1;
-            paginaCorrente <= totalPaginasNumber;
-            paginaCorrente++
-          ) {
-            // eslint-disable-next-line no-loop-func
-            var responseDataPaginated = await cadastrosService.listarPerfis(
-              authData,
-              codAgente,
-              paginaCorrente
-            );
-
-            handleProfileResponseData(responseDataPaginated, key, codAgente);
-          }
-        } else {
-          handleProfileResponseData(responseData, key, codAgente);
-        }
-
-        var amountDone = (itemsProcessed / requestsQuantity) * 100;
-        setProgress(amountDone);
+      if (sourceItems.length > 0 && sourceItems[0] !== "") {
+        await listProfileByAgentCode(key, sourceItems);
+      } else {
+        await listProfileByProfileCode(key, additinalSourceItems);
       }
     } catch (e) {
       console.log("Erro ao listar perfis");
@@ -684,21 +675,108 @@ export default function DataSyncView() {
     }
   }
 
-  function handleProfileResponseData(responseData, key, codAgente) {
+  async function listProfileByAgentCode(key, sourceItems) {
+    var itemsProcessed = 0;
+    const requestsQuantity = sourceItems.length;
+
+    for (const codAgente of sourceItems) {
+      var responseData = await cadastrosService.listarPerfis(
+        authData,
+        codAgente,
+        ""
+      );
+      itemsProcessed++;
+
+      var totalPaginas = responseData.totalPaginas;
+      var totalPaginasNumber = totalPaginas._text
+        ? parseInt(totalPaginas._text.toString())
+        : 0;
+
+      if (totalPaginasNumber > 1) {
+        for (
+          let paginaCorrente = 1;
+          paginaCorrente <= totalPaginasNumber;
+          paginaCorrente++
+        ) {
+          // eslint-disable-next-line no-loop-func
+          var responseDataPaginated = await cadastrosService.listarPerfis(
+            authData,
+            codAgente,
+            "",
+            paginaCorrente
+          );
+
+          handleProfileResponseData(responseDataPaginated, key, codAgente, "");
+        }
+      } else {
+        handleProfileResponseData(responseData, key, codAgente, "");
+      }
+
+      var amountDone = (itemsProcessed / requestsQuantity) * 100;
+      setProgress(amountDone);
+    }
+  }
+
+  async function listProfileByProfileCode(key, additinalSourceItems) {
+    var itemsProcessed = 0;
+    const requestsQuantity = additinalSourceItems.length;
+
+    for (const codPerfil of additinalSourceItems) {
+      var responseData = await cadastrosService.listarPerfis(
+        authData,
+        "",
+        codPerfil
+      );
+      itemsProcessed++;
+
+      var totalPaginas = responseData.totalPaginas;
+      var totalPaginasNumber = totalPaginas._text
+        ? parseInt(totalPaginas._text.toString())
+        : 0;
+
+      if (totalPaginasNumber > 1) {
+        for (
+          let paginaCorrente = 1;
+          paginaCorrente <= totalPaginasNumber;
+          paginaCorrente++
+        ) {
+          // eslint-disable-next-line no-loop-func
+          var responseDataPaginated = await cadastrosService.listarPerfis(
+            authData,
+            "",
+            codPerfil,
+            paginaCorrente
+          );
+
+          handleProfileResponseData(responseDataPaginated, key, "", codPerfil);
+        }
+      } else {
+        handleProfileResponseData(responseData, key, "", codPerfil);
+      }
+
+      var amountDone = (itemsProcessed / requestsQuantity) * 100;
+      setProgress(amountDone);
+    }
+  }
+
+  function handleProfileResponseData(responseData, key, codAgente, codPerfil) {
     if (responseData.code === 200) {
       var perfis = responseData.data;
 
       if (perfis.length === undefined) {
-        apiMappings.mapResponseToProfileData(key, codAgente, perfis);
+        apiMappings.mapResponseToProfileData(key, perfis);
       } else {
         Array.prototype.forEach.call(perfis, async (item) => {
-          apiMappings.mapResponseToProfileData(key, codAgente, item);
+          apiMappings.mapResponseToProfileData(key, item);
         });
       }
     }
 
     let agentsInRetryList = genericFaultyRequests.filter(
-      (x) => x.requestCode === codAgente && x.key === key
+      (x) =>
+        (x.requestCode === codAgente ||
+          x.additionalRequestCode === codPerfil) &&
+        x.key === key
     );
 
     if (agentsInRetryList.length === 0) return;
@@ -889,6 +967,7 @@ export default function DataSyncView() {
         sourceData = dataSourceItems.map((x) => x.codPerfil);
         selectedParameter = 4;
         key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
+        console.log(key);
         var date = selectedDataSource.substring(selectedDataSource.length - 5);
         formDate =
           "20" +
@@ -917,7 +996,7 @@ export default function DataSyncView() {
           console.log("Total: " + sourceData.length);
 
           sourceData.forEach(async (code) => {
-            await dbPersistance.addGenericFaultyRequest(
+            dbPersistance.addGenericFaultyRequest(
               key,
               code,
               0,
@@ -929,7 +1008,6 @@ export default function DataSyncView() {
             );
           });
 
-          requestSent(true);
           setPendingRequests(pendingRequests - 1);
           setProgress(0);
           setSuccessDialogOpen(true);
@@ -1567,7 +1645,7 @@ export default function DataSyncView() {
     setPendingRequests(pendingRequests + 1);
 
     const initialDate = dayjs(date).startOf("month");
-    const endDate = dayjs();
+    const endDate = dayjs(date).endOf("month");
 
     var modellingResponse = await ativosService.listarModelagemDeAtivo(
       authData,
@@ -1816,7 +1894,11 @@ export default function DataSyncView() {
           false
         );
       } else if (request.key.includes("perfis")) {
-        await listarPerfis(request.key, [request.requestCode]);
+        await listarPerfis(
+          request.key,
+          [request.requestCode],
+          [request.additionalRequestCode]
+        );
       } else if (request.key.includes("parcelasDeAtivos")) {
         await listarParcelasDeAtivos(
           request.key,
@@ -1861,7 +1943,7 @@ export default function DataSyncView() {
 
   async function removeFaultyRequests() {
     let removes = genericFaultyRequests.filter(
-      (z) => z.apiCode === 200 || (z.apiCode === 500 && z.attempts > 1)
+      (z) => z.apiCode === 200 || (z.apiCode === 500 && z.attempts > 0)
     );
 
     console.log(removes.length);
@@ -2001,8 +2083,10 @@ export default function DataSyncView() {
 
     if (serviceId === 1) {
       return <div>{renderParticipantsFields()}</div>;
-    } else if (serviceId === 2 || serviceId === 3) {
-      return <div>{RenderProfileOrMeasurementFields(serviceId)}</div>;
+    } else if (serviceId === 2) {
+      return <div>{RenderProfileFields()}</div>;
+    } else if (serviceId === 3) {
+      return <div>{RenderMeasurementFields()}</div>;
     } else if (serviceId === 4) {
       return <div>{renderFractionalMeasurementFields()}</div>;
     } else if (serviceId === 5) {
@@ -2085,17 +2169,43 @@ export default function DataSyncView() {
     );
   };
 
-  function RenderProfileOrMeasurementFields(serviceIdx) {
+  function RenderProfileFields() {
     var sortedDataSourceKeys = [];
-    if (serviceIdx === 2) {
-      sortedDataSourceKeys = dataSourceKeys.filter((item) =>
-        item.includes("participantes")
-      );
-    } else {
-      sortedDataSourceKeys = dataSourceKeys.filter((item) =>
-        item.includes("perfis")
-      );
-    }
+    sortedDataSourceKeys = dataSourceKeys.filter(
+      (item) =>
+        item.includes("participantes") || item.includes("parcelasDeAtivos")
+    );
+
+    return (
+      <Stack spacing={2}>
+        <FormControl>
+          <InputLabel id="data-source-select-label-2">
+            Fonte de dados
+          </InputLabel>
+          <Select
+            labelId="data-source-select-label"
+            id="data-source-simple-select-2"
+            value={selectedDataSource}
+            label="Fonte de dados"
+            onChange={handleDataSourceChange}
+          >
+            {sortedDataSourceKeys.map((x) => (
+              <MenuItem value={x} key={x}>
+                {x}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
+    );
+  }
+
+  function RenderMeasurementFields() {
+    var sortedDataSourceKeys = [];
+
+    sortedDataSourceKeys = dataSourceKeys.filter((item) =>
+      item.includes("perfis")
+    );
 
     return (
       <Stack spacing={2}>

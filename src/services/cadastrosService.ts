@@ -285,6 +285,7 @@ const listarParticipantesDeMercadoPorAgente = async (
 const listarPerfis = async (
   authData,
   agenteAtual,
+  perfilAtual,
   paginaAtual = 1
 ): Promise<object> => {
   var options = {
@@ -323,7 +324,7 @@ const listarPerfis = async (
           <!-- <bo:codigo>4</bo:codigo> -->
         </bo:classe>
         <!-- Codigo do perfil -->
-         <!-- <bo:codigo>9999</bo:codigo>  -->
+          <bo:codigo>${perfilAtual}</bo:codigo>  
         <bo:fonteEnergia>
           <bo:tipo>
             <!-- <bo:id>3</bo:id> -->

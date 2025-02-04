@@ -500,12 +500,12 @@ const listarModelagemDeAtivo = async (
           var xml = xml2json(resBody, { compact: true, spaces: 4 });
           var json = JSON.parse(xml);
           var modelagens =
-            json["soapenv:Envelope"]["soapenv:Body"][
+            json["NS1:Envelope"]["NS1:Body"][
               "bmv2:listarModelagemAtivoResponse"
             ]["bmv2:modelagens"]["bov2:modelagemAtivo"];
           const totalPaginas =
-            json["soapenv:Envelope"]["soapenv:Header"]["hdr:paginacao"][
-              "hdr:totalPaginas"
+            json["NS1:Envelope"]["NS1:Header"]["NS3:paginacao"][
+              "NS3:totalPaginas"
             ];
           var responseData = {
             data: modelagens,
@@ -541,5 +541,5 @@ export const ativosService = {
   listarParcelasDeAtivosDeMedicao,
   listarParcelaDeCarga,
   listarTopologiaPorAtivo,
-  listarModelagemDeAtivo
+  listarModelagemDeAtivo,
 };
