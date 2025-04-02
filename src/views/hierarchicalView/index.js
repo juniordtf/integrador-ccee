@@ -4,6 +4,7 @@ import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import FormControl from "@mui/material/FormControl";
+import OutlinedInput from "@mui/material/OutlinedInput";
 import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
@@ -26,9 +27,9 @@ import Divider from "@mui/material/Divider";
 export default function HierarchicalView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [selectedDataSource, setSelectedDataSource] = useState("");
-  const [participantsCode, setParticipantsCode] = useState("");
   const [treeViewData, setTreeViewData] = useState("");
   const [participants, setParticipants] = useState([]);
+  const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [partialResources, setPartialResources] = useState([]);
   const [selectedType, setSelectedType] = useState(0);
@@ -39,6 +40,7 @@ export default function HierarchicalView() {
   const [open, setOpen] = useState(false);
   const [profilesTotal, setProfilesTotal] = useState(0);
   const [resourcesTotal, setResourcesTotal] = useState(0);
+  const [selectedAgent, setSelectedAgent] = useState("");
   const handleOpen = () => setOpen(true);
 
   const handleClose = (event, reason) => {
@@ -99,17 +101,26 @@ export default function HierarchicalView() {
   const handleDataSourceChange = async (event) => {
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSource(selectedDataSourceKey);
+
+    var selectedParticipant = participants.filter(
+      (x) => x.key === selectedDataSourceKey
+    );
+    setSelectedParticipants(selectedParticipant);
+  };
+
+  const handleAgentChange = async (event) => {
+    const agent = event.target.value;
+    setSelectedAgent(agent);
   };
 
   const generateTreeView = async () => {
-    if (participantsCode === "") return;
+    if (selectedAgent.codigo.toString() === "") return;
 
     setSelectedType(0);
     handleOpen();
 
-    var selectedParticipant = participants.find(
-      (x) =>
-        x.codigo.toString() === participantsCode && x.key === selectedDataSource
+    var selectedParticipant = selectedParticipants.find(
+      (x) => x.codigo.toString() === selectedAgent.codigo.toString()
     );
 
     if (selectedParticipant === undefined) {
@@ -119,7 +130,7 @@ export default function HierarchicalView() {
 
     var relatedProfiles = profiles.filter(
       (x) =>
-        x.codAgente.toString() === participantsCode &&
+        x.codAgente.toString() === selectedAgent.codigo.toString() &&
         selectedParticipant.key
           .substring(selectedParticipant.key.length - 8)
           .toString() === x.key.substring(x.key.length - 8).toString()
@@ -581,13 +592,24 @@ export default function HierarchicalView() {
             ))}
           </Select>
         </FormControl>
-        <TextField
-          sx={{ width: "20%" }}
-          id="outlined-password-input"
-          label="Cód Agente"
-          type="number"
-          onChange={(event) => setParticipantsCode(event.target.value)}
-        />
+        <FormControl sx={{ width: "50%" }}>
+          <InputLabel id="data-source-select-label">Agente</InputLabel>
+          <Select
+            labelId="agent-select-label"
+            id="agent-simple-select"
+            value={selectedAgent}
+            defaultValue={selectedAgent}
+            label="Agente"
+            input={<OutlinedInput label="Name" />}
+            onChange={handleAgentChange}
+          >
+            {selectedParticipants.map((x) => (
+              <MenuItem key={x.id} value={x}>
+                {x.sigla}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
         <Divider orientation="horizontal" />
         <Button variant="outlined" onClick={generateTreeView}>
           Gerar Visualização
