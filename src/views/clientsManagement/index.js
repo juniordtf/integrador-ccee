@@ -24,6 +24,7 @@ import { driService } from "../../services/driService.ts";
 import { apiMappings } from "../driReports/apiMappings.ts";
 import styles from "./styles.module.css";
 import { width } from "@mui/system";
+import axios from "axios";
 
 export default function ClientsManagementView() {
   const [authData, setAuthData] = useState([]);
@@ -216,6 +217,8 @@ export default function ClientsManagementView() {
       loadProgress++;
       setProgress(parseInt((loadProgress / rows.length) * 100));
 
+      if (innerRow === undefined) continue;
+
       for (const item of innerRow) {
         idx++;
         item.id = idx;
@@ -303,6 +306,83 @@ export default function ClientsManagementView() {
       return [];
     }
   };
+
+  async function loadMeasures() {
+    setLoadingText("Processando...");
+    setLoadingModalOpen(true);
+
+    let currentDt = dayjs("2025-05-01");
+    const endDate = currentDt.endOf("month");
+    const totalDays = endDate.date() - 1;
+
+    const dia = 8;
+    for (let k = 0; k <= 1; k++) {
+      let hoursArr = [];
+      let calculatedDate = currentDt.add(k, "day");
+
+      //generates days objects
+      for (let j = 0; j <= 23; j++) {
+        let intervalsArr = [];
+        //generates 5 minutes interval objects
+        for (let i = 1; i <= 12; i++) {
+          let medObj = {
+            dataReferenciaConsumo: calculatedDate
+              .set("hour", j)
+              .set("minute", i * 5)
+              .set("second", 0)
+              .format("YYYY-MM-DDTHH:mm:ssZ"),
+            consumo: Math.floor(1 + Math.random() * 101),
+            tipoConsumo: "MEDIDO",
+          };
+          intervalsArr.push(medObj);
+        }
+
+        const dtObj = { hora: j + 1, medicoes: intervalsArr };
+        hoursArr.push(dtObj);
+      }
+
+      let reqObj = {
+        codigoUnidadeConsumidora: "3015000017",
+        codigoAgenteConcessionaria: 1141,
+        diaReferencia: calculatedDate.format("YYYY-MM-DD"),
+        horas: hoursArr,
+      };
+
+      //await sendMeasures(reqObj);
+      console.log(JSON.stringify(reqObj));
+    }
+
+    setLoadingModalOpen(false);
+    setProgress(0);
+  }
+
+  async function sendMeasures(reqBody) {
+    const authToken =
+      "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICItNkdZUGluZW1aRHBiSFdyR05BWWJXQ1VMSDdTd3M4MVh6VGx1TWIzOFQwIn0.eyJleHAiOjE3NDk1ODM2NjQsImlhdCI6MTc0OTU4MzM2NCwianRpIjoiYmVlYTBmYWQtMjNmYy00OTIwLTg4NmItYWJjY2MwOGZmOGQwIiwiaXNzIjoiaHR0cHM6Ly9zYW5kYm94LXNzby5lbmVyZ2lhLm9yZy5ici9yZWFsbXMvc3NvLWludGVnIiwic3ViIjoiZjk1NGZhMjgtYTQ2ZC00ZjY3LTkwYWMtMjgzM2MwYWJiMWRiIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiQ09OQ0VTU0lPTkFSSUFfMTAwMDA2IiwiYWNyIjoiMSIsInNjb3BlIjoiYWdlbnRlIGVtYWlsIHByb2ZpbGUiLCJjbGllbnRIb3N0IjoiMTAuNDkuMzguNDgiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsImNvZGlnb0FnZW50ZSI6IjEwMDAwNiIsInByZWZlcnJlZF91c2VybmFtZSI6InNlcnZpY2UtYWNjb3VudC1jb25jZXNzaW9uYXJpYV8xMDAwMDYiLCJjbGllbnRBZGRyZXNzIjoiMTAuNDkuMzguNDgiLCJjbGllbnRfaWQiOiJDT05DRVNTSU9OQVJJQV8xMDAwMDYifQ.gJnxS_cwODVekqiafDiUReGPVfp_P_WaUdSt-a5bsqle5znwOlYNx07Q7zZ1ih20jGE4VkfWWHouElbA0p3ml3SDjnXm2kX6QLYg9UGh3BCI8ZM2DDYkYhopiA7f4qG_LdPPl-0WgrUnrxfGE4MvQ5mRewOrBh4YeQ3pm-kzUUFHsdEwUd3IGz6sqUGD75wgeEbE_hHBwj0R2A7wnSIS-hsjnRwavSDOLSBBKL_MTKB4-ZlE12fgw8zw8ML_xRjCTVtG5yxvwccdq4kBKmg70Wpg2DiWdkbPISi9XFL7rY5bfrG9HYJpz52I_DA2JRtoum8ZOap-wSJdj7aGf0GvKg";
+    const options = {
+      headers: {
+        codigoAgente: 100006,
+        codigoPerfil: 100006,
+        Authorization: `Bearer ${authToken}`,
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    };
+
+    axios
+      .post(
+        "https://sandbox-api-abm.ccee.org.br/medidas/v1/medicao",
+        reqBody,
+        options
+      )
+      .then((response) => {
+        console.log(response.data);
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
 
   const sendAccountingReportRequest = async () => {
     setLoadingText("Processando...");
@@ -398,7 +478,8 @@ export default function ClientsManagementView() {
             Total de clientes representados: {participants.length}
           </Typography>
           <Typography variant="h8" mb={1}>
-            Total de unidades consumidoras migradas em {date}: {modellingData.length}
+            Total de unidades consumidoras migradas em {date}:{" "}
+            {modellingData.length}
           </Typography>
         </Stack>
         <FormControl sx={{ width: "50%" }}>

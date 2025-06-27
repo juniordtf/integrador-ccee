@@ -278,6 +278,57 @@ export default function DataSyncView() {
       sendRequest();
     }
 
+    async function fullAutomaticCycle() {
+      if (pendingRequests > 0) return;
+
+      const genericRequestData = await db.genericFaultyRequest.toArray();
+      if (genericRequestData.length > 0) {
+        await retryFaultyRequests(removeExpiredData);
+      } else {
+        // TODO: Create conditions for full automatic flow
+        let isFullAutomatic = true;
+        let agentKey = "participantes_representados_30/05/25";
+        let profileKey = agentKey.replace("participantes", "perfis");
+        let partialResourcesKey = profileKey.replace(
+          "perfis",
+          "parcelasDeAtivos"
+        );
+
+        if (isFullAutomatic) {
+          const filteredParticipants = await db.participantes
+            .where("key")
+            .equalsIgnoreCase(agentKey)
+            .toArray();
+          const filteredProfiles = await db.perfis
+            .where("key")
+            .equalsIgnoreCase(profileKey)
+            .toArray();
+          const filteredPartialResources = await db.parcelasAtivosMedicao
+            .where("key")
+            .equalsIgnoreCase(partialResourcesKey)
+            .toArray();
+
+          if (
+            filteredParticipants.length > 0 &&
+            filteredProfiles.length === 0
+          ) {
+            await sendRequest_ListarPerfis(agentKey, filteredParticipants);
+          } else if (
+            filteredProfiles.length > 0 &&
+            filteredPartialResources.length === 0
+          ) {
+            await sendRequest_ListarParcelasDeAtivo(
+              partialResourcesKey,
+              filteredProfiles,
+              "Automático"
+            );
+          }
+        }
+      }
+    }
+
+    //fullAutomaticCycle();
+
     worker.addEventListener("message", (event) => {
       console.log("Done!");
     });
@@ -394,9 +445,29 @@ export default function DataSyncView() {
   const chooseHowToListParticipants = async () => {
     if (participantSearchMethod === "Classe") {
       sendRequest_ListarParticipantes();
-    } else {
+    } else if (participantSearchMethod === "Código") {
       const key =
-        "buscaCustomizada_participantes_" + dayjs(date).format("DD/MM/YY");
+        "buscaCustomizada_participantes_codigo_" + dayjs(date).format("DD/MM/YY");
+      const sourceData = rows.map((x) => x[0]);
+
+      let itemsProcessed = 0;
+
+      sourceData.forEach((code) => {
+        dbPersistance.addGenericFaultyRequest(
+          key,
+          code,
+          0,
+          dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
+          0,
+          0,
+          "listarParticipantes",
+          0
+        );
+      });
+
+      setSuccessDialogOpen(true);
+    } else {
+      const key = "participantes_cnpj_" + dayjs(date).format("DD/MM/YY");
       const sourceData = rows.map((x) => x[0]);
 
       let itemsProcessed = 0;
@@ -414,13 +485,6 @@ export default function DataSyncView() {
         );
       });
 
-      // for (const code of sourceData) {
-      //   await listarParticipantePorCodigo(code, key);
-      //   itemsProcessed++;
-      //   var totalAmount = sourceData.length;
-      //   var amountDone = (itemsProcessed / totalAmount) * 100;
-      //   setProgress(amountDone);
-      // }
       setSuccessDialogOpen(true);
     }
   };
@@ -588,14 +652,16 @@ export default function DataSyncView() {
     }
   }
 
-  const sendRequest_ListarPerfis = async () => {
+  const sendRequest_ListarPerfis = async (entryKey, sourceItems) => {
     setPendingRequests(pendingRequests + 1);
+    let inputDataSource = entryKey;
+    let inputSourceItems = sourceItems;
     let key = [];
 
-    if (selectedDataSource.includes("participantes")) {
-      key = selectedDataSource.replace("participantes", "perfis");
+    if (inputDataSource.includes("participantes")) {
+      key = inputDataSource.replace("participantes", "perfis");
     } else {
-      key = selectedDataSource.replace("parcelasDeAtivos", "perfis");
+      key = inputDataSource.replace("parcelasDeAtivos", "perfis");
     }
     console.log(key);
 
@@ -613,15 +679,15 @@ export default function DataSyncView() {
           setWarningDialogOpen(true);
           return;
         } else {
-          if (dataSourceItems === null) {
+          if (inputSourceItems === null || inputSourceItems.length === 0) {
             setPendingRequests(pendingRequests - 1);
             return;
           }
 
-          console.log("Total: " + dataSourceItems.length);
+          console.log("Total: " + inputSourceItems.length);
 
-          if (selectedDataSource.includes("participantes")) {
-            var codAgentes = dataSourceItems.map((x) => x.codigo);
+          if (inputDataSource.includes("participantes")) {
+            var codAgentes = inputSourceItems.map((x) => x.codigo);
 
             codAgentes.forEach((code) => {
               dbPersistance.addGenericFaultyRequest(
@@ -636,7 +702,7 @@ export default function DataSyncView() {
               );
             });
           } else {
-            var codPerfis = dataSourceItems.map((x) => x.codPerfil);
+            var codPerfis = inputSourceItems.map((x) => x.codPerfil);
 
             codPerfis.forEach((code) => {
               dbPersistance.addGenericFaultyRequest(
@@ -930,28 +996,36 @@ export default function DataSyncView() {
     }
   }
 
-  const sendRequest_ListarParcelasDeAtivo = async () => {
+  const sendRequest_ListarParcelasDeAtivo = async (
+    entryKey,
+    sourceItems,
+    method = "Manual"
+  ) => {
     setPendingRequests(pendingRequests + 1);
 
-    var key,
-      formDate,
+    let key = entryKey;
+
+    var formDate,
       selectedParameter = "";
     var sourceData = [];
 
-    if (searchMethod === "Manual") {
+    if (method === "Manual") {
       key =
         "buscaCustomizada_parcelasDeAtivos_" + dayjs(date).format("DD/MM/YY");
       formDate = dayjs(date).format("YYYY-MM-DDTHH:mm:ss");
       sourceData = rows.map((x) => x[0]);
       selectedParameter = parameter;
     } else {
-      if (dataSourceItems === null) {
+      if (sourceItems === null) {
         setPendingRequests(pendingRequests - 1);
         return;
       }
 
-      if (selectedDataSource.includes("modelagens")) {
-        sourceData = dataSourceItems.map((x) => x.codAtivoMedicao);
+      if (
+        selectedDataSource !== "" &&
+        selectedDataSource.includes("modelagens")
+      ) {
+        sourceData = sourceItems.map((x) => x.codAtivoMedicao);
         selectedParameter = 3;
         key =
           selectedDataSource.substring(0, 10) +
@@ -964,11 +1038,13 @@ export default function DataSyncView() {
           selectedDataSource.substring(14);
         formDate = dayjs(modellingDate).format("YYYY-MM-DDTHH:mm:ss");
       } else {
-        sourceData = dataSourceItems.map((x) => x.codPerfil);
+        sourceData = sourceItems.map((x) => x.codPerfil);
         selectedParameter = 4;
-        key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
-        console.log(key);
-        var date = selectedDataSource.substring(selectedDataSource.length - 5);
+
+        if (method === "Semi Automático") {
+          key = selectedDataSource.replace("perfis", "parcelasDeAtivos");
+        }
+        var date = key.substring(key.length - 5);
         formDate =
           "20" +
           date.substring(date.length - 2) +
@@ -1799,6 +1875,55 @@ export default function DataSyncView() {
     }
   }
 
+  async function listarParticipantePorCnpj(cnpj, searchDate, dataKey = "") {
+    try {
+      var key =
+        dataKey !== ""
+          ? dataKey
+          : "participantes_cnpj_" + dayjs(date).format("DD/MM/YY");
+
+      var responseData =
+        await cadastrosService.listarParticipantesDeMercadoPorCnpj(
+          authData,
+          searchDate,
+          cnpj
+        );
+
+      if (responseData.code === 200) {
+        const participantes = responseData.data;
+
+        var participantesData = [];
+        if (participantes.length === undefined) {
+          participantesData = [participantes];
+        } else {
+          participantesData = participantes;
+        }
+
+        Array.prototype.forEach.call(participantesData, async (item) => {
+          apiMappings.mapResponseToParticipantsData(key, item);
+        });
+      }
+
+      let agentsInRetryList = genericFaultyRequests.filter(
+        (x) => x.requestCode === cnpj && x.key === key
+      );
+
+      if (agentsInRetryList.length === 0) return;
+
+      agentsInRetryList.forEach((res) => {
+        dbPersistance.updateGenericFaultyRequest(
+          cnpj,
+          res.id,
+          responseData.code,
+          res.attempts + 1
+        );
+      });
+    } catch (e) {
+      console.log("Erro ao listar participantes");
+      console.error(e);
+    }
+  }
+
   const sendRequest_FullAutomatic = async () => {
     var itemsProcessed = 0;
 
@@ -1861,9 +1986,10 @@ export default function DataSyncView() {
     }
   };
 
-  const retryFaultyRequests = async () => {
+  const retryFaultyRequests = async (callback) => {
     await proccessFaultyRequestList();
     setSuccessDialogOpen(true);
+    callback();
   };
 
   async function proccessFaultyRequestList() {
@@ -1871,14 +1997,28 @@ export default function DataSyncView() {
 
     let amountDone = 0;
     let itemsProcessed = 0;
-    let requestsQuantity = genericFaultyRequests.length;
+    const genericRequestData = await db.genericFaultyRequest.toArray();
 
-    for (const request of genericFaultyRequests) {
+    let requestsQuantity = genericRequestData.length;
+
+    for (const request of genericRequestData) {
       if (request.apiCode === 200) {
         continue;
       }
 
       if (request.key.includes("participantes_representados")) {
+        await listarParticipantePorCodigo(
+          request.requestCode,
+          request.searchDate,
+          request.key
+        );
+      } else if (request.key.includes("participantes_cnpj")) {
+        await listarParticipantePorCnpj(
+          request.requestCode,
+          request.searchDate,
+          request.key
+        );
+      } else if (request.key.includes("participantes_codigo")) {
         await listarParticipantePorCodigo(
           request.requestCode,
           request.searchDate,
@@ -1942,7 +2082,9 @@ export default function DataSyncView() {
   };
 
   async function removeFaultyRequests() {
-    let removes = genericFaultyRequests.filter(
+    const genericRequestData = await db.genericFaultyRequest.toArray();
+
+    let removes = genericRequestData.filter(
       (z) => z.apiCode === 200 || (z.apiCode === 500 && z.attempts > 0)
     );
 
@@ -2016,13 +2158,17 @@ export default function DataSyncView() {
           chooseHowToListParticipants();
           break;
         case 2:
-          sendRequest_ListarPerfis();
+          sendRequest_ListarPerfis(selectedDataSource, dataSourceItems);
           break;
         case 3:
           sendRequest_ListarAtivosDeMedicao();
           break;
         case 4:
-          sendRequest_ListarParcelasDeAtivo();
+          sendRequest_ListarParcelasDeAtivo(
+            selectedDataSource,
+            dataSourceItems,
+            searchMethod
+          );
           break;
         case 5:
           sendRequest_ListarParcelasDeCarga();
@@ -2138,6 +2284,11 @@ export default function DataSyncView() {
               value="Código"
               control={<Radio />}
               label="Por código"
+            />
+            <FormControlLabel
+              value="Cnpj"
+              control={<Radio />}
+              label="Por Cnpj"
             />
           </RadioGroup>
         </FormControl>

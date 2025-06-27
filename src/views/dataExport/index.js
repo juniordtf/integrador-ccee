@@ -745,34 +745,38 @@ export default function DataExportView() {
       (x) => x.includes("modelagens") && sinteticDatasetName.length < 18
     );
 
-    if (sinteticPartialResources === undefined) return;
-
-    var sinteticPartialResourcesValues = partialResources.filter(
-      (x) => x.key === sinteticPartialResources
-    );
-
     let sinteticTableA = [];
     let sinteticTableB = [];
     let sinteticTableC = [];
     let sinteticTableD = [];
     let sinteticTableE = [];
     let sinteticTableF = [];
+    let resultTable = [];
+    let resultKey = "dadosSintéticos_";
 
-    const key =
-      "dadosSintéticos_" +
-      sinteticPartialResources.substring(sinteticPartialResources.length - 8);
+    if (sinteticPartialResources !== undefined) {
+      resultKey =
+        resultKey +
+        sinteticPartialResources.substring(sinteticPartialResources.length - 8);
 
-    sinteticTableA = sinteticPartialResourcesValues.map((x) => ({
-      key,
-      id: x.id,
-      codAtivoMedicao: x.codAtivoMedicao,
-      nomeAtivo: x.nome,
-      cnpj: x.cnpj,
-      codPerfil: x.codPerfil,
-      periodoVigencia: x.periodoVigencia,
-      codParcelaAtivo: x.codParcelaAtivo,
-      situacao: x.situacao,
-    }));
+      var sinteticPartialResourcesValues = partialResources.filter(
+        (x) => x.key === sinteticPartialResources
+      );
+
+      sinteticTableA = sinteticPartialResourcesValues.map((x) => ({
+        resultKey,
+        id: x.id,
+        codAtivoMedicao: x.codAtivoMedicao,
+        nomeAtivo: x.nome,
+        cnpj: x.cnpj,
+        codPerfil: x.codPerfil,
+        periodoVigencia: x.periodoVigencia,
+        codParcelaAtivo: x.codParcelaAtivo,
+        situacao: x.situacao,
+      }));
+
+      resultTable = mergeArraysByKey(resultTable, sinteticTableA, "codPerfil");
+    }
 
     if (sinteticPartialLoads !== undefined) {
       var sinteticPartialLoadValues = partialLoads.filter(
@@ -797,13 +801,13 @@ export default function DataExportView() {
         valorCapacidadeCarga: x.valorCapacidadeCarga,
         codParcelaCarga: x.codParcelaCarga,
       }));
-    }
 
-    var resultTableA = mergeArraysByKey(
-      sinteticTableA,
-      sinteticTableB,
-      "codAtivoMedicao"
-    );
+      resultTable = mergeArraysByKey(
+        resultTable,
+        sinteticTableB,
+        "codAtivoMedicao"
+      );
+    }
 
     if (sinteticTopologies !== undefined) {
       var sinteticTopologiesValues = topologies.filter(
@@ -821,13 +825,13 @@ export default function DataExportView() {
         codMedidor: x.codMedidor,
         nomeConcessionaria: x.nomeConcessionaria,
       }));
-    }
 
-    var resultTableB = mergeArraysByKey(
-      resultTableA,
-      sinteticTableC,
-      "codAtivoMedicao"
-    );
+      resultTable = mergeArraysByKey(
+        resultTable,
+        sinteticTableC,
+        "codAtivoMedicao"
+      );
+    }
 
     if (sinteticProfiles !== undefined) {
       var sinteticProfilesValues = profiles.filter(
@@ -845,13 +849,10 @@ export default function DataExportView() {
         codAgente: x.codAgente,
         submercado: x.submercado,
       }));
-    }
 
-    var resultTableC = mergeArraysByKey(
-      resultTableB,
-      sinteticTableD,
-      "codPerfil"
-    );
+      resultTable = mergeArraysByKey(resultTable, sinteticTableD, "codPerfil");
+      console.log(resultTable.length);
+    }
 
     if (sinteticParticipants !== undefined) {
       var sinteticParticipantsValues = participants.filter(
@@ -866,13 +867,9 @@ export default function DataExportView() {
         codAgente: x.codigo,
         nomeAgente: x.nomeEmpresarial,
       }));
-    }
 
-    var resultTableD = mergeArraysByKey(
-      resultTableC,
-      sinteticTableE,
-      "codAgente"
-    );
+      resultTable = mergeArraysByKey(resultTable, sinteticTableE, "codAgente");
+    }
 
     if (sinteticModellingData !== undefined) {
       var sinteticModellingValues = modellingData.filter(
@@ -890,25 +887,25 @@ export default function DataExportView() {
         tipo: x.tipo,
         situacaoModelagem: x.situacao,
       }));
-    }
 
-    var resultTableE = mergeArraysByKey(
-      resultTableD,
-      sinteticTableF,
-      "codAtivoMedicao"
-    );
+      resultTable = mergeArraysByKey(
+        resultTable,
+        sinteticTableF,
+        "codAtivoMedicao"
+      );
+    }
 
     var finalResultTable = [];
 
-    for (const res of resultTableE) {
+    for (const res of resultTable) {
       if (res !== undefined) {
         finalResultTable.push(res);
       }
     }
 
-    setSelectedDataSource(key);
-    setRows(resultTableE);
-    setInitialRows(resultTableE);
+    setSelectedDataSource(resultKey);
+    setRows(resultTable);
+    setInitialRows(resultTable);
 
     handleLoadingModalClose();
   };
@@ -917,6 +914,10 @@ export default function DataExportView() {
     var resultArr = [];
 
     if (arr1 === undefined || arr2 == undefined) return resultArr;
+
+    if (arr1.length > 0 && arr2.length === 0) return arr1;
+
+    if (arr2.length > 0 && arr1.length === 0) return arr2;
 
     for (const item of arr1) {
       var value = [];
