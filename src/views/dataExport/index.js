@@ -960,6 +960,8 @@ export default function DataExportView() {
       exportType = exportFromJSON.types.csv;
     } else if (selectedFileFormat === "xls") {
       exportType = exportFromJSON.types.xls;
+    } else if (selectedFileFormat === "xml") {
+      exportType = exportFromJSON.types.xml;
     } else {
       exportType = exportFromJSON.types.json;
     }
@@ -1797,6 +1799,7 @@ export default function DataExportView() {
               >
                 <FormControlLabel value="csv" control={<Radio />} label="csv" />
                 <FormControlLabel value="xls" control={<Radio />} label="xls" />
+                <FormControlLabel value="xml" control={<Radio />} label="xml" />
                 <FormControlLabel
                   value="json"
                   control={<Radio />}

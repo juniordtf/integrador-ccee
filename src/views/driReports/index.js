@@ -504,9 +504,9 @@ export default function DriReportsView() {
             (Array.isArray(resValue) && resValue.length > 0)
           ) {
             resValue.forEach((x) => {
-              if (x !== undefined) {
-                columnData = x.columns;
-                let row = x.rows;
+              if (x !== undefined || x.length > 0) {
+                columnData = x.columns !== undefined ? x.columns : columnData;
+                let row = x.rows !== undefined ? x.rows : [];
                 row?.forEach((y) => {
                   rowsValues.push(y);
                 });
@@ -595,9 +595,9 @@ export default function DriReportsView() {
         tableData = await getResults(participantCode, boardId);
         if (tableData !== undefined) {
           tableData.forEach((x) => {
-            if (x !== undefined) {
-              columnData = x.columns;
-              let row = x.rows;
+            if (x !== undefined || x.length > 0) {
+              columnData = x.columns !== undefined ? x.columns : columnData;
+              let row = x.rows !== undefined ? x.rows : [];
               row?.forEach((y) => {
                 rowData.push(y);
               });
@@ -864,6 +864,8 @@ export default function DriReportsView() {
       exportType = exportFromJSON.types.csv;
     } else if (selectedFileFormat === "xls") {
       exportType = exportFromJSON.types.xls;
+    } else if (selectedFileFormat === "xml") {
+      exportType = exportFromJSON.types.xml;
     } else {
       exportType = exportFromJSON.types.json;
     }
@@ -1706,6 +1708,7 @@ export default function DriReportsView() {
             >
               <FormControlLabel value="csv" control={<Radio />} label="csv" />
               <FormControlLabel value="xls" control={<Radio />} label="xls" />
+              <FormControlLabel value="xml" control={<Radio />} label="xml" />
               <FormControlLabel value="json" control={<Radio />} label="json" />
             </RadioGroup>
           </FormControl>
