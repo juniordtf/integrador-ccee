@@ -447,7 +447,8 @@ export default function DataSyncView() {
       sendRequest_ListarParticipantes();
     } else if (participantSearchMethod === "Código") {
       const key =
-        "buscaCustomizada_participantes_codigo_" + dayjs(date).format("DD/MM/YY");
+        "buscaCustomizada_participantes_codigo_" +
+        dayjs(date).format("DD/MM/YY");
       const sourceData = rows.map((x) => x[0]);
 
       let itemsProcessed = 0;
@@ -1583,6 +1584,44 @@ export default function DataSyncView() {
       setMeasurementsValues(results);
       setPendingRequests(pendingRequests - 1);
     } else {
+      const sourceData = rows.map((x) => x[0]);
+      let totalAmount = sourceData.length;
+      let itemsProcessed = 0;
+
+      var daysArr = [];
+      const initialDate = dayjs(date).startOf("month");
+      const endDate = initialDate.endOf("month");
+      const totalDays = endDate.date() - 1;
+
+      let i = 0;
+      while (i <= totalDays) {
+        const calculatedDate = initialDate.add(i, "day");
+        daysArr.push(calculatedDate.format("YYYY-MM-DDTHH:mm:ss"));
+        i++;
+      }
+
+      var resultArr = [];
+
+      for (const medScde of sourceData) {
+        getIndividualResults_listarMedidasCincoMinutos(daysArr, medScde).then(
+          (res) => {
+            if (res !== undefined && res.length > 0) {
+              res.forEach((resValue, resIdx) => {
+                if (resValue !== undefined && resValue.length > 0) {
+                  resValue.forEach((rs) => {
+                    resultArr.push(rs);
+                  });
+                }
+                itemsProcessed++;
+                var amountDone = (itemsProcessed / totalAmount) * 100;
+                setProgress(amountDone);
+              });
+            }
+          }
+        );
+      }
+      setMeasurementsValues(resultArr);
+      setPendingRequests(pendingRequests - 1);
     }
   };
 
