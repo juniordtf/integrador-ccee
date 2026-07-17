@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback, memo } from "react";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import Container from "@mui/material/Container";
@@ -36,8 +36,10 @@ import { dbPersistance } from "./dbPersistance.ts";
 import { apiMappings } from "./apiMappings.ts";
 import { setWeekYearWithOptions } from "date-fns/fp";
 import exportFromJSON from "export-from-json";
+import { SERVICES, CLASSES, PARAMETERS, MODAL_STYLE } from "./constants";
+import { useDatabase } from "../../hooks/useDatabase";
 
-export default function DataSyncView() {
+const DataSyncView = memo(function DataSyncView() {
   const [authData, setAuthData] = useState([]);
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [retryKeys, setRetryKeys] = useState([]);
@@ -73,70 +75,10 @@ export default function DataSyncView() {
   const workerRef = useRef(null);
   const timerRef = useRef(null);
 
-  const servicos = [
-    { id: 1, name: "Listar participantes de mercado" },
-    { id: 2, name: "Listar perfis" },
-    { id: 3, name: "Listar ativos de medição" },
-    { id: 4, name: "Listar parcelas de ativos" },
-    { id: 5, name: "Listar parcelas de carga" },
-    { id: 6, name: "Listar medidas - 5 minutos" },
-    { id: 7, name: "Listar medidas finais" },
-    { id: 8, name: "Listar topologias por ativo" },
-    { id: 9, name: "Listar modelagem de ativo" },
-  ];
-  const classes = [
-    { id: 1, name: "Autoprodutor" },
-    { id: 2, name: "Comercializador" },
-    { id: 3, name: "Importador" },
-    { id: 4, name: "Gerador" },
-    { id: 5, name: "Distribuidor" },
-    { id: 6, name: "Consumidor Livre" },
-    { id: 7, name: "Produtor Independente" },
-    { id: 10, name: "Transmissor" },
-    { id: 11, name: "Exportador" },
-    { id: 12, name: "Consumidor Especial" },
-    { id: 13, name: "Não Agente" },
-  ];
+  // Use custom hook for database queries
+  const dbData = useDatabase();
 
-  const parameters = [
-    { id: 1, name: "Código Medidor SCDE" },
-    { id: 2, name: "Código Parcela de Ativo" },
-    { id: 3, name: "Código Ativo de Medição" },
-    { id: 4, name: "Código Perfil" },
-    { id: 5, name: "CNPJ" },
-  ];
-
-  const style = {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    width: 300,
-    bgcolor: "background.paper",
-    border: "1px solid gray",
-    borderRadius: "10px",
-    boxShadow: 24,
-    p: 4,
-    textAlign: "center",
-  };
-
-  const handleSuccessDialogClose = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
-
-    setSuccessDialogOpen(false);
-  };
-
-  const handleWarningDialogClose = (event, reason) => {
-    if (reason === "clickaway") {
-      return;
-    }
-
-    setWarningDialogOpen(false);
-  };
-
-  const fetchWebWorker = () => {
+  const fetchWebWorker = useCallback(() => {
     const test = {
       name: "Marco",
       Phone: "2398432984",
@@ -148,9 +90,9 @@ export default function DataSyncView() {
     if (workerRef.current) {
       workerRef.current.postMessage(test);
     }
-  };
+  }, [authData, date, category]);
 
-  const fetchWebWorker_createRetryProfilesList = (key, codAgentes) => {
+  const fetchWebWorker_createRetryProfilesList = useCallback((key, codAgentes) => {
     const msPayload = {
       key,
       codAgentes,
@@ -159,7 +101,21 @@ export default function DataSyncView() {
     if (workerRef.current) {
       workerRef.current.postMessage(msPayload);
     }
-  };
+  }, []);
+
+  const handleSuccessDialogClose = useCallback((event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setSuccessDialogOpen(false);
+  }, []);
+
+  const handleWarningDialogClose = useCallback((event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+    setWarningDialogOpen(false);
+  }, []);
 
   useEffect(() => {
     const worker = new WebWorker(workers.createProfilesRetryList);
@@ -172,95 +128,12 @@ export default function DataSyncView() {
 
     worker.addEventListener("message", handleWorkerMessage);
 
-    async function fetchData() {
-      var genericRequestData = await db.genericFaultyRequest;
-      if (genericRequestData === undefined) {
-        genericRequestData = [];
-      } else {
-        genericRequestData = await db.genericFaultyRequest.toArray();
-      }
-
-      setGenericFaultyRequests(genericRequestData);
-
-      var participantes = await db.participantes;
-      if (participantes === undefined) {
-        participantes = [];
-      } else {
-        participantes = await db.participantes.toArray();
-      }
-      var perfis = await db.perfis;
-      if (perfis === undefined) {
-        perfis = [];
-      } else {
-        perfis = await db.perfis.toArray();
-      }
-      var ativosMedicao = await db.ativosMedicao;
-      if (ativosMedicao === undefined) {
-        ativosMedicao = [];
-      } else {
-        ativosMedicao = await db.ativosMedicao.toArray();
-      }
-      var parcelasDeAtivos = await db.parcelasAtivosMedicao;
-      if (parcelasDeAtivos === undefined) {
-        parcelasDeAtivos = [];
-      } else {
-        parcelasDeAtivos = await db.parcelasAtivosMedicao.toArray();
-      }
-      var modelagens = await db.modelagem;
-      if (modelagens === undefined) {
-        modelagens = [];
-      } else {
-        modelagens = await db.modelagem.toArray();
-      }
-
-      var dataSources = [];
-
-      if (participantes.length > 0) {
-        dataSources = dataSources.concat(
-          participantes.map(function (v) {
-            return v.key;
-          })
-        );
-      }
-      if (perfis.length > 0) {
-        dataSources = dataSources.concat(
-          perfis.map(function (v) {
-            return v.key;
-          })
-        );
-      }
-
-      if (ativosMedicao.length > 0) {
-        dataSources = dataSources.concat(
-          ativosMedicao.map(function (v) {
-            return v.key;
-          })
-        );
-      }
-
-      if (parcelasDeAtivos.length > 0) {
-        dataSources = dataSources.concat(
-          parcelasDeAtivos.map(function (v) {
-            return v.key;
-          })
-        );
-      }
-
-      if (modelagens.length > 0) {
-        dataSources = dataSources.concat(
-          modelagens.map(function (v) {
-            return v.key;
-          })
-        );
-      }
-
-      const distinctDataSources = [...new Set(dataSources)];
-
-      if (distinctDataSources) {
-        setDataSourceKeys(distinctDataSources);
-      }
+    // Use data from custom hook
+    const distinctDataSources = dbData.getDataSourceKeys();
+    if (distinctDataSources.length > 0) {
+      setDataSourceKeys(distinctDataSources);
     }
-    fetchData();
+    setGenericFaultyRequests(dbData.genericFaultyRequests);
 
     const data = JSON.parse(localStorage.getItem("authData"));
     if (data) {
@@ -280,7 +153,7 @@ export default function DataSyncView() {
       }
       workerRef.current = null;
     };
-  }, []);
+  }, [dbData]);
 
   useEffect(() => {
     if (pendingRequests > 0) {
@@ -303,113 +176,82 @@ export default function DataSyncView() {
     sendRequest();
   }, [requestSent]);
 
-  const handleOpen = () => setOpen(true);
-  const handleClose = (event, reason) => {
+  const handleOpen = useCallback(() => setOpen(true), []);
+
+  const handleClose = useCallback((event, reason) => {
     if (reason === "backdropClick") {
       return;
     }
     setOpen(false);
-  };
+  }, []);
 
-  const handleServiceChange = (event) => {
+  const handleServiceChange = useCallback((event) => {
     setService(event.target.value);
-    //localStorage.removeItem("DATA_SOURCE_KEYS");
-  };
+  }, []);
 
-  const handleCategoryChange = (event) => {
+  const handleCategoryChange = useCallback((event) => {
     setCategory(event.target.value);
-  };
+  }, []);
 
-  const handleDataSourceChange = async (event) => {
-    setPendingRequests(pendingRequests + 1);
-
-    const selectedDataSourceKey = event.target.value;
-    setSelectedDataSource(event.target.value);
-    var participantes = await db.participantes.toArray();
-    if (participantes === undefined) {
-      participantes = [];
-    } else {
-      participantes = await db.participantes.toArray();
-    }
-    var perfis = await db.perfis;
-    if (perfis === undefined) {
-      perfis = [];
-    } else {
-      perfis = await db.perfis.toArray();
-    }
-    var ativosMedicao = await db.ativosMedicao;
-    if (ativosMedicao === undefined) {
-      ativosMedicao = [];
-    } else {
-      ativosMedicao = await db.ativosMedicao.toArray();
-    }
-    var parcelasDeAtivos = await db.parcelasAtivosMedicao;
-    if (parcelasDeAtivos === undefined) {
-      parcelasDeAtivos = [];
-    } else {
-      parcelasDeAtivos = await db.parcelasAtivosMedicao.toArray();
-    }
-    var modelagens = await db.modelagem;
-    if (modelagens === undefined) {
-      modelagens = [];
-    } else {
-      modelagens = await db.modelagem.toArray();
-    }
-
-    if (
-      participantes.length > 0 &&
-      participantes.filter((x) => x.key === selectedDataSourceKey).length > 0
-    ) {
-      var selectedParticipants = participantes.filter(
-        (x) => x.key === selectedDataSourceKey
-      );
-      console.log(selectedParticipants.length);
-      setDataSourceItems(selectedParticipants);
-    } else if (
-      perfis.length > 0 &&
-      perfis.filter((x) => x.key === selectedDataSourceKey).length > 0
-    ) {
-      var selectedProfiles = perfis.filter(
-        (x) => x.key === selectedDataSourceKey
-      );
-      console.log(selectedProfiles.length);
-      setDataSourceItems(selectedProfiles);
-    } else if (
-      parcelasDeAtivos.length > 0 &&
-      parcelasDeAtivos.filter((x) => x.key === selectedDataSourceKey).length > 0
-    ) {
-      var selectedPartialResource = parcelasDeAtivos.filter(
-        (x) => x.key === selectedDataSourceKey
-      );
-      console.log(selectedPartialResource.length);
-      setDataSourceItems(selectedPartialResource);
-    } else if (
-      modelagens.length > 0 &&
-      modelagens.filter((x) => x.key === selectedDataSourceKey).length > 0
-    ) {
-      var selectedModellingData = modelagens.filter(
-        (x) => x.key === selectedDataSourceKey
-      );
-      console.log(selectedModellingData.length);
-      setDataSourceItems(selectedModellingData);
-    } else {
-      var selectedResource = ativosMedicao.filter(
-        (x) => x.key === selectedDataSourceKey
-      );
-      console.log(selectedResource.length);
-      setDataSourceItems(selectedResource);
-    }
-
-    setPendingRequests(0);
-  };
-
-  const handleParameterChange = (event) => {
+  const handleParameterChange = useCallback((event) => {
     setParameter(event.target.value);
-  };
+  }, []);
 
-  const handleOnlyRepresentedAgentsSwitchChange = () => {
-    setOnlyRepresentedAgents(!onlyRepresentedAgents);
-  };
+  const handleOnlyRepresentedAgentsSwitchChange = useCallback(() => {
+    setOnlyRepresentedAgents((prev) => !prev);
+  }, []);
+
+  // Optimized handler that uses hook data instead of repeated queries
+  const handleDataSourceChange = useCallback((event) => {
+    setPendingRequests((prev) => prev + 1);
+    
+    const selectedDataSourceKey = event.target.value;
+    setSelectedDataSource(selectedDataSourceKey);
+
+    // Use data from custom hook
+    const { participants, profiles, measurementAssets, assetParcels, modeling } = dbData;
+
+    // Find items matching the selected key
+    let selectedItems = [];
+
+    if (participants.length > 0) {
+      const filtered = participants.filter((x) => x.key === selectedDataSourceKey);
+      if (filtered.length > 0) {
+        selectedItems = filtered;
+      }
+    }
+
+    if (selectedItems.length === 0 && profiles.length > 0) {
+      const filtered = profiles.filter((x) => x.key === selectedDataSourceKey);
+      if (filtered.length > 0) {
+        selectedItems = filtered;
+      }
+    }
+
+    if (selectedItems.length === 0 && assetParcels.length > 0) {
+      const filtered = assetParcels.filter((x) => x.key === selectedDataSourceKey);
+      if (filtered.length > 0) {
+        selectedItems = filtered;
+      }
+    }
+
+    if (selectedItems.length === 0 && modeling.length > 0) {
+      const filtered = modeling.filter((x) => x.key === selectedDataSourceKey);
+      if (filtered.length > 0) {
+        selectedItems = filtered;
+      }
+    }
+
+    if (selectedItems.length === 0 && measurementAssets.length > 0) {
+      const filtered = measurementAssets.filter((x) => x.key === selectedDataSourceKey);
+      if (filtered.length > 0) {
+        selectedItems = filtered;
+      }
+    }
+
+    setDataSourceItems(selectedItems);
+    setPendingRequests((prev) => prev - 1);
+  }, [dbData]);
 
   const chooseHowToListParticipants = async () => {
     if (participantSearchMethod === "Classe") {
@@ -2868,4 +2710,8 @@ export default function DataSyncView() {
       </Snackbar>
     </Container>
   );
-}
+});
+
+DataSyncView.displayName = "DataSyncView";
+
+export default DataSyncView;

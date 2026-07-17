@@ -1,128 +1,39 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useCallback, memo } from "react";
 import { Route, Routes, BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "styled-components";
 import { theme } from "./theme";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
-import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
-import List from "@mui/material/List";
-import ListItem from "@mui/material/ListItem";
-import ListItemButton from "@mui/material/ListItemButton";
-import ListItemIcon from "@mui/material/ListItemIcon";
-import ListItemText from "@mui/material/ListItemText";
-import SettingsIcon from "@mui/icons-material/Settings";
-import FileDownload from "@mui/icons-material/FileDownload";
-import FileUpload from "@mui/icons-material/FileUpload";
-import AccountTreeIcon from "@mui/icons-material/AccountTree";
-import WalletIcon from '@mui/icons-material/Wallet';
 import MenuIcon from "@mui/icons-material/Menu";
-import DescriptionIcon from "@mui/icons-material/Description";
 import Toolbar from "@mui/material/Toolbar";
 import Typography from "@mui/material/Typography";
-import { NavLink } from "react-router-dom";
 import DataSyncView from "./views/dataSync/index";
 import DataExportView from "./views/dataExport/index";
 import HierarchicalView from "./views/hierarchicalView/index";
 import SettingsView from "./views/settings/index";
 import DriReportsView from "./views/driReports/index";
 import ClientsManagementView from "./views/clientsManagement/index";
+import NavigationDrawer from "./components/NavigationDrawer";
 import routes from "./routes";
 
 const drawerWidth = 240;
 
-function App(props: Props) {
-  const { window } = props;
-  const [mobileOpen, setMobileOpen] = React.useState(false);
+const appBarToolbarStyle = { backgroundColor: "#008357" };
+const appBarHeaderStyle = { letterSpacing: 3 };
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+const App = memo(function App(props) {
+  const { window } = props;
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const handleDrawerToggle = useCallback(() => {
+    setMobileOpen((prev) => !prev);
+  }, []);
 
   const container =
     window !== undefined ? () => window().document.body : undefined;
-
-  const drawer = (
-    <div>
-      <Toolbar sx={{backgroundColor: "#00C080"}} />
-      <Divider />
-      <List>
-        <NavLink
-          to="/importarDados"
-          style={{ textDecoration: "none", color: "black" }}
-        >
-          <ListItem button>
-            <ListItemIcon>
-              <FileDownload />
-            </ListItemIcon>
-            <ListItemText primary={"Importar Dados"} />
-          </ListItem>
-        </NavLink>
-
-        <NavLink
-          to="/exportarDados"
-          style={{ textDecoration: "none", color: "black" }}
-        >
-          <ListItem button>
-            <ListItemIcon>
-              <FileUpload />
-            </ListItemIcon>
-            <ListItemText primary={"Exportar Dados"} />
-          </ListItem>
-        </NavLink>
-        <Divider />
-        <NavLink
-          to="/visualizacaoHierarquica"
-          style={{ textDecoration: "none", color: "black" }}
-        >
-          <ListItem button>
-            <ListItemIcon>
-              <AccountTreeIcon />
-            </ListItemIcon>
-            <ListItemText primary={"Visualização Hierárquica"} />
-          </ListItem>
-        </NavLink>
-        <Divider />
-        <NavLink
-          to="/relatoriosDRI"
-          style={{ textDecoration: "none", color: "black" }}
-        >
-          <ListItem button>
-            <ListItemIcon>
-              <DescriptionIcon />
-            </ListItemIcon>
-            <ListItemText primary={"Relatórios DRI"} />
-          </ListItem>
-        </NavLink>
-        <Divider />
-        <NavLink
-          to="/gestaoDeClientes"
-          style={{ textDecoration: "none", color: "black" }}
-        >
-          <ListItem button>
-            <ListItemIcon>
-              <WalletIcon />
-            </ListItemIcon>
-            <ListItemText primary={"Gestão de Clientes"} />
-          </ListItem>
-        </NavLink>
-        <Divider />
-        <NavLink
-          to="/configuracoes"
-          style={{ textDecoration: "none", color: "black" }}
-        >
-          <ListItem button>
-            <ListItemIcon>
-              <SettingsIcon />
-            </ListItemIcon>
-            <ListItemText primary={"Configurações"} />
-          </ListItem>
-        </NavLink>
-      </List>
-    </div>
-  );
 
   return (
     <BrowserRouter>
@@ -135,7 +46,7 @@ function App(props: Props) {
             ml: { sm: `${drawerWidth}px` },
           }}
         >
-          <Toolbar sx={{backgroundColor: "#008357"}}>
+          <Toolbar sx={appBarToolbarStyle}>
             <IconButton
               color="inherit"
               aria-label="open drawer"
@@ -145,7 +56,7 @@ function App(props: Props) {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div" sx={{letterSpacing: 3}}>
+            <Typography variant="h6" noWrap component="div" sx={appBarHeaderStyle}>
               Integrador CCEE
             </Typography>
           </Toolbar>
@@ -155,14 +66,13 @@ function App(props: Props) {
           sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
           aria-label="mailbox folders"
         >
-          {/* The implementation can be swapped with js to avoid SEO duplication of links. */}
           <Drawer
             container={container}
             variant="temporary"
             open={mobileOpen}
             onClose={handleDrawerToggle}
             ModalProps={{
-              keepMounted: true, // Better open performance on mobile.
+              keepMounted: true,
             }}
             sx={{
               display: { xs: "block", sm: "none" },
@@ -172,7 +82,7 @@ function App(props: Props) {
               },
             }}
           >
-            {drawer}
+            <NavigationDrawer />
           </Drawer>
           <Drawer
             variant="permanent"
@@ -185,7 +95,7 @@ function App(props: Props) {
             }}
             open
           >
-            {drawer}
+            <NavigationDrawer />
           </Drawer>
         </Box>
         <Box
@@ -216,6 +126,6 @@ function App(props: Props) {
       </Box>
     </BrowserRouter>
   );
-}
+});
 
-export default App;
+App.displayName = "App";

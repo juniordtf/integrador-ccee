@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, memo } from "react";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import TextField from "@mui/material/TextField";
@@ -24,15 +24,13 @@ import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
 import formatStringByPattern from "format-string-by-pattern";
 import Divider from "@mui/material/Divider";
 import Autocomplete from "@mui/material/Autocomplete";
+import { useDatabase } from "../../hooks/useDatabase";
 
-export default function HierarchicalView() {
+const HierarchicalView = memo(function HierarchicalView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
   const [selectedDataSource, setSelectedDataSource] = useState("");
   const [treeViewData, setTreeViewData] = useState("");
-  const [participants, setParticipants] = useState([]);
   const [selectedParticipants, setSelectedParticipants] = useState([]);
-  const [profiles, setProfiles] = useState([]);
-  const [partialResources, setPartialResources] = useState([]);
   const [selectedType, setSelectedType] = useState(0);
   const [selectedParticipantData, setSelectedParticipantData] = useState([]);
   const [selectedProfileData, setSelectedProfileData] = useState([]);
@@ -42,82 +40,46 @@ export default function HierarchicalView() {
   const [profilesTotal, setProfilesTotal] = useState(0);
   const [resourcesTotal, setResourcesTotal] = useState(0);
   const [selectedAgent, setSelectedAgent] = useState("");
-  const handleOpen = () => setOpen(true);
 
-  const handleClose = (event, reason) => {
+  // Use custom hook for database queries
+  const { participants, profiles, assetParcels: partialResources } = useDatabase();
+
+  const handleOpen = useCallback(() => setOpen(true), []);
+
+  const handleClose = useCallback((event, reason) => {
     if (reason === "backdropClick") {
       return;
     }
     setOpen(false);
-  };
-
-  useEffect(() => {
-    async function fetchData() {
-      var participantes = await db.participantes;
-      if (participantes === undefined) {
-        participantes = [];
-      } else {
-        participantes = await db.participantes.toArray();
-      }
-
-      setParticipants(participantes);
-
-      var perfis = await db.perfis;
-      if (perfis === undefined) {
-        perfis = [];
-      } else {
-        perfis = await db.perfis.toArray();
-      }
-
-      setProfiles(perfis);
-
-      var parcelasAtivosMedicao = await db.parcelasAtivosMedicao;
-      if (parcelasAtivosMedicao === undefined) {
-        parcelasAtivosMedicao = [];
-      } else {
-        parcelasAtivosMedicao = await db.parcelasAtivosMedicao.toArray();
-      }
-
-      setPartialResources(parcelasAtivosMedicao);
-
-      var dataSources = [];
-
-      if (participantes.length > 0) {
-        dataSources = dataSources.concat(
-          participantes.map(function (v) {
-            return v.key;
-          })
-        );
-      }
-
-      const distinctDataSources = [...new Set(dataSources)];
-
-      if (distinctDataSources) {
-        setDataSourceKeys(distinctDataSources);
-      }
-    }
-    fetchData();
   }, []);
 
-  const handleDataSourceChange = async (event) => {
+  // Update data sources when participants change
+  useEffect(() => {
+    if (participants.length > 0) {
+      const keys = participants.map((v) => v.key);
+      const distinctDataSources = [...new Set(keys)];
+      setDataSourceKeys(distinctDataSources);
+    }
+  }, [participants]);
+
+  const handleDataSourceChange = useCallback((event) => {
     const selectedDataSourceKey = event.target.value;
     setSelectedDataSource(selectedDataSourceKey);
 
-    var selectedParticipant = participants.filter(
+    const selectedParticipant = participants.filter(
       (x) => x.key === selectedDataSourceKey
     );
     setSelectedParticipants(selectedParticipant);
-  };
+  }, [participants]);
 
-  const handleAgentChange = (value) => {
+  const handleAgentChange = useCallback((value) => {
     if (value === null) {
       return;
     }
-
     setSelectedAgent(value);
-  };
+  }, []);
 
-  const generateTreeView = async () => {
+  const generateTreeView = useCallback(async () => {
     if (selectedAgent.codigo.toString() === "") return;
 
     setSelectedType(0);
@@ -210,7 +172,7 @@ export default function HierarchicalView() {
 
     setTreeViewData(data);
     handleClose();
-  };
+  }, [selectedAgent, selectedParticipants, profiles, partialResources, handleOpen, handleClose]);
 
   const StyledTreeItemRoot = styled(TreeItem)(({ theme }) => ({
     color: theme.palette.text.secondary,
@@ -690,4 +652,8 @@ export default function HierarchicalView() {
       </Modal>
     </div>
   );
-}
+});
+
+HierarchicalView.displayName = "HierarchicalView";
+
+export default HierarchicalView;
