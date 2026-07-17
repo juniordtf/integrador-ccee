@@ -78,6 +78,12 @@ const DataSyncView = memo(function DataSyncView() {
   // Use custom hook for database queries
   const dbData = useDatabase();
 
+  // Local constants from imports
+  const classes = CLASSES;
+  const servicos = SERVICES;
+  const parameters = PARAMETERS;
+  const style = MODAL_STYLE;
+
   const fetchWebWorker = useCallback(() => {
     const test = {
       name: "Marco",
