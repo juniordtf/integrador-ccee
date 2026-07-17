@@ -129,3 +129,5 @@ const App = memo(function App(props) {
 });
 
 App.displayName = "App";
+
+export default App;
