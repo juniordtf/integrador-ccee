@@ -23,6 +23,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import EmojiObjectsIcon from "@mui/icons-material/EmojiObjects";
 import formatStringByPattern from "format-string-by-pattern";
 import Divider from "@mui/material/Divider";
+import Autocomplete from "@mui/material/Autocomplete";
 
 export default function HierarchicalView() {
   const [dataSourceKeys, setDataSourceKeys] = useState([]);
@@ -108,9 +109,12 @@ export default function HierarchicalView() {
     setSelectedParticipants(selectedParticipant);
   };
 
-  const handleAgentChange = async (event) => {
-    const agent = event.target.value;
-    setSelectedAgent(agent);
+  const handleAgentChange = (value) => {
+    if (value === null) {
+      return;
+    }
+
+    setSelectedAgent(value);
   };
 
   const generateTreeView = async () => {
@@ -592,24 +596,16 @@ export default function HierarchicalView() {
             ))}
           </Select>
         </FormControl>
-        <FormControl sx={{ width: "50%" }}>
-          <InputLabel id="data-source-select-label">Agente</InputLabel>
-          <Select
-            labelId="agent-select-label"
-            id="agent-simple-select"
-            value={selectedAgent}
-            defaultValue={selectedAgent}
-            label="Agente"
-            input={<OutlinedInput label="Name" />}
-            onChange={handleAgentChange}
-          >
-            {selectedParticipants.map((x) => (
-              <MenuItem key={x.id} value={x}>
-                {x.sigla}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Autocomplete
+          sx={{ width: "40%" }}
+          disablePortal
+          id="agents-combo-box"
+          options={selectedParticipants}
+          getOptionLabel={(option) => option.sigla}
+          getOptionKey={(option) => option.id}
+          onChange={(event, value) => handleAgentChange(value)}
+          renderInput={(params) => <TextField {...params} label="Agente" />}
+        />
         <Divider orientation="horizontal" />
         <Button variant="outlined" onClick={generateTreeView}>
           Gerar Visualização

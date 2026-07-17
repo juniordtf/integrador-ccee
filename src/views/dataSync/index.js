@@ -57,6 +57,7 @@ export default function DataSyncView() {
   const [openWarningDialog, setWarningDialogOpen] = useState(false);
   const [warningText, setWarningText] = useState("");
   const [date, setDate] = useState(dayjs());
+  const [manualDate, setManualDate] = useState(dayjs());
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState([]);
   const [columns, setColumns] = useState([]);
@@ -860,7 +861,6 @@ export default function DataSyncView() {
 
   const sendRequest_ListarAtivosDeMedicao = async () => {
     setPendingRequests(pendingRequests + 1);
-
     var date = selectedDataSource.substring(selectedDataSource.length - 5);
     date =
       "20" +
@@ -899,7 +899,7 @@ export default function DataSyncView() {
               key,
               code,
               0,
-              "",
+              dayjs(date).format("YYYY-MM-DDTHH:mm:ss"),
               0,
               0,
               "listarAtivosDeMedicao",
@@ -1003,7 +1003,6 @@ export default function DataSyncView() {
     method = "Manual"
   ) => {
     setPendingRequests(pendingRequests + 1);
-
     let key = entryKey;
 
     var formDate,
@@ -1012,8 +1011,9 @@ export default function DataSyncView() {
 
     if (method === "Manual") {
       key =
-        "buscaCustomizada_parcelasDeAtivos_" + dayjs(date).format("DD/MM/YY");
-      formDate = dayjs(date).format("YYYY-MM-DDTHH:mm:ss");
+        "buscaCustomizada_parcelasDeAtivos_" + dayjs(manualDate).format("DD/MM/YY");
+      formDate = dayjs(manualDate).format("YYYY-MM-DDTHH:mm:ss");
+
       sourceData = rows.map((x) => x[0]);
       selectedParameter = parameter;
     } else {
@@ -1860,7 +1860,7 @@ export default function DataSyncView() {
 
     return agentCodes;
   };
-
+  
   async function listarParticipantePorCodigo(
     agentCode,
     searchDate,
@@ -2434,9 +2434,9 @@ export default function DataSyncView() {
             <LocalizationProvider dateAdapter={AdapterDayjs}>
               <DateTimePicker
                 label="Data & Hora"
-                value={date}
+                value={manualDate}
                 onChange={(newValue) => {
-                  setDate(newValue);
+                  setManualDate(newValue);
                 }}
                 renderInput={(params) => <TextField {...params} />}
               />

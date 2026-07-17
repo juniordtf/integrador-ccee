@@ -44,7 +44,7 @@ async function mapResponseToTableData(item, agentCode, idx) {
       for (let i = 0; i < valorArr.length; i++) {
         const element = valorArr[i];
 
-        rowData[headerFields[i].field] =
+        rowData[headerFields[i]?.field] =
           i === 0 ? element : element.replace(/'/g, "").replace(/\./g, ",");
       }
 
@@ -64,7 +64,7 @@ async function mapResponseToTableData(item, agentCode, idx) {
 
     for (let i = 0; i < valorArr.length; i++) {
       const element = valorArr[i];
-      rowData[headerFields[i].field] =
+      rowData[headerFields[i]?.field] =
         i === 0 ? element : element.replace(/'/g, "").replace(/\./g, ",");
     }
 
