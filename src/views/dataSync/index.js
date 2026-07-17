@@ -70,6 +70,7 @@ export default function DataSyncView() {
   const [genericFaultyRequests, setGenericFaultyRequests] = useState([]);
   const [requestSent, setRequestSent] = useState(false);
 
+  const workerRef = useRef(null);
   const timerRef = useRef(null);
 
   const servicos = [
@@ -143,7 +144,10 @@ export default function DataSyncView() {
       date,
       category,
     };
-    webWorker.postMessage(test);
+
+    if (workerRef.current) {
+      workerRef.current.postMessage(test);
+    }
   };
 
   const fetchWebWorker_createRetryProfilesList = (key, codAgentes) => {
@@ -152,17 +156,21 @@ export default function DataSyncView() {
       codAgentes,
     };
 
-    webWorker.postMessage(msPayload);
+    if (workerRef.current) {
+      workerRef.current.postMessage(msPayload);
+    }
   };
 
   useEffect(() => {
-    //localStorage.clear();
-
     const worker = new WebWorker(workers.createProfilesRetryList);
+    workerRef.current = worker;
+    setWebWorker(worker);
 
-    if (webWorker === null) {
-      setWebWorker(worker);
-    }
+    const handleWorkerMessage = () => {
+      console.log("Done!");
+    };
+
+    worker.addEventListener("message", handleWorkerMessage);
 
     async function fetchData() {
       var genericRequestData = await db.genericFaultyRequest;
@@ -264,76 +272,36 @@ export default function DataSyncView() {
       setRetryKeys(keys);
     }
 
+    return () => {
+      worker.removeEventListener("message", handleWorkerMessage);
+      worker.terminate();
+      if (worker.objectUrl) {
+        URL.revokeObjectURL(worker.objectUrl);
+      }
+      workerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     if (pendingRequests > 0) {
       handleOpen();
     } else {
       handleClose();
     }
+  }, [pendingRequests]);
 
-    async function sendRequest() {
+  useEffect(() => {
+    if (!requestSent) {
+      return;
+    }
+
+    const sendRequest = async () => {
       await retryFaultyRequests();
       setRequestSent(false);
-    }
+    };
 
-    if (requestSent) {
-      sendRequest();
-    }
-
-    async function fullAutomaticCycle() {
-      if (pendingRequests > 0) return;
-
-      const genericRequestData = await db.genericFaultyRequest.toArray();
-      if (genericRequestData.length > 0) {
-        await retryFaultyRequests(removeExpiredData);
-      } else {
-        // TODO: Create conditions for full automatic flow
-        let isFullAutomatic = true;
-        let agentKey = "participantes_representados_30/05/25";
-        let profileKey = agentKey.replace("participantes", "perfis");
-        let partialResourcesKey = profileKey.replace(
-          "perfis",
-          "parcelasDeAtivos"
-        );
-
-        if (isFullAutomatic) {
-          const filteredParticipants = await db.participantes
-            .where("key")
-            .equalsIgnoreCase(agentKey)
-            .toArray();
-          const filteredProfiles = await db.perfis
-            .where("key")
-            .equalsIgnoreCase(profileKey)
-            .toArray();
-          const filteredPartialResources = await db.parcelasAtivosMedicao
-            .where("key")
-            .equalsIgnoreCase(partialResourcesKey)
-            .toArray();
-
-          if (
-            filteredParticipants.length > 0 &&
-            filteredProfiles.length === 0
-          ) {
-            await sendRequest_ListarPerfis(agentKey, filteredParticipants);
-          } else if (
-            filteredProfiles.length > 0 &&
-            filteredPartialResources.length === 0
-          ) {
-            await sendRequest_ListarParcelasDeAtivo(
-              partialResourcesKey,
-              filteredProfiles,
-              "Automático"
-            );
-          }
-        }
-      }
-    }
-
-    //fullAutomaticCycle();
-
-    worker.addEventListener("message", (event) => {
-      console.log("Done!");
-    });
-  }, [pendingRequests]);
+    sendRequest();
+  }, [requestSent]);
 
   const handleOpen = () => setOpen(true);
   const handleClose = (event, reason) => {
